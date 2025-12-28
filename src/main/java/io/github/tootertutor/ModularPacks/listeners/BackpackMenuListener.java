@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,6 +17,7 @@ import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -24,6 +26,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
@@ -31,12 +34,12 @@ import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.gui.BackpackSortMode;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
-import io.github.tootertutor.ModularPacks.gui.ModuleSettingsHolder;
-import io.github.tootertutor.ModularPacks.gui.ModuleSettingsMenu;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
+import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
 import io.github.tootertutor.ModularPacks.text.Text;
 
 public final class BackpackMenuListener implements Listener {
@@ -86,11 +89,6 @@ public final class BackpackMenuListener implements Listener {
 
         var topHolder = e.getView().getTopInventory().getHolder();
 
-        if (topHolder instanceof ModuleSettingsHolder) {
-            // handleModuleSettingsClick(e, player, ms);
-            return;
-        }
-
         if (!(topHolder instanceof BackpackMenuHolder holder))
             return;
 
@@ -107,6 +105,14 @@ public final class BackpackMenuListener implements Listener {
 
         boolean hasNavRow = holder.paginated() || holder.type().upgradeSlots() > 0;
         int visibleStorage = SlotLayout.storageAreaSize(topSize, hasNavRow);
+
+        // Hard block: never allow swapping a backpack item into an open backpack via
+        // number keys / hotbar swap actions.
+        if (isBackpackHotbarSwap(player, e) || isBackpack(e.getCursor()) || isBackpack(e.getCurrentItem())) {
+            e.setCancelled(true);
+            Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+            return;
+        }
 
         // Sorting mods (ex: Inventory Profiles Next) can spam many click packets in a
         // tiny window (including nav-row spam). If we let any of these through, it can
@@ -155,6 +161,12 @@ public final class BackpackMenuListener implements Listener {
 
             // Shift-click from top -> player is okay, except nav row
             if (clickedTop) {
+                // Upgrade sockets live in the nav row; route shift-clicks to the socket
+                // handler so SHIFT_RIGHT (remove) / SHIFT_LEFT (toggle) works.
+                if (holder.upgradeSlots().contains(rawSlot)) {
+                    handleUpgradeSocketClick(e, player, holder, rawSlot);
+                    return;
+                }
                 if (rawSlot >= visibleStorage) {
                     e.setCancelled(true);
                 }
@@ -168,6 +180,10 @@ public final class BackpackMenuListener implements Listener {
             ItemStack moving = e.getCurrentItem();
             if (moving == null || moving.getType().isAir())
                 return;
+            if (isBackpack(moving)) {
+                Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                return;
+            }
 
             // sync current page -> data (no DB save now)
             Bukkit.getScheduler().runTask(plugin, player::updateInventory);
@@ -319,9 +335,12 @@ public final class BackpackMenuListener implements Listener {
 
     @EventHandler
     public void onDrag(InventoryDragEvent e) {
-        if (!(e.getWhoClicked() instanceof Player))
+        if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!(e.getView().getTopInventory().getHolder() instanceof BackpackMenuHolder holder))
+
+        var topHolder = e.getView().getTopInventory().getHolder();
+
+        if (!(topHolder instanceof BackpackMenuHolder holder))
             return;
 
         int now = Bukkit.getCurrentTick();
@@ -339,9 +358,9 @@ public final class BackpackMenuListener implements Listener {
                 break;
             }
         }
-        if (targetsTop && isSortingModBurst((Player) e.getWhoClicked(), now)) {
+        if (targetsTop && isSortingModBurst(player, now)) {
             e.setCancelled(true);
-            stabilizeAfterBurst((Player) e.getWhoClicked(), holder);
+            stabilizeAfterBurst(player, holder);
             return;
         }
 
@@ -351,7 +370,7 @@ public final class BackpackMenuListener implements Listener {
                 return;
             } else if (rawSlot >= 0 && rawSlot < topSize) {
                 // any drag into top inventory counts
-                markInteraction((Player) e.getWhoClicked(), holder);
+                markInteraction(player, holder);
                 break;
             }
         }
@@ -370,6 +389,79 @@ public final class BackpackMenuListener implements Listener {
             }
         }
 
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onOpen(InventoryOpenEvent e) {
+        if (!(e.getPlayer() instanceof Player player))
+            return;
+        if (!(e.getView().getTopInventory().getHolder() instanceof BackpackMenuHolder holder))
+            return;
+
+        // If a backpack somehow ended up inside a backpack (hotbar swap, automation,
+        // etc), the generic nesting guard will prevent removing it, so proactively
+        // eject it now to avoid permanent loss.
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Inventory top = player.getOpenInventory().getTopInventory();
+            if (!(top.getHolder() instanceof BackpackMenuHolder openHolder))
+                return;
+            if (!openHolder.backpackId().equals(holder.backpackId()))
+                return;
+
+            int moved = 0;
+
+            // Scan logical storage (all pages), not just currently-visible slots.
+            ItemStack[] logical = ItemStackCodec.fromBytes(openHolder.data().contentsBytes());
+            int logicalSize = openHolder.logicalSlots();
+            if (logical.length != logicalSize) {
+                ItemStack[] resized = new ItemStack[logicalSize];
+                System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, logicalSize));
+                logical = resized;
+            }
+
+            for (int i = 0; i < logical.length; i++) {
+                ItemStack it = logical[i];
+                if (!isBackpack(it))
+                    continue;
+                logical[i] = null;
+                giveOrDrop(player, it);
+                moved++;
+            }
+
+            if (moved > 0) {
+                openHolder.data().contentsBytes(ItemStackCodec.toBytes(logical));
+                renderer.render(openHolder);
+                scheduleSave(player, openHolder);
+                player.sendMessage(Text.c("&cBackpacks can't be stored inside backpacks. Moved " + moved
+                        + " backpack(s) back to you."));
+                player.updateInventory();
+            }
+        });
+    }
+
+    private boolean isBackpackHotbarSwap(Player player, InventoryClickEvent e) {
+        if (player == null || e == null)
+            return false;
+        int btn = e.getHotbarButton();
+        if (btn < 0)
+            return false;
+        if (btn > 8)
+            return false;
+        // Covers ClickType.NUMBER_KEY and actions like HOTBAR_SWAP/HOTBAR_MOVE_AND_READD
+        ItemStack hotbar = player.getInventory().getItem(btn);
+        return isBackpack(hotbar);
+    }
+
+    private boolean isBackpack(ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+            return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null)
+            return false;
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        Keys keys = plugin.keys();
+        return pdc.has(keys.BACKPACK_ID, PersistentDataType.STRING)
+                && pdc.has(keys.BACKPACK_TYPE, PersistentDataType.STRING);
     }
 
     @EventHandler
@@ -489,14 +581,27 @@ public final class BackpackMenuListener implements Listener {
 
         ItemStack clicked = e.getCurrentItem();
         ItemStack cursor = e.getCursor();
+        ClickType click = e.getClick();
 
         // -----------------------------------------
-        // INSTALL: cursor has module, socket empty
+        // Cursor has an item
         // -----------------------------------------
         if (cursor != null && !cursor.getType().isAir()) {
+            // INSTALL: cursor has module, socket empty
             if (isModuleItem(cursor) && isEmptySocket(clicked)) {
                 installModuleFromCursor(player, holder, invSlot, cursor);
                 renderer.render(holder);
+                return;
+            }
+
+            // TANK: bucket interactions on the installed tank module
+            if (isTankModule(clicked)) {
+                if (handleTankCursorClick(player, holder, clicked, cursor)) {
+                    updateModuleSnapshot(holder, clicked);
+                    scheduleSave(player, holder);
+                    renderer.render(holder);
+                }
+                return;
             }
             return;
         }
@@ -510,33 +615,43 @@ public final class BackpackMenuListener implements Listener {
         if (!isModuleItem(clicked))
             return;
 
-        ClickType click = e.getClick();
-
         // -----------------------------------------
-        // Open Module Screen
+        // REMOVE (Shift+Right)
         // -----------------------------------------
         if (click == ClickType.SHIFT_RIGHT) {
-            openModuleFilters(player, holder, clicked);
-            return;
-        }
-
-        // -----------------------------------------
-        // REMOVE
-        // -----------------------------------------
-        if (click == ClickType.RIGHT) {
             removeModuleToPlayer(player, holder, invSlot);
             renderer.render(holder);
             return;
         }
 
         // -----------------------------------------
-        // TOGGLE
+        // TOGGLE (Shift+Left)
         // -----------------------------------------
         if (click == ClickType.SHIFT_LEFT) {
-            toggleModule(clicked);
+            toggleModule(holder, clicked);
             updateModuleSnapshot(holder, clicked);
             scheduleSave(player, holder);
             renderer.render(holder);
+            return;
+        }
+
+        // -----------------------------------------
+        // MODULE ACTIONS (Tank: +1/-1 levels)
+        // -----------------------------------------
+        if (isTankModule(clicked)) {
+            // Only allow the secondary action (right-click) if the module opts in.
+            if (click == ClickType.RIGHT) {
+                String type = getModuleType(clicked);
+                var def = plugin.cfg().findUpgrade(type);
+                if (def == null || !def.secondaryAction())
+                    return;
+            }
+
+            if (handleTankEmptyCursorClick(player, holder, clicked, click)) {
+                updateModuleSnapshot(holder, clicked);
+                scheduleSave(player, holder);
+                renderer.render(holder);
+            }
             return;
         }
 
@@ -545,6 +660,218 @@ public final class BackpackMenuListener implements Listener {
         // -----------------------------------------
         if (click == ClickType.LEFT) {
             openModuleScreen(player, holder, clicked);
+            return;
+        }
+
+        // Only open on right-click if this module opts into a secondary action.
+        if (click == ClickType.RIGHT) {
+            String type = getModuleType(clicked);
+            var def = plugin.cfg().findUpgrade(type);
+            if (def != null && def.secondaryAction()) {
+                openModuleScreen(player, holder, clicked);
+            }
+            return;
+        }
+
+    }
+
+    private boolean isTankModule(ItemStack moduleItem) {
+        String type = getModuleType(moduleItem);
+        return type != null && type.equalsIgnoreCase("Tank");
+    }
+
+    private boolean handleTankCursorClick(Player player, BackpackMenuHolder holder, ItemStack moduleItem, ItemStack cursor) {
+        if (player == null || holder == null || moduleItem == null || cursor == null)
+            return false;
+
+        UUID moduleId = readModuleId(moduleItem);
+        if (moduleId == null)
+            return false;
+
+        TankStateCodec.State state = TankStateCodec.decode(readModuleState(holder, moduleId, moduleItem));
+
+        Material cursorMat = cursor.getType();
+        if (TankModuleLogic.isSupportedFluidBucket(cursorMat)) {
+            return tankDepositFluid(player, holder, moduleId, moduleItem, cursor, state, cursorMat);
+        }
+        if (cursorMat == Material.BUCKET) {
+            return tankWithdrawFluid(player, holder, moduleId, moduleItem, cursor, state);
+        }
+        return false;
+    }
+
+    private boolean handleTankEmptyCursorClick(Player player, BackpackMenuHolder holder, ItemStack moduleItem, ClickType click) {
+        if (player == null || holder == null || moduleItem == null || click == null)
+            return false;
+
+        UUID moduleId = readModuleId(moduleItem);
+        if (moduleId == null)
+            return false;
+
+        TankStateCodec.State state = TankStateCodec.decode(readModuleState(holder, moduleId, moduleItem));
+
+        if (click == ClickType.RIGHT) {
+            // Toggle EXP mode only if tank is truly empty; otherwise withdraw 1 exp level if in exp mode.
+            if (state.fluidBuckets <= 0 && state.expLevels <= 0) {
+                state.expMode = !state.expMode;
+                persistTankState(holder, moduleId, moduleItem, state);
+                return true;
+            }
+
+            if (state.expMode && state.expLevels > 0) {
+                state.expLevels--;
+                player.giveExpLevels(1);
+                persistTankState(holder, moduleId, moduleItem, state);
+                return true;
+            }
+
+            return false;
+        }
+
+        if (click == ClickType.LEFT) {
+            if (!state.expMode)
+                return false;
+            if (state.expLevels >= TankModuleLogic.MAX_EXP_LEVELS)
+                return false;
+            if (player.getLevel() <= 0)
+                return false;
+
+            state.expLevels++;
+            player.giveExpLevels(-1);
+            persistTankState(holder, moduleId, moduleItem, state);
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean tankDepositFluid(
+            Player player,
+            BackpackMenuHolder holder,
+            UUID moduleId,
+            ItemStack moduleItem,
+            ItemStack cursor,
+            TankStateCodec.State state,
+            Material fluidBucket) {
+        if (state.expMode || state.expLevels > 0)
+            return false;
+        if (state.fluidBuckets >= TankModuleLogic.MAX_FLUID_BUCKETS)
+            return false;
+
+        String curFluid = state.fluidBucketMaterial;
+        if (state.fluidBuckets > 0 && curFluid != null && !curFluid.equalsIgnoreCase(fluidBucket.name()))
+            return false;
+
+        state.fluidBucketMaterial = fluidBucket.name();
+        state.fluidBuckets++;
+
+        // Convert 1 fluid bucket -> 1 empty bucket.
+        ItemStack newCursor = cursor.clone();
+        if (newCursor.getAmount() <= 1) {
+            player.setItemOnCursor(new ItemStack(Material.BUCKET, 1));
+        } else {
+            newCursor.setAmount(newCursor.getAmount() - 1);
+            player.setItemOnCursor(newCursor);
+            giveOrDrop(player, new ItemStack(Material.BUCKET, 1));
+        }
+
+        persistTankState(holder, moduleId, moduleItem, state);
+        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+        return true;
+    }
+
+    private boolean tankWithdrawFluid(
+            Player player,
+            BackpackMenuHolder holder,
+            UUID moduleId,
+            ItemStack moduleItem,
+            ItemStack cursor,
+            TankStateCodec.State state) {
+        if (state.expMode || state.expLevels > 0)
+            return false;
+        if (state.fluidBuckets <= 0)
+            return false;
+
+        Material fluidBucket = state.fluidBucketMaterial == null ? null : Material.matchMaterial(state.fluidBucketMaterial);
+        if (fluidBucket == null || !TankModuleLogic.isSupportedFluidBucket(fluidBucket))
+            return false;
+
+        // Convert 1 empty bucket -> 1 filled bucket.
+        ItemStack newCursor = cursor.clone();
+        if (newCursor.getAmount() <= 1) {
+            player.setItemOnCursor(new ItemStack(fluidBucket, 1));
+        } else {
+            newCursor.setAmount(newCursor.getAmount() - 1);
+            player.setItemOnCursor(newCursor);
+            giveOrDrop(player, new ItemStack(fluidBucket, 1));
+        }
+
+        state.fluidBuckets--;
+        if (state.fluidBuckets <= 0) {
+            state.fluidBuckets = 0;
+            state.fluidBucketMaterial = null;
+        }
+
+        persistTankState(holder, moduleId, moduleItem, state);
+        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+        return true;
+    }
+
+    private byte[] readModuleState(BackpackMenuHolder holder, UUID moduleId, ItemStack moduleItem) {
+        byte[] fromHolder = holder.data().moduleStates().get(moduleId);
+        if (fromHolder != null)
+            return fromHolder;
+        return readModuleStateFromItem(moduleItem);
+    }
+
+    private UUID readModuleId(ItemStack moduleItem) {
+        if (moduleItem == null || !moduleItem.hasItemMeta())
+            return null;
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return null;
+        String idStr = meta.getPersistentDataContainer().get(plugin.keys().MODULE_ID, PersistentDataType.STRING);
+        if (idStr == null)
+            return null;
+        try {
+            return UUID.fromString(idStr);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private void persistTankState(BackpackMenuHolder holder, UUID moduleId, ItemStack moduleItem, TankStateCodec.State state) {
+        // Enforce mutual exclusivity
+        if (state.expLevels > 0) {
+            state.expMode = true;
+            state.fluidBuckets = 0;
+            state.fluidBucketMaterial = null;
+        }
+        if (state.fluidBuckets > 0) {
+            state.expMode = false;
+            state.expLevels = 0;
+        }
+
+        // clamp
+        state.fluidBuckets = Math.max(0, Math.min(TankModuleLogic.MAX_FLUID_BUCKETS, state.fluidBuckets));
+        state.expLevels = Math.max(0, Math.min(TankModuleLogic.MAX_EXP_LEVELS, state.expLevels));
+
+        byte[] bytes = TankStateCodec.encode(state);
+        holder.data().moduleStates().put(moduleId, bytes);
+
+        // Store state on the physical module item too, so it carries across backpacks
+        writeModuleStateToItem(moduleItem, bytes);
+
+        // Visuals (material + lore)
+        TankModuleLogic.applyVisuals(plugin, moduleItem, state);
+    }
+
+    private void giveOrDrop(Player player, ItemStack item) {
+        if (player == null || item == null || item.getType().isAir())
+            return;
+        var leftovers = player.getInventory().addItem(item);
+        if (!leftovers.isEmpty()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), item);
         }
     }
 
@@ -589,19 +916,26 @@ public final class BackpackMenuListener implements Listener {
         // link module to socket
         holder.data().installedModules().put(socketIndex, moduleId);
 
-        // snapshot (module item itself)
-        holder.data().installedSnapshots().put(moduleId, ItemStackCodec.toBytes(new ItemStack[] { cursor.clone() }));
-
         // IMPORT module persistent state from the module item (so it carries across
         // backpacks)
         byte[] importedState = readModuleStateFromItem(cursor);
+        if (moduleType.equalsIgnoreCase("Tank") && importedState == null) {
+            importedState = TankStateCodec.encode(new TankStateCodec.State());
+        }
         if (importedState != null) {
             holder.data().moduleStates().put(moduleId, importedState);
-        } else {
-            // Optional: ensure key exists (empty state) so code can rely on non-null
-            // presence later.
-            // holder.data().moduleStates().putIfAbsent(moduleId, new byte[0]);
+            if (moduleType.equalsIgnoreCase("Tank")) {
+                writeModuleStateToItem(cursor, importedState);
+                TankModuleLogic.applyVisuals(plugin, cursor, importedState);
+            }
         }
+
+        if (!moduleType.equalsIgnoreCase("Tank")) {
+            applyModuleLore(cursor);
+        }
+
+        // snapshot (module item itself)
+        holder.data().installedSnapshots().put(moduleId, ItemStackCodec.toBytes(new ItemStack[] { cursor.clone() }));
 
         // clear cursor
         player.setItemOnCursor(null);
@@ -631,6 +965,11 @@ public final class BackpackMenuListener implements Listener {
         byte[] state = holder.data().moduleStates().get(moduleId);
         if (item != null) {
             writeModuleStateToItem(item, state);
+            if (isTankModule(item)) {
+                TankModuleLogic.applyVisuals(plugin, item, state);
+            } else {
+                applyModuleLore(item);
+            }
         }
 
         // clear mappings
@@ -644,7 +983,9 @@ public final class BackpackMenuListener implements Listener {
         scheduleSave(player, holder);
     }
 
-    private void toggleModule(ItemStack moduleItem) {
+    private void toggleModule(BackpackMenuHolder holder, ItemStack moduleItem) {
+        if (holder == null || moduleItem == null)
+            return;
         Keys keys = plugin.keys();
         ItemMeta meta = moduleItem.getItemMeta();
         if (meta == null)
@@ -654,6 +995,50 @@ public final class BackpackMenuListener implements Listener {
         byte newVal = (enabled != null && enabled == 1) ? (byte) 0 : (byte) 1;
 
         meta.getPersistentDataContainer().set(keys.MODULE_ENABLED, PersistentDataType.BYTE, newVal);
+        moduleItem.setItemMeta(meta);
+
+        refreshModuleVisuals(holder, moduleItem);
+    }
+
+    private void refreshModuleVisuals(BackpackMenuHolder holder, ItemStack moduleItem) {
+        if (moduleItem == null || moduleItem.getType().isAir() || !moduleItem.hasItemMeta())
+            return;
+
+        String type = getModuleType(moduleItem);
+        if (type == null)
+            return;
+
+        if (type.equalsIgnoreCase("Tank")) {
+            UUID moduleId = readModuleId(moduleItem);
+            byte[] state = moduleId != null
+                    ? readModuleState(holder, moduleId, moduleItem)
+                    : readModuleStateFromItem(moduleItem);
+            TankModuleLogic.applyVisuals(plugin, moduleItem, state);
+            return;
+        }
+
+        applyModuleLore(moduleItem);
+    }
+
+    private void applyModuleLore(ItemStack moduleItem) {
+        if (moduleItem == null || moduleItem.getType().isAir() || !moduleItem.hasItemMeta())
+            return;
+
+        String type = getModuleType(moduleItem);
+        if (type == null)
+            return;
+
+        var def = plugin.cfg().findUpgrade(type);
+        if (def == null)
+            return;
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return;
+
+        meta.displayName(Text.c(Placeholders.expandText(plugin, def, moduleItem, def.displayName())));
+        List<String> expanded = Placeholders.expandLore(plugin, def, moduleItem, def.lore());
+        meta.lore(Text.lore(expanded));
         moduleItem.setItemMeta(meta);
     }
 
@@ -852,20 +1237,6 @@ public final class BackpackMenuListener implements Listener {
 
         // If it is a socket placeholder, not a module
         return !isModuleItem(item);
-    }
-
-    private void openModuleFilters(Player player, BackpackMenuHolder holder, ItemStack moduleItem) {
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return;
-
-        String idStr = meta.getPersistentDataContainer().get(plugin.keys().MODULE_ID, PersistentDataType.STRING);
-        if (idStr == null)
-            return;
-
-        UUID moduleId = UUID.fromString(idStr);
-
-        new ModuleSettingsMenu(plugin).open(player, holder, moduleId);
     }
 
     private byte[] readModuleStateFromItem(ItemStack item) {

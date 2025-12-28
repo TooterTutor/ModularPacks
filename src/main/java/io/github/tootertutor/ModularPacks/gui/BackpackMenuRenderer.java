@@ -14,6 +14,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
+import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.Keys;
@@ -369,6 +370,13 @@ public final class BackpackMenuRenderer {
                 String moduleType = meta2.getPersistentDataContainer().get(keys.MODULE_TYPE, PersistentDataType.STRING);
                 if (moduleType != null && moduleType.equalsIgnoreCase("Tank")) {
                     TankModuleLogic.applyVisuals(plugin, display, holder.data().moduleStates().get(moduleId));
+                } else if (moduleType != null) {
+                    var def = plugin.cfg().findUpgrade(moduleType);
+                    if (def != null) {
+                        meta2.displayName(Text.c(Placeholders.expandText(plugin, def, display, def.displayName())));
+                        meta2.lore(Text.lore(Placeholders.expandLore(plugin, def, display, def.lore())));
+                        display.setItemMeta(meta2);
+                    }
                 }
             }
 
