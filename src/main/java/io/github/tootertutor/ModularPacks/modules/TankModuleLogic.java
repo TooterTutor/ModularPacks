@@ -65,9 +65,9 @@ public final class TankModuleLogic {
             return;
 
         if (def != null) {
-            meta.displayName(Text.c(def.displayName()));
+            meta.displayName(Text.c(Placeholders.expandText(plugin, def, moduleItem, def.displayName())));
 
-            List<String> base = Placeholders.expandLore(plugin, def, def.lore());
+            List<String> base = Placeholders.expandLore(plugin, def, moduleItem, def.lore());
             meta.lore(Text.lore(expandContainedFluid(plugin, base, s)));
         }
 
