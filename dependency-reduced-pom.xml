@@ -2,8 +2,8 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.tootertutor</groupId>
-  <artifactId>sophibackpack</artifactId>
-  <name>sophibackpack</name>
+  <artifactId>modularpacks</artifactId>
+  <name>modularpacks</name>
   <version>1.21.10-1.0</version>
   <build>
     <defaultGoal>clean package</defaultGoal>
@@ -47,11 +47,11 @@
               <relocations>
                 <relocation>
                   <pattern>net.wesjd.anvilgui</pattern>
-                  <shadedPattern>io.github.tootertutor.sophibackpack.lib.anvilgui</shadedPattern>
+                  <shadedPattern>io.github.tootertutor.modularpacks.lib.anvilgui</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.sqlite</pattern>
-                  <shadedPattern>io.github.tootertutor.sophibackpacks.lib.sqlite</shadedPattern>
+                  <shadedPattern>io.github.tootertutor.modularpacks.lib.sqlite</shadedPattern>
                 </relocation>
               </relocations>
               <filters>

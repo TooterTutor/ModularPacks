@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.tootertutor</groupId>
-    <artifactId>sophibackpack</artifactId>
+    <artifactId>modularpacks</artifactId>
     <version>1.21.10-1.0</version>
     <packaging>jar</packaging>
 
-    <name>sophibackpack</name>
+    <name>modularpacks</name>
 
     <properties>
         <java.version>21</java.version>
@@ -55,12 +55,12 @@
                             <relocations>
                                 <relocation>
                                     <pattern>net.wesjd.anvilgui</pattern>
-                                    <shadedPattern>io.github.tootertutor.sophibackpack.lib.anvilgui</shadedPattern>
+                                    <shadedPattern>io.github.tootertutor.modularpacks.lib.anvilgui</shadedPattern>
                                 </relocation>
 
                                 <relocation>
                                     <pattern>org.sqlite</pattern>
-                                    <shadedPattern>io.github.tootertutor.sophibackpacks.lib.sqlite</shadedPattern>
+                                    <shadedPattern>io.github.tootertutor.modularpacks.lib.sqlite</shadedPattern>
                                 </relocation>
                             </relocations>
                             <filters>

@@ -1,18 +1,18 @@
-name: SophiBackpacks
+name: ModularPacks
 version: "1.21.10-1.0"
-main: io.github.tootertutor.SophiBackpacks.SophiBackpacksPlugin
+main: io.github.tootertutor.ModularPacks.ModularPacksPlugin
 api-version: "1.21"
 
 commands:
   backpack:
-    description: Main command for SophiBackpacks
-    usage: /sophi <subcommand>
+    description: Main command for ModularPacks
+    usage: /mp <subcommand>
     aliases: [backpack]
-    permission: sophibackpacks.command
+    permission: modularpacks.command
 permissions:
-  sophibackpacks.command:
+  modularpacks.command:
     default: op
-  sophibackpacks.reload:
+  modularpacks.reload:
     default: op
-  sophibackpacks.admin:
+  modularpacks.admin:
     default: op

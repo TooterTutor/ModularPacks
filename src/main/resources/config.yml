@@ -1,12 +1,12 @@
-# SophiBackpacks is an unofficial port of the Sophisticated Backpacks mod for Paper servers created by TooterTutor.
-SophiBackpacks:
+# Modularpacks is an unofficial port of the Sophisticated Backpacks mod for Paper servers created by TooterTutor.
+modularpacks:
   Enabled: true
   # ResuzeGUI: When false, keeps the backpack pages at a fixed GUI size. When true, makes the backpacks dynamically resize the GUI pages.
   ResizeGUI: true
   AutoCloseOnTeleport: true
 
   Debug:
-    # When true, logs Backpack/Module inventory click+drag events to `plugins/SophiBackpacks/click-events.log`
+    # When true, logs Backpack/Module inventory click+drag events to `plugins/modularpacks/click-events.log`
     ClickLog: false
 
   # Backpack Sound Effects

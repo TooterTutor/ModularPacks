@@ -1,0 +1,45 @@
+package io.github.tootertutor.ModularPacks.item;
+
+import java.util.List;
+import java.util.UUID;
+
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+
+import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.config.Placeholders;
+import io.github.tootertutor.ModularPacks.config.UpgradeDef;
+import io.github.tootertutor.ModularPacks.text.Text;
+
+public final class UpgradeItems {
+
+    private final ModularPacksPlugin plugin;
+
+    public UpgradeItems(ModularPacksPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    public ItemStack create(String upgradeId) {
+        UpgradeDef def = plugin.cfg().getUpgrade(upgradeId);
+        if (def == null)
+            throw new IllegalArgumentException("Unknown upgrade: " + upgradeId);
+
+        ItemStack item = new ItemStack(def.material());
+        ItemMeta meta = item.getItemMeta();
+        UUID moduleId = UUID.randomUUID();
+
+        meta.displayName(Text.c(def.displayName()));
+
+        List<String> expanded = Placeholders.expandLore(plugin, def.lore());
+        meta.lore(Text.lore(expanded));
+
+        // PDC: make it portable + unambiguous (no name-matching hacks)
+        meta.getPersistentDataContainer().set(plugin.keys().MODULE_ID, PersistentDataType.STRING, moduleId.toString());
+        meta.getPersistentDataContainer().set(plugin.keys().MODULE_TYPE, PersistentDataType.STRING, upgradeId);
+        meta.getPersistentDataContainer().set(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE, (byte) 1);
+
+        item.setItemMeta(meta);
+        return item;
+    }
+}
