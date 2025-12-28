@@ -162,12 +162,10 @@ public final class SQLiteBackpackRepository {
 
         long now = System.currentTimeMillis();
 
-        try (PreparedStatement ins = connection.prepareStatement(
-
-                """
-                                        INSERT OR IGN
-                                VALUES(?,?,?,?,?,?,?)
-                        """)) {
+        try (PreparedStatement ins = connection.prepareStatement("""
+                INSERT OR IGNORE INTO backpacks(backpack_id, backpack_type, contents, owner_uuid, owner_name, created_at, updated_at)
+                VALUES(?,?,?,?,?,?,?)
+                """)) {
             ins.setString(1, backpackId.toString());
             ins.setString(2, backpackType);
             ins.setBytes(3, null);
