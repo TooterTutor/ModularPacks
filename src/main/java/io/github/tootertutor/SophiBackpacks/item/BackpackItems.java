@@ -1,0 +1,47 @@
+package io.github.tootertutor.SophiBackpacks.item;
+
+import java.util.UUID;
+
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+
+import io.github.tootertutor.SophiBackpacks.SophiBackpacksPlugin;
+import io.github.tootertutor.SophiBackpacks.config.BackpackTypeDef;
+import io.github.tootertutor.SophiBackpacks.text.Text;
+
+public final class BackpackItems {
+
+    private final SophiBackpacksPlugin plugin;
+
+    public BackpackItems(SophiBackpacksPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    public ItemStack create(String typeId) {
+        BackpackTypeDef type = plugin.cfg().findType(typeId);
+        if (type == null)
+            throw new IllegalArgumentException("Unknown backpack type: " + typeId);
+
+        ItemStack item = new ItemStack(type.outputMaterial());
+
+        ItemMeta meta = item.getItemMeta();
+        UUID id = UUID.randomUUID();
+
+        meta.displayName(Text.c(type.displayName()));
+
+        meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_ID, PersistentDataType.STRING, id.toString());
+        meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_TYPE, PersistentDataType.STRING, type.id());
+
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public boolean isBackpack(ItemStack item) {
+        if (item == null || !item.hasItemMeta())
+            return false;
+        var pdc = item.getItemMeta().getPersistentDataContainer();
+        return pdc.has(plugin.keys().BACKPACK_ID, PersistentDataType.STRING)
+                && pdc.has(plugin.keys().BACKPACK_TYPE, PersistentDataType.STRING);
+    }
+}

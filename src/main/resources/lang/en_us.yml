@@ -1,0 +1,14 @@
+moduleActions:
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open Module."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Upgrade."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
+# moduleUnused: "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Placeholder Message."
+
+magnetRange:
+  - "&8"
+
+tankContained:
+  - "&8"
+
+errors:
+  modulePlaceBlocked: "&cYou can't place modules in the world."

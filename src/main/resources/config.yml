@@ -1,0 +1,481 @@
+# SophiBackpacks is an unofficial port of the Sophisticated Backpacks mod for Paper servers created by TooterTutor.
+SophiBackpacks:
+  Enabled: true
+  # ResuzeGUI: When false, keeps the backpack pages at a fixed GUI size. When true, makes the backpacks dynamically resize the GUI pages.
+  ResizeGUI: true
+  AutoCloseOnTeleport: true
+
+  Debug:
+    # When true, logs Backpack/Module inventory click+drag events to `plugins/SophiBackpacks/click-events.log`
+    ClickLog: false
+
+  # Backpack Sound Effects
+  BackpackOpenSound: CHEST_OPEN
+  BackpackCloseSound: CHEST_CLOSE
+
+  # Shulker & Bundle Settings
+  AllowShulkerBoxes: false
+  AllowBundles: false
+
+  # GUI Materials
+  NavPageButtons: ARROW
+  NavBorderFiller: GRAY_STAINED_GLASS_PANE
+  UnlockedUpgradeSlotMaterial: WHITE_STAINED_GLASS_PANE
+  LockedUpgradeSlotMaterial: IRON_BARS
+
+  # GUI Navigation Layout
+  # 🮵🮀🮁🮁🮁🮁🮁🮀🮶
+  #
+  # Total of 9 slots wide.
+  # 🮵 & 🮶 represents the Page Buttons
+  # 🮀 represents the Border Fillers
+  # 🮁 represents the UpgradeSlots
+
+BackpackTypes:
+  Leather:
+    Rows: 2
+    UpgradeSlots: 1
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "SLS"
+        - "WCW"
+        - "LLL"
+      Ingredients:
+        L: LEATHER
+        S: STRING
+        C: CHEST
+        W: WHITE_WOOL
+      OutputMaterial: PLAYER_HEAD
+    DisplayName: "&6Leather Backpack"
+    Lore:
+      - "&7Leather Backpack that can carry 2 rows of items."
+      - "{backpackContents}"
+    CustomModelData: 1001
+  Iron:
+    Rows: 4
+    UpgradeSlots: 2
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "III"
+        - "IBI"
+        - "III"
+      Ingredients:
+        I: IRON_INGOT
+        B: PLAYER_HEAD
+      OutputMaterial: PLAYER_HEAD
+    DisplayName: "&6Iron Backpack"
+    Lore:
+      - "&7Iron Backpack that can carry 4 rows of items."
+      - "{backpackContents}"
+    CustomModelData: 1002
+  Gold:
+    Rows: 6
+    UpgradeSlots: 3
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "GGG"
+        - "GBG"
+        - "GGG"
+      Ingredients:
+        G: GOLD_INGOT
+        B: PLAYER_HEAD
+      OutputMaterial: PLAYER_HEAD
+    DisplayName: "&6Gold Backpack"
+    Lore:
+      - "&7Gold backpack that can carry 6 rows of items."
+      - "{backpackContents}"
+    CustomModelData: 1003
+  Diamond:
+    Rows: 8
+    UpgradeSlots: 4
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "DDD"
+        - "DBD"
+        - "DDD"
+      Ingredients:
+        D: DIAMOND
+        B: PLAYER_HEAD
+      OutputMaterial: PLAYER_HEAD
+    DisplayName: "&6Diamond Backpack"
+    Lore:
+      - "&7Diamond backpack that can carry 8 rows of items."
+      - "{backpackContents}"
+    CustomModelData: 1004
+  Netherite:
+    Rows: 10
+    UpgradeSlots: 5
+    CraftingRecipe:
+      Type: Smithing
+      Template: NETHERITE_SMITHING_TEMPLATE
+      Base: DIAMOND_BACKPACK
+      Addition: NETHERITE_INGOT
+      OutputMaterial: PLAYER_HEAD
+    DisplayName: "&6Netherite Backpack"
+    Lore:
+      - "&7Netherite backpack that can carry 10 rows of items."
+      - "{backpackContents}"
+    CustomModelData: 1005
+    Attributes:
+      - Fireproof
+
+# ScreenType can be one NONE, Crafting, Smelting, Blasting, Smoking, Stonecutter, Anvil, Smithing, Dropper, or Hopper.
+
+# Attributes are extra data attached to the upgrade that define what it can do. Below is the current list of attributes one can assign.
+# Active: must be activated to work. Passive: always works unless toggled toggled.
+# Voidproof: immune to falling into the void. Despawnproof: immune to despawning.
+# Fireproof: immune to burning in lava/fires. Magnetic: Attracts items.
+# FluidTank: allows fluids to be stored in module.
+# ExperienceTank: allows experience to be stored in module.
+
+Upgrades:
+  # Utility upgrades provide various useful features to backpacks.
+  Everlasting:
+    Enabled: true
+    Toggleable: true
+    # Type of screen to open when clicking on the upgrade in the backpack GUI.
+    ScreenType: NONE
+    # Crafting Recipe for the upgrade
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " N "
+        - "NTN"
+        - " N "
+      Ingredients:
+        N: NETHER_STAR
+        T: NETHERITE_SMITHING_TEMPLATE
+      OutputMaterial: NETHER_STAR
+      Glint: true
+    DisplayName: "&bEverlasting Upgrade"
+    Lore:
+      - "&7Prevents the backpack from falling into the void, or despawning."
+      - "{moduleActions}"
+    CustomModelData: 2001
+
+    # Upgrade Attributes
+    Attributes:
+      - Passive
+      - Voidproof
+      - Despawnproof
+      - Fireproof
+
+  Magnetic:
+    Enabled: true
+    Toggleable: true
+    # Type of screen to open when clicking on the upgrade in the backpack GUI.
+    ScreenType: Dropper
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "L R"
+        - "ITI"
+        - "III"
+      Ingredients:
+        L: LAPIS_LAZULI
+        R: REDSTONE_DUST
+        I: IRON_INGOT
+        T: NETHERITE_SMITHING_TEMPLATE
+      OutputMaterial: LEVER
+      Glint: true
+    DisplayName: "&aMagnet Upgrade"
+    Lore:
+      - "&7Automatically picks up items in a radius of the backpack."
+      - "{moduleActions}"
+      - "{magnetRange}"
+    CustomModelData: 2002
+
+    Attributes:
+      - Passive
+      - Magnetic
+
+  Tank:
+    Enabled: true
+    Toggleable: true
+    ScreenType: NONE
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " E "
+        - "WTL"
+        - " B "
+      Ingredients:
+        E: EXPERIENCE_BOTTLE
+        W: WATER_BUCKET
+        T: NETHERITE_SMITHING_TEMPLATE
+        L: LAVA_BUCKET
+        B: BUCKET
+      OutputMaterial: BUCKET
+      Glint: true
+    DisplayName: "&bFluid Upgrade"
+    Lore:
+      - "&7Allows Fluids or Experience to be stored."
+      - "{moduleActions}"
+      - "{containedFluid}"
+    CustomModelData: 2003
+
+    Attributes:
+      - Active
+      - FluidTank
+      - ExperienceTank
+
+  Feeding:
+    Enabled: true
+    Toggleable: true
+    ScreenType: Dropper
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " I "
+        - "ATC"
+        - " G "
+      Ingredients:
+        I: GOLD_INGOT
+        A: GOLDEN_APPLE
+        T: NETHERITE_SMITHING_TEMPLATE
+        C: GOLDEN_CARROT
+        G: GLISTERING_MELON_SLICE
+      OutputMaterial: GOLDEN_CARROT
+      Glint: true
+    DisplayName: "&3Feeding Upgrade"
+    Lore:
+      - "&7Automatically feeds the Player when hungry."
+      - "{moduleActions}"
+    CustomModelData: 2004
+
+    Attributes:
+      - Passive
+
+  Void:
+    Enabled: true
+    Toggleable: true
+    ScreenType: Dropper
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " R "
+        - "OTO"
+        - " E "
+      Ingredients:
+        R: REDSTONE_DUST
+        O: OBSIDIAN
+        T: NETHERITE_SMITHING_TEMPLATE
+        E: ENDER_PEARL
+      OutputMaterial: ENDER_EYE
+      Glint: true
+    DisplayName: "&8Void Upgrade"
+    Lore:
+      # - "&7Voids all the hungry."
+      - "&7Voids all filtered items."
+      - "{moduleActions}"
+
+    CustomModelData: 2005
+
+    Attributes:
+      - Passive
+
+  # Workstation upgrades allow opening various crafting/smelting/etc., interfaces directly from the backpack.
+  Crafting:
+    Enabled: true
+    ScreenType: Crafting
+    Pattern:
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " L "
+        - "CTC"
+        - " B "
+      Ingredients:
+        L: LEATHER
+        B: CRAFTING_TABLE
+        T: NETHERITE_SMITHING_TEMPLATE
+        C: CHEST
+      OutputMaterial: CRAFTING_TABLE
+      Glint: true
+    DisplayName: "&eCrafting Upgrade"
+    Lore:
+      - "&7A portable Workbench."
+      - "{moduleActions}"
+    CustomModelData: 2006
+
+    Attributes:
+      - Active
+
+  Smelting:
+    Enabled: true
+    ScreenType: Smelting
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " C "
+        - "LTL"
+        - " F "
+      Ingredients:
+        C: CRAFTING_TABLE
+        L: LEATHER
+        T: NETHERITE_SMITHING_TEMPLATE
+        F: FURNACE
+      OutputMaterial: FURNACE
+      Glint: true
+    DisplayName: "&eSmelting Upgrade"
+    Lore:
+      - "&7A portable Furnace."
+      - "{moduleActions}"
+    CustomModelData: 2007
+
+    Attributes:
+      - Active
+
+  Blasting:
+    Enabled: true
+    ScreenType: Blasting
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " C "
+        - "LTL"
+        - " F "
+      Ingredients:
+        C: CRAFTING_TABLE
+        L: LEATHER
+        T: NETHERITE_SMITHING_TEMPLATE
+        F: BLAST_FURNACE
+      OutputMaterial: BLAST_FURNACE
+      Glint: true
+    DisplayName: "&eBlasting Upgrade"
+    Lore:
+      - "&7A portable Blast Furnace."
+      - "{moduleActions}"
+    CustomModelData: 2008
+
+    Attributes:
+      - Active
+
+  Smoking:
+    Enabled: true
+    ScreenType: Smoking
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " C "
+        - "LTL"
+        - " S "
+      Ingredients:
+        C: CRAFTING_TABLE
+        L: LEATHER
+        T: NETHERITE_SMITHING_TEMPLATE
+        S: SMOKER
+      OutputMaterial: SMOKER
+      Glint: true
+    DisplayName: "&eSmoking Upgrade"
+    Lore:
+      - "&7A portable Smoking."
+      - "{moduleActions}"
+    CustomModelData: 2009
+
+    Attributes:
+      - Active
+
+  Stonecutter:
+    Enabled: true
+    ScreenType: Stonecutter
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " C "
+        - "BTB"
+        - " S "
+      Ingredients:
+        C: CRAFTING_TABLE
+        B: BRICKS
+        T: NETHERITE_SMITHING_TEMPLATE
+        S: STONECUTTER
+      OutputMaterial: STONECUTTER
+      Glint: true
+    DisplayName: "&eStonecutting Upgrade"
+    Lore:
+      - "&7A portable Stonecutter."
+      - "{moduleActions}"
+    CustomModelData: 2010
+
+    Attributes:
+      - Active
+
+  Anvil:
+    Enabled: true
+    ScreenType: Anvil
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " C "
+        - "ITI"
+        - " A "
+      Ingredients:
+        C: CRAFTING_TABLE
+        I: IRON_BLOCK
+        T: NETHERITE_SMITHING_TEMPLATE
+        A: ANVIL
+      OutputMaterial: ANVIL
+      Glint: true
+    DisplayName: "&eAnvil Upgrade"
+    Lore:
+      - "&7A portable Anvil."
+      - "{moduleActions}"
+    CustomModelData: 2011
+
+    Attributes:
+      - Active
+
+  Smithing:
+    Enabled: true
+    ScreenType: Smithing
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " C "
+        - "PTP"
+        - " S "
+      Ingredients:
+        C: CRAFTING_TABLE
+        P: PAPER
+        T: NETHERITE_SMITHING_TEMPLATE
+        S: SMITHING_TABLE
+      OutputMaterial: SMITHING_TABLE
+      Glint: true
+    DisplayName: "&eSmithing Upgrade"
+    Lore:
+      - "&7A portable Smithing Table."
+      - "{moduleActions}"
+    CustomModelData: 2012
+
+    Attributes:
+      - Active
+
+  Jukebox:
+    Enabled: true
+    ScreenType: Dropper
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " D "
+        - "PTP"
+        - " J "
+      Ingredients:
+        D: DROPPER
+        P: OAK_PLANKS
+        T: NETHERITE_SMITHING_TEMPLATE
+        J: JUKEBOX
+      OutputMaterial: JUKEBOX
+      Glint: true
+    DisplayName: "&eJukebox Upgrade"
+    Lore:
+      - "&7A portable Jukebox."
+      - "{moduleActions}"
+    CustomModelData: 2015
+
+    Attributes:
+      - Passive

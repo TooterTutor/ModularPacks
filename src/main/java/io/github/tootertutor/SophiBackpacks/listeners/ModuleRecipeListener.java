@@ -1,0 +1,152 @@
+package io.github.tootertutor.SophiBackpacks.listeners;
+
+import java.util.Set;
+
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+
+import io.github.tootertutor.SophiBackpacks.SophiBackpacksPlugin;
+import io.github.tootertutor.SophiBackpacks.config.ScreenType;
+import io.github.tootertutor.SophiBackpacks.gui.ModuleScreenHolder;
+import io.github.tootertutor.SophiBackpacks.modules.CraftingModuleLogic;
+import io.github.tootertutor.SophiBackpacks.modules.SmithingModuleLogic;
+import io.github.tootertutor.SophiBackpacks.modules.StonecutterModuleLogic;
+
+public final class ModuleRecipeListener implements Listener {
+
+    private final SophiBackpacksPlugin plugin;
+
+    public ModuleRecipeListener(SophiBackpacksPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onClick(InventoryClickEvent e) {
+        if (!(e.getWhoClicked() instanceof Player player))
+            return;
+
+        var top = e.getView().getTopInventory();
+        if (!(top.getHolder() instanceof ModuleScreenHolder msh))
+            return;
+
+        ScreenType screen = msh.screenType();
+
+        if (screen == ScreenType.CRAFTING) {
+            if (ModuleClickHandler.handleShiftClickIntoInputs(plugin, e, player, top, craftingMatrixSlots(), item -> -1,
+                    () -> CraftingModuleLogic.updateResult(top))) {
+                return;
+            }
+
+            // Handle result slot crafting; cancel and apply our own consumption logic.
+            if (CraftingModuleLogic.handleResultClick(e, player))
+                return;
+
+            if (ModuleClickHandler.handleShiftClickOutOfInputs(plugin, e, player, top,
+                    ModuleRecipeListener::isCraftingMatrixSlot,
+                    () -> CraftingModuleLogic.updateResult(top))) {
+                return;
+            }
+        }
+
+        if (screen == ScreenType.STONECUTTER) {
+            if (ModuleClickHandler.handleShiftClickIntoInputs(plugin, e, player, top, new int[] { 0 }, item -> 0,
+                    () -> StonecutterModuleLogic.updateResult(top))) {
+                return;
+            }
+
+            if ((e.getClick() == ClickType.LEFT || e.getClick() == ClickType.SHIFT_LEFT)
+                    && StonecutterModuleLogic.handleClick(plugin, e, player))
+                return;
+
+            if (ModuleClickHandler.handleShiftClickOutOfInputs(plugin, e, player, top, raw -> raw == 0,
+                    () -> StonecutterModuleLogic.updateResult(top))) {
+                return;
+            }
+        }
+
+        if (screen == ScreenType.SMITHING) {
+            if (ModuleClickHandler.handleShiftClickIntoInputs(plugin, e, player, top, new int[] { 0, 1, 2 },
+                    SmithingModuleLogic::preferredInsertSlot, () -> SmithingModuleLogic.updateResult(top))) {
+                return;
+            }
+
+            if ((e.getClick() == ClickType.LEFT || e.getClick() == ClickType.SHIFT_LEFT)
+                    && SmithingModuleLogic.handleClick(plugin, e, player))
+                return;
+
+            if (ModuleClickHandler.handleShiftClickOutOfInputs(plugin, e, player, top, raw -> raw >= 0 && raw <= 2,
+                    () -> SmithingModuleLogic.updateResult(top))) {
+                return;
+            }
+        }
+
+        // After any matrix change, update the result next tick (the click hasn't
+        // applied yet).
+        int raw = e.getRawSlot();
+        if (raw >= 0 && raw < top.getSize()) {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                switch (screen) {
+                    case CRAFTING -> CraftingModuleLogic.updateResult(top);
+                    case STONECUTTER -> StonecutterModuleLogic.updateResult(top);
+                    case SMITHING -> SmithingModuleLogic.updateResult(top);
+                    default -> {
+                    }
+                }
+            });
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onDrag(InventoryDragEvent e) {
+        var top = e.getView().getTopInventory();
+        if (!(top.getHolder() instanceof ModuleScreenHolder msh))
+            return;
+
+        ScreenType screen = msh.screenType();
+        int outputSlot = switch (screen) {
+            case CRAFTING -> 0;
+            case STONECUTTER -> 1;
+            case SMITHING -> 3;
+            default -> -1;
+        };
+        if (outputSlot < 0 || outputSlot >= top.getSize())
+            return;
+
+        // Prevent dragging into the output slot.
+        Set<Integer> rawSlots = e.getRawSlots();
+        if (rawSlots.contains(outputSlot)) {
+            e.setCancelled(true);
+            return;
+        }
+
+        // Any drag affecting the top inventory should refresh output next tick.
+        for (int raw : rawSlots) {
+            if (raw >= 0 && raw < top.getSize()) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    switch (screen) {
+                        case CRAFTING -> CraftingModuleLogic.updateResult(top);
+                        case STONECUTTER -> StonecutterModuleLogic.updateResult(top);
+                        case SMITHING -> SmithingModuleLogic.updateResult(top);
+                        default -> {
+                        }
+                    }
+                });
+                return;
+            }
+        }
+    }
+
+    private static int[] craftingMatrixSlots() {
+        return new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    }
+
+    private static boolean isCraftingMatrixSlot(int raw) {
+        return raw >= 1 && raw <= 9;
+    }
+}

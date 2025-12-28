@@ -1,0 +1,15 @@
+package io.github.tootertutor.SophiBackpacks.config;
+
+import java.util.List;
+
+import org.bukkit.Material;
+
+public record UpgradeDef(
+        String id,
+        String displayName,
+        Material material,
+        List<String> lore,
+        boolean enabled,
+        boolean toggleable,
+        ScreenType screenType) {
+}
