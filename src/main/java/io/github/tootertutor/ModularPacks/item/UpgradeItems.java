@@ -10,6 +10,8 @@ import org.bukkit.persistence.PersistentDataType;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.UpgradeDef;
+import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
 import io.github.tootertutor.ModularPacks.text.Text;
 
 public final class UpgradeItems {
@@ -29,15 +31,25 @@ public final class UpgradeItems {
         ItemMeta meta = item.getItemMeta();
         UUID moduleId = UUID.randomUUID();
 
-        meta.displayName(Text.c(def.displayName()));
-
-        List<String> expanded = Placeholders.expandLore(plugin, def.lore());
-        meta.lore(Text.lore(expanded));
+        meta.displayName(Text.c(Placeholders.expandText(plugin, def, item, def.displayName())));
 
         // PDC: make it portable + unambiguous (no name-matching hacks)
         meta.getPersistentDataContainer().set(plugin.keys().MODULE_ID, PersistentDataType.STRING, moduleId.toString());
         meta.getPersistentDataContainer().set(plugin.keys().MODULE_TYPE, PersistentDataType.STRING, upgradeId);
         meta.getPersistentDataContainer().set(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE, (byte) 1);
+
+        // Tank has dynamic visuals; initialize empty state so the placeholder renders.
+        if ("Tank".equalsIgnoreCase(upgradeId)) {
+            byte[] state = TankStateCodec.encode(new TankStateCodec.State());
+            meta.getPersistentDataContainer().set(plugin.keys().MODULE_STATE_B64, PersistentDataType.STRING,
+                    java.util.Base64.getEncoder().encodeToString(state));
+            item.setItemMeta(meta);
+            TankModuleLogic.applyVisuals(plugin, item, state);
+            return item;
+        }
+
+        List<String> expanded = Placeholders.expandLore(plugin, def, def.lore());
+        meta.lore(Text.lore(expanded));
 
         item.setItemMeta(meta);
         return item;
