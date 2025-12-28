@@ -16,11 +16,14 @@ import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.listeners.AnvilModuleListener;
+import io.github.tootertutor.ModularPacks.listeners.BackpackEverlastingListener;
 import io.github.tootertutor.ModularPacks.listeners.BackpackMenuListener;
 import io.github.tootertutor.ModularPacks.listeners.BackpackUseListener;
 import io.github.tootertutor.ModularPacks.listeners.ClickDebugListener;
 import io.github.tootertutor.ModularPacks.listeners.ModuleRecipeListener;
+import io.github.tootertutor.ModularPacks.listeners.ModuleFilterScreenListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventModulePlacementListener;
+import io.github.tootertutor.ModularPacks.listeners.PreventModuleUseListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventNestingListener;
 import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
@@ -63,8 +66,11 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new BackpackUseListener(this), this);
         Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, renderer), this);
         Bukkit.getPluginManager().registerEvents(new ModuleRecipeListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new ModuleFilterScreenListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventNestingListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventModulePlacementListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PreventModuleUseListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new BackpackEverlastingListener(this), this);
         Bukkit.getPluginManager().registerEvents(new AnvilModuleListener(this), this);
 
         if (cfg().debugClickLog()) {
