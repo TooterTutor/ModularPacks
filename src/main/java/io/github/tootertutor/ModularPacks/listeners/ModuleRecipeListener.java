@@ -38,8 +38,11 @@ public final class ModuleRecipeListener implements Listener {
         ScreenType screen = msh.screenType();
 
         if (screen == ScreenType.CRAFTING) {
-            if (ModuleClickHandler.handleShiftClickIntoInputs(plugin, e, player, top, craftingMatrixSlots(), item -> -1,
-                    () -> CraftingModuleLogic.updateResult(top))) {
+            // For the crafting module, any item can be shift-clicked into the matrix.
+            // We must handle it ourselves so we can refresh the result slot (vanilla
+            // shift-click doesn't trigger an update in our custom module GUI).
+            if (ModuleClickHandler.handleShiftClickIntoInputs(plugin, e, player, top, craftingMatrixSlots(), item -> 1,
+                    () -> CraftingModuleLogic.updateResult(player, top))) {
                 return;
             }
 
@@ -49,7 +52,7 @@ public final class ModuleRecipeListener implements Listener {
 
             if (ModuleClickHandler.handleShiftClickOutOfInputs(plugin, e, player, top,
                     ModuleRecipeListener::isCraftingMatrixSlot,
-                    () -> CraftingModuleLogic.updateResult(top))) {
+                    () -> CraftingModuleLogic.updateResult(player, top))) {
                 return;
             }
         }
@@ -92,7 +95,7 @@ public final class ModuleRecipeListener implements Listener {
         if (raw >= 0 && raw < top.getSize()) {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 switch (screen) {
-                    case CRAFTING -> CraftingModuleLogic.updateResult(top);
+                    case CRAFTING -> CraftingModuleLogic.updateResult(player, top);
                     case STONECUTTER -> StonecutterModuleLogic.updateResult(top);
                     case SMITHING -> SmithingModuleLogic.updateResult(top);
                     default -> {
@@ -104,6 +107,9 @@ public final class ModuleRecipeListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDrag(InventoryDragEvent e) {
+        if (!(e.getWhoClicked() instanceof Player player))
+            return;
+
         var top = e.getView().getTopInventory();
         if (!(top.getHolder() instanceof ModuleScreenHolder msh))
             return;
@@ -130,7 +136,7 @@ public final class ModuleRecipeListener implements Listener {
             if (raw >= 0 && raw < top.getSize()) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     switch (screen) {
-                        case CRAFTING -> CraftingModuleLogic.updateResult(top);
+                        case CRAFTING -> CraftingModuleLogic.updateResult(player, top);
                         case STONECUTTER -> StonecutterModuleLogic.updateResult(top);
                         case SMITHING -> SmithingModuleLogic.updateResult(top);
                         default -> {

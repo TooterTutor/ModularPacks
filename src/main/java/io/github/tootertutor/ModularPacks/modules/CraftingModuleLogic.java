@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
@@ -28,9 +29,13 @@ public final class CraftingModuleLogic {
     }
 
     public static void updateResult(Inventory inv) {
+        updateResult(null, inv);
+    }
+
+    public static void updateResult(Player player, Inventory inv) {
         if (inv == null || inv.getSize() < MATRIX_FIRST_SLOT + MATRIX_SIZE)
             return;
-        CraftMatch match = findMatch(readMatrix(inv));
+        CraftMatch match = findMatch(player, readMatrix(inv));
         inv.setItem(RESULT_SLOT, match == null ? null : match.result.clone());
     }
 
@@ -75,7 +80,7 @@ public final class CraftingModuleLogic {
             craftOnceToCursor(e, player, inv);
         }
 
-        updateResult(inv);
+        updateResult(player, inv);
         player.updateInventory();
         return true;
     }
@@ -84,7 +89,7 @@ public final class CraftingModuleLogic {
         // Recompute per-iteration so shapeless assignment stays correct.
         for (int i = 0; i < 64; i++) {
             ItemStack[] matrix = readMatrix(inv);
-            CraftMatch match = findMatch(matrix);
+            CraftMatch match = findMatch(player, matrix);
             if (match == null)
                 return;
 
@@ -99,7 +104,7 @@ public final class CraftingModuleLogic {
 
     private static void craftOnceToCursor(InventoryClickEvent e, Player player, Inventory inv) {
         ItemStack[] matrix = readMatrix(inv);
-        CraftMatch match = findMatch(matrix);
+        CraftMatch match = findMatch(player, matrix);
         if (match == null)
             return;
 
@@ -170,8 +175,32 @@ public final class CraftingModuleLogic {
     }
 
     private static CraftMatch findMatch(ItemStack[] matrix) {
+        return findMatch(null, matrix);
+    }
+
+    private static CraftMatch findMatch(Player player, ItemStack[] matrix) {
         if (matrix == null || matrix.length != MATRIX_SIZE)
             return null;
+
+        // Prefer the server's recipe matcher when available (Paper/Spigot API differs
+        // across versions). This is more reliable than iterating Bukkit recipes
+        // ourselves.
+        Recipe direct = tryGetCraftingRecipe(player, matrix);
+        if (direct != null) {
+            ItemStack out = direct.getResult();
+            if (out == null || out.getType().isAir())
+                return null;
+
+            // The server already confirmed this recipe matches the matrix; don't try
+            // to re-match it ourselves (vanilla recipes can be represented in ways
+            // that are hard to mirror perfectly with Bukkit RecipeChoice).
+            int[] consume = new int[MATRIX_SIZE];
+            for (int i = 0; i < MATRIX_SIZE; i++) {
+                if (!isEmpty(matrix[i]))
+                    consume[i] = 1;
+            }
+            return new CraftMatch(out.clone(), consume);
+        }
 
         Iterator<Recipe> it = Bukkit.recipeIterator();
         while (it.hasNext()) {
@@ -187,6 +216,52 @@ public final class CraftingModuleLogic {
             }
         }
         return null;
+    }
+
+    private static volatile boolean lookedUpCraftingMethod = false;
+    private static volatile java.lang.reflect.Method serverGetCraftingRecipe = null;
+    private static volatile java.lang.reflect.Method bukkitGetCraftingRecipe = null;
+
+    private static Recipe tryGetCraftingRecipe(Player player, ItemStack[] matrix) {
+        if (player == null || matrix == null)
+            return null;
+        World world = player.getWorld();
+        if (world == null)
+            return null;
+
+        ensureCraftingMethodLookup();
+
+        try {
+            if (serverGetCraftingRecipe != null) {
+                Object out = serverGetCraftingRecipe.invoke(Bukkit.getServer(), matrix, world);
+                return (out instanceof Recipe r) ? r : null;
+            }
+            if (bukkitGetCraftingRecipe != null) {
+                Object out = bukkitGetCraftingRecipe.invoke(null, matrix, world);
+                return (out instanceof Recipe r) ? r : null;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static void ensureCraftingMethodLookup() {
+        if (lookedUpCraftingMethod)
+            return;
+        lookedUpCraftingMethod = true;
+
+        try {
+            serverGetCraftingRecipe = Bukkit.getServer().getClass().getMethod("getCraftingRecipe", ItemStack[].class,
+                    World.class);
+        } catch (NoSuchMethodException ignored) {
+            serverGetCraftingRecipe = null;
+        }
+
+        try {
+            bukkitGetCraftingRecipe = Bukkit.class.getMethod("getCraftingRecipe", ItemStack[].class, World.class);
+        } catch (NoSuchMethodException ignored) {
+            bukkitGetCraftingRecipe = null;
+        }
     }
 
     private static CraftMatch matchShapeless(ShapelessRecipe recipe, ItemStack[] matrix) {
