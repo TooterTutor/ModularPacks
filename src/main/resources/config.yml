@@ -51,6 +51,8 @@ BackpackTypes:
     Lore:
       - "&7Leather Backpack that can carry 2 rows of items."
       - "{backpackContents}"
+      - "{backpackId}"
+      - "{installedModules}"
     CustomModelData: 1001
   Iron:
     Rows: 4
@@ -63,12 +65,14 @@ BackpackTypes:
         - "III"
       Ingredients:
         I: IRON_INGOT
-        B: PLAYER_HEAD
+        B: BACKPACK:Leather
       OutputMaterial: PLAYER_HEAD
     DisplayName: "&6Iron Backpack"
     Lore:
       - "&7Iron Backpack that can carry 4 rows of items."
       - "{backpackContents}"
+      - "{backpackId}"
+      - "{installedModules}"
     CustomModelData: 1002
   Gold:
     Rows: 6
@@ -81,12 +85,14 @@ BackpackTypes:
         - "GGG"
       Ingredients:
         G: GOLD_INGOT
-        B: PLAYER_HEAD
+        B: BACKPACK:Iron
       OutputMaterial: PLAYER_HEAD
     DisplayName: "&6Gold Backpack"
     Lore:
       - "&7Gold backpack that can carry 6 rows of items."
       - "{backpackContents}"
+      - "{backpackId}"
+      - "{installedModules}"
     CustomModelData: 1003
   Diamond:
     Rows: 8
@@ -99,29 +105,37 @@ BackpackTypes:
         - "DDD"
       Ingredients:
         D: DIAMOND
-        B: PLAYER_HEAD
+        B: BACKPACK:Gold
       OutputMaterial: PLAYER_HEAD
     DisplayName: "&6Diamond Backpack"
     Lore:
       - "&7Diamond backpack that can carry 8 rows of items."
       - "{backpackContents}"
+      - "{backpackId}"
+      - "{installedModules}"
     CustomModelData: 1004
   Netherite:
     Rows: 10
     UpgradeSlots: 5
     CraftingRecipe:
       Type: Smithing
-      Template: NETHERITE_SMITHING_TEMPLATE
-      Base: DIAMOND_BACKPACK
+      Template: NETHERITE_UPGRADE_SMITHING_TEMPLATE
+      Base: BACKPACK:Diamond
       Addition: NETHERITE_INGOT
       OutputMaterial: PLAYER_HEAD
     DisplayName: "&6Netherite Backpack"
     Lore:
       - "&7Netherite backpack that can carry 10 rows of items."
       - "{backpackContents}"
+      - "{backpackId}"
+      - "{installedModules}"
     CustomModelData: 1005
 
 # ScreenType can be one NONE, Crafting, Smelting, Blasting, Smoking, Stonecutter, Anvil, Smithing, Dropper, or Hopper.
+#
+# CraftingRecipe.Ingredients supports vanilla materials (e.g. `IRON_INGOT`) AND special ModularPacks tokens:
+# - `BACKPACK:<TypeId>` or `<TYPE>_BACKPACK` (e.g. `BACKPACK:Leather`, `DIAMOND_BACKPACK`) to require a ModularPacks backpack item
+# - `MODULE:<UpgradeId>` / `UPGRADE:<UpgradeId>` to require a ModularPacks module item
 
 # Attributes are extra data attached to the upgrade that define what it can do. Below is the current list of attributes one can assign.
 # Active: must be activated to work. Passive: always works unless toggled toggled.
@@ -146,7 +160,7 @@ Upgrades:
         - " N "
       Ingredients:
         N: NETHER_STAR
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
       OutputMaterial: NETHER_STAR
       Glint: true
     DisplayName: "&bEverlasting Upgrade"
@@ -173,7 +187,7 @@ Upgrades:
         L: LAPIS_LAZULI
         R: REDSTONE_DUST
         I: IRON_INGOT
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
       OutputMaterial: LEVER
       Glint: true
     DisplayName: "&aMagnet Upgrade"
@@ -199,7 +213,7 @@ Upgrades:
       Ingredients:
         E: EXPERIENCE_BOTTLE
         W: WATER_BUCKET
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         L: LAVA_BUCKET
         B: BUCKET
       OutputMaterial: BUCKET
@@ -235,7 +249,7 @@ Upgrades:
       Ingredients:
         I: GOLD_INGOT
         A: GOLDEN_APPLE
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         C: GOLDEN_CARROT
         G: GLISTERING_MELON_SLICE
       OutputMaterial: GOLDEN_CARROT
@@ -260,7 +274,7 @@ Upgrades:
       Ingredients:
         R: REDSTONE_DUST
         O: OBSIDIAN
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         E: ENDER_PEARL
       OutputMaterial: ENDER_EYE
       Glint: true
@@ -288,7 +302,7 @@ Upgrades:
       Ingredients:
         L: LEATHER
         B: CRAFTING_TABLE
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         C: CHEST
       OutputMaterial: CRAFTING_TABLE
       Glint: true
@@ -311,7 +325,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         L: LEATHER
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         F: FURNACE
       OutputMaterial: FURNACE
       Glint: true
@@ -334,7 +348,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         L: LEATHER
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         F: BLAST_FURNACE
       OutputMaterial: BLAST_FURNACE
       Glint: true
@@ -357,7 +371,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         L: LEATHER
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         S: SMOKER
       OutputMaterial: SMOKER
       Glint: true
@@ -380,7 +394,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         B: BRICKS
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         S: STONECUTTER
       OutputMaterial: STONECUTTER
       Glint: true
@@ -403,7 +417,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         I: IRON_BLOCK
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         A: ANVIL
       OutputMaterial: ANVIL
       Glint: true
@@ -426,7 +440,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         P: PAPER
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         S: SMITHING_TABLE
       OutputMaterial: SMITHING_TABLE
       Glint: true
@@ -450,7 +464,7 @@ Upgrades:
       Ingredients:
         D: DROPPER
         P: OAK_PLANKS
-        T: NETHERITE_SMITHING_TEMPLATE
+        T: NETHERITE_UPGRADE_SMITHING_TEMPLATE
         J: JUKEBOX
       OutputMaterial: JUKEBOX
       Glint: true

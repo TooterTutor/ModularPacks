@@ -37,6 +37,14 @@ toggleState:
 magnetRange:
   - "&7Range: &f{Range} &7blocks"
 
+# Replaces {backpackContents} in backpack item lore
+backpackContentsEmpty:
+  - "&7Contents: &8(Empty)"
+
+backpackContents:
+  - "&7Contents: &f{usedSlots}&7/&f{totalSlots} &7slots"
+  - "&7Items: &f{itemCount}"
+
 # Replaces {containedFluid} in the Tank upgrade lore
 tankContainedFluid:
   - "&7Stored: &f{amount}/{max} &7buckets"

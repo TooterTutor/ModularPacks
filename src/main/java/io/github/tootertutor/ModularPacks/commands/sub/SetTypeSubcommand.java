@@ -13,16 +13,18 @@ import io.github.tootertutor.ModularPacks.commands.CommandContext;
 import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
+import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.text.Text;
 import net.kyori.adventure.text.Component;
 
 public final class SetTypeSubcommand implements Subcommand {
 
     private final ModularPacksPlugin plugin;
+    private final BackpackItems backpackItems;
 
     public SetTypeSubcommand(ModularPacksPlugin plugin) {
         this.plugin = plugin;
+        this.backpackItems = new BackpackItems(plugin);
     }
 
     @Override
@@ -96,15 +98,8 @@ public final class SetTypeSubcommand implements Subcommand {
         data.backpackType(newType.id());
         plugin.repo().saveBackpack(data);
 
-        // Update item meta (keep same ID).
-        ItemStack updated = new ItemStack(newType.outputMaterial(), Math.max(1, hand.getAmount()));
-        ItemMeta meta = updated.getItemMeta();
-        if (meta != null) {
-            meta.getPersistentDataContainer().set(keys.BACKPACK_ID, PersistentDataType.STRING, backpackId.toString());
-            meta.getPersistentDataContainer().set(keys.BACKPACK_TYPE, PersistentDataType.STRING, newType.id());
-            meta.displayName(Text.c(newType.displayName()));
-            updated.setItemMeta(meta);
-        }
+        ItemStack updated = backpackItems.createExisting(backpackId, newType.id());
+        updated.setAmount(Math.max(1, hand.getAmount()));
         player.getInventory().setItemInMainHand(updated);
 
         ctx.sender().sendMessage(Component.text("Updated backpack " + backpackId + " to type " + newType.id()));

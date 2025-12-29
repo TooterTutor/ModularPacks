@@ -202,6 +202,12 @@ public final class RecipeManager implements Listener {
         ItemMeta meta = preview.getItemMeta();
         if (meta != null) {
             meta.displayName(Text.c(typeDef.displayName()));
+            if (typeDef.customModelData() > 0) {
+                meta.setCustomModelData(typeDef.customModelData());
+            }
+            if (typeDef.lore() != null && !typeDef.lore().isEmpty()) {
+                meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, typeDef, null, typeDef.lore())));
+            }
             preview.setItemMeta(meta);
         }
 
@@ -311,6 +317,12 @@ public final class RecipeManager implements Listener {
         ItemMeta meta = preview.getItemMeta();
         if (meta != null) {
             meta.displayName(Text.c(resultType.displayName()));
+            if (resultType.customModelData() > 0) {
+                meta.setCustomModelData(resultType.customModelData());
+            }
+            if (resultType.lore() != null && !resultType.lore().isEmpty()) {
+                meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, resultType, null, resultType.lore())));
+            }
             preview.setItemMeta(meta);
         }
 
@@ -436,6 +448,12 @@ public final class RecipeManager implements Listener {
                 var meta = it.getItemMeta();
                 if (meta != null) {
                     meta.displayName(Text.c(type.displayName()));
+                    if (type.customModelData() > 0) {
+                        meta.setCustomModelData(type.customModelData());
+                    }
+                    if (type.lore() != null && !type.lore().isEmpty()) {
+                        meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, type, null, type.lore())));
+                    }
                     it.setItemMeta(meta);
                 }
                 yield it;
@@ -530,17 +548,7 @@ public final class RecipeManager implements Listener {
             if (resultType == null)
                 return;
 
-            ItemStack out = new ItemStack(resultType.outputMaterial());
-            ItemMeta meta = out.getItemMeta();
-            if (meta != null) {
-                meta.displayName(Text.c(resultType.displayName()));
-                meta.getPersistentDataContainer().set(keys.BACKPACK_ID, PersistentDataType.STRING,
-                        parsed.uuid().toString());
-                meta.getPersistentDataContainer().set(keys.BACKPACK_TYPE, PersistentDataType.STRING, resultType.id());
-                out.setItemMeta(meta);
-            }
-
-            e.setResult(out);
+            e.setResult(backpackItems.createExisting(parsed.uuid(), resultType.id()));
             return;
         }
     }

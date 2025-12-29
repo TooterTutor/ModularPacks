@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,6 +13,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.data.BackpackData;
+import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
+import io.github.tootertutor.ModularPacks.item.Keys;
 
 public final class Placeholders {
     private Placeholders() {
@@ -28,6 +32,145 @@ public final class Placeholders {
         Map<String, Replacement> overrides = new HashMap<>();
         // Back-compat: treat {moduleActions} as "primary" actions.
         overrides.put("moduleActions", Replacement.list(langActionsPrimary(plugin)));
+
+        return expandLines(plugin, null, null, lore, overrides);
+    }
+
+    public static List<String> expandBackpackLore(ModularPacksPlugin plugin, BackpackTypeDef type, UUID backpackId,
+            List<String> lore) {
+        if (plugin == null)
+            return lore == null ? List.of() : lore;
+
+        if (type == null) {
+            String typeId = backpackId == null ? null : plugin.repo().findBackpackType(backpackId);
+            type = typeId == null ? null : plugin.cfg().findType(typeId);
+        }
+
+        int totalSlots = type == null ? 0 : (type.rows() * 9);
+
+        BackpackData data = null;
+        if (backpackId != null) {
+            String effectiveType = type != null ? type.id() : plugin.repo().findBackpackType(backpackId);
+            if (effectiveType == null || effectiveType.isBlank())
+                effectiveType = "Unknown";
+            data = plugin.repo().loadOrCreate(backpackId, effectiveType);
+        }
+
+        return expandBackpackLore(plugin, type, backpackId, data, totalSlots, lore);
+    }
+
+    public static List<String> expandBackpackLore(
+            ModularPacksPlugin plugin,
+            BackpackTypeDef type,
+            UUID backpackId,
+            BackpackData data,
+            int totalSlots,
+            List<String> lore) {
+        if (plugin == null)
+            return lore == null ? List.of() : lore;
+
+        Map<String, Replacement> overrides = new HashMap<>();
+
+        String backpackIdStr = backpackId == null ? "" : backpackId.toString();
+        overrides.put("backpackId", Replacement.scalar(backpackIdStr));
+        overrides.put("BackpackId", Replacement.scalar(backpackIdStr));
+
+        if (type != null) {
+            overrides.put("typeId", Replacement.scalar(type.id()));
+            overrides.put("TypeId", Replacement.scalar(type.id()));
+            overrides.put("rows", Replacement.scalar(Integer.toString(type.rows())));
+            overrides.put("Rows", Replacement.scalar(Integer.toString(type.rows())));
+            overrides.put("upgradeSlots", Replacement.scalar(Integer.toString(type.upgradeSlots())));
+            overrides.put("UpgradeSlots", Replacement.scalar(Integer.toString(type.upgradeSlots())));
+        }
+
+        int usedSlots = 0;
+        int itemCount = 0;
+        int installedModules = 0;
+        List<String> installedModuleLines = new ArrayList<>();
+
+        if (data != null) {
+            ItemStack[] decoded = ItemStackCodec.fromBytes(data.contentsBytes());
+
+            int effectiveTotalSlots = totalSlots > 0 ? totalSlots : decoded.length;
+
+            int limit = Math.min(decoded.length, Math.max(0, effectiveTotalSlots));
+            for (int i = 0; i < limit; i++) {
+                ItemStack it = decoded[i];
+                if (it == null || it.getType().isAir())
+                    continue;
+                usedSlots++;
+                itemCount += Math.max(0, it.getAmount());
+            }
+
+            installedModules = data.installedModules().size();
+
+            // Build installed module display lines from stored snapshots (preferred)
+            // or fall back to module UUID.
+            Keys keys = plugin.keys();
+            data.installedModules().entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(e -> {
+                        UUID moduleId = e.getValue();
+                        if (moduleId == null)
+                            return;
+
+                        String display = null;
+                        byte[] snap = data.installedSnapshots().get(moduleId);
+                        if (snap != null) {
+                            ItemStack[] arr = ItemStackCodec.fromBytes(snap);
+                            ItemStack moduleItem = (arr != null && arr.length > 0) ? arr[0] : null;
+                            if (moduleItem != null && moduleItem.hasItemMeta()) {
+                                ItemMeta meta = moduleItem.getItemMeta();
+                                if (meta != null) {
+                                    String moduleType = meta.getPersistentDataContainer().get(keys.MODULE_TYPE,
+                                            PersistentDataType.STRING);
+                                    if (moduleType != null) {
+                                        UpgradeDef def = plugin.cfg().findUpgrade(moduleType);
+                                        display = def != null ? def.displayName() : moduleType;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (display == null) {
+                            String shortId = moduleId.toString();
+                            display = shortId.length() > 8 ? shortId.substring(0, 8) : shortId;
+                        }
+
+                        installedModuleLines.add("&7- &f" + display);
+                    });
+        }
+
+        int effectiveTotalSlots = totalSlots;
+        if (effectiveTotalSlots <= 0 && type != null) {
+            effectiveTotalSlots = type.rows() * 9;
+        }
+        if (effectiveTotalSlots < 0)
+            effectiveTotalSlots = 0;
+
+        overrides.put("totalSlots", Replacement.scalar(Integer.toString(effectiveTotalSlots)));
+        overrides.put("TotalSlots", Replacement.scalar(Integer.toString(effectiveTotalSlots)));
+
+        overrides.put("usedSlots", Replacement.scalar(Integer.toString(usedSlots)));
+        overrides.put("UsedSlots", Replacement.scalar(Integer.toString(usedSlots)));
+        overrides.put("itemCount", Replacement.scalar(Integer.toString(itemCount)));
+        overrides.put("ItemCount", Replacement.scalar(Integer.toString(itemCount)));
+        overrides.put("installedModuleCount", Replacement.scalar(Integer.toString(installedModules)));
+        overrides.put("InstalledModuleCount", Replacement.scalar(Integer.toString(installedModules)));
+
+        overrides.put("installedModules", Replacement.list(installedModuleLines));
+        overrides.put("InstalledModules", Replacement.list(installedModuleLines));
+
+        boolean empty = (usedSlots <= 0 && itemCount <= 0);
+        List<String> tpl = empty ? plugin.lang().getList("backpackContentsEmpty")
+                : plugin.lang().getList("backpackContents");
+        if (tpl == null || tpl.isEmpty()) {
+            tpl = empty
+                    ? List.of("&7Contents: &8(Empty)")
+                    : List.of("&7Contents: &f{usedSlots}&7/&f{totalSlots} &7slots", "&7Items: &f{itemCount}");
+        }
+        overrides.put("backpackContents", Replacement.list(tpl));
 
         return expandLines(plugin, null, null, lore, overrides);
     }

@@ -1,5 +1,7 @@
 package io.github.tootertutor.ModularPacks.config;
 
+import java.util.List;
+
 import org.bukkit.Material;
 
 public record BackpackTypeDef(
@@ -7,5 +9,7 @@ public record BackpackTypeDef(
 		String displayName,
 		int rows,
 		int upgradeSlots,
-		Material outputMaterial) {
+		Material outputMaterial,
+		List<String> lore,
+		int customModelData) {
 }

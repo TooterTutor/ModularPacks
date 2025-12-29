@@ -67,13 +67,15 @@ public final class ConfigManager {
                 int rows = s.getInt("Rows", 2);
                 int upgradeSlots = s.getInt("UpgradeSlots", 0);
                 String displayName = s.getString("DisplayName", key);
+                List<String> lore = s.getStringList("Lore");
+                int customModelData = s.getInt("CustomModelData", 0);
 
                 Material output = mat(
                         s.getString("CraftingRecipe.OutputMaterial", "PLAYER_HEAD"),
                         Material.PLAYER_HEAD);
 
                 types.put(key.toLowerCase(Locale.ROOT),
-                        new BackpackTypeDef(key, displayName, rows, upgradeSlots, output));
+                        new BackpackTypeDef(key, displayName, rows, upgradeSlots, output, lore, customModelData));
             }
         }
 

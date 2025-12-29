@@ -36,6 +36,7 @@ import io.github.tootertutor.ModularPacks.gui.BackpackSortMode;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
+import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
 import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
@@ -46,6 +47,7 @@ public final class BackpackMenuListener implements Listener {
 
     private final ModularPacksPlugin plugin;
     private final BackpackMenuRenderer renderer;
+    private final BackpackItems backpackItems;
     private final ScreenRouter screens;
 
     private final Map<UUID, Integer> lastStorageInteractionTick = new HashMap<>();
@@ -79,6 +81,7 @@ public final class BackpackMenuListener implements Listener {
     public BackpackMenuListener(ModularPacksPlugin plugin, BackpackMenuRenderer renderer) {
         this.plugin = plugin;
         this.renderer = renderer;
+        this.backpackItems = new BackpackItems(plugin);
         this.screens = new ScreenRouter(plugin);
     }
 
@@ -464,6 +467,51 @@ public final class BackpackMenuListener implements Listener {
                 && pdc.has(keys.BACKPACK_TYPE, PersistentDataType.STRING);
     }
 
+    private UUID readBackpackId(ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+            return null;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null)
+            return null;
+        String idStr = meta.getPersistentDataContainer().get(plugin.keys().BACKPACK_ID, PersistentDataType.STRING);
+        if (idStr == null || idStr.isBlank())
+            return null;
+        try {
+            return UUID.fromString(idStr);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private void refreshBackpackItemsFor(Player player, BackpackMenuHolder holder) {
+        if (player == null || holder == null)
+            return;
+        var inv = player.getInventory();
+        ItemStack[] contents = inv.getContents();
+        if (contents == null || contents.length == 0)
+            return;
+
+        boolean changed = false;
+        UUID target = holder.backpackId();
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack it = contents[i];
+            if (!isBackpack(it))
+                continue;
+            UUID id = readBackpackId(it);
+            if (id == null || !id.equals(target))
+                continue;
+
+            if (backpackItems.refreshInPlace(it, holder.type(), target, holder.data(), holder.logicalSlots())) {
+                inv.setItem(i, it);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+        }
+    }
+
     @EventHandler
     public void onClose(InventoryCloseEvent e) {
         if (!(e.getPlayer() instanceof Player player))
@@ -555,6 +603,7 @@ public final class BackpackMenuListener implements Listener {
             // close event)
             renderer.saveVisibleStorageToData(holder);
             plugin.repo().saveBackpack(holder.data());
+            refreshBackpackItemsFor(player, holder);
 
             dirtySinceTick.remove(player.getUniqueId());
 
@@ -1111,6 +1160,7 @@ public final class BackpackMenuListener implements Listener {
         player.setItemOnCursor(null);
 
         scheduleSave(player, holder);
+        refreshBackpackItemsFor(player, holder);
         playSocketSuccess(player);
     }
 
@@ -1151,6 +1201,7 @@ public final class BackpackMenuListener implements Listener {
             player.getInventory().addItem(item);
 
         scheduleSave(player, holder);
+        refreshBackpackItemsFor(player, holder);
     }
 
     private void toggleModule(BackpackMenuHolder holder, ItemStack moduleItem) {
@@ -1487,6 +1538,7 @@ public final class BackpackMenuListener implements Listener {
 
                 renderer.saveVisibleStorageToData(current);
                 plugin.repo().saveBackpack(current.data());
+                refreshBackpackItemsFor(player, current);
                 dirtySinceTick.remove(player.getUniqueId());
             }
 
@@ -1510,9 +1562,11 @@ public final class BackpackMenuListener implements Listener {
             }
             renderer.saveVisibleStorageToData(current);
             plugin.repo().saveBackpack(current.data());
+            refreshBackpackItemsFor(player, current);
         } else {
             renderer.saveVisibleStorageToData(holder);
             plugin.repo().saveBackpack(holder.data());
+            refreshBackpackItemsFor(player, holder);
         }
 
         dirtySinceTick.remove(player.getUniqueId());

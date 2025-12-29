@@ -33,12 +33,14 @@ import org.bukkit.potion.PotionEffectTypeCategory;
 import org.bukkit.scheduler.BukkitTask;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.VoidedItemRecord;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
+import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.Consumable;
@@ -57,12 +59,14 @@ public final class ModuleEngineService {
     private static final int ENGINE_DT_TICKS = 10;
 
     private final ModularPacksPlugin plugin;
+    private final BackpackItems backpackItems;
     private BukkitTask task;
 
     private final Map<UUID, Integer> lastFedTickByPlayer = new HashMap<>();
 
     public ModuleEngineService(ModularPacksPlugin plugin) {
         this.plugin = plugin;
+        this.backpackItems = new BackpackItems(plugin);
     }
 
     public void start() {
@@ -217,7 +221,36 @@ public final class ModuleEngineService {
 
         if (changedAny) {
             plugin.repo().saveBackpack(data);
+            refreshBackpackItemsFor(player, backpackId, typeDef, data);
         }
+    }
+
+    private void refreshBackpackItemsFor(Player player, UUID backpackId, BackpackTypeDef typeDef,
+            BackpackData data) {
+        if (player == null || backpackId == null || typeDef == null || data == null)
+            return;
+
+        ItemStack[] contents = player.getInventory().getContents();
+        if (contents == null || contents.length == 0)
+            return;
+
+        Keys keys = plugin.keys();
+        int totalSlots = typeDef.rows() * 9;
+        boolean changed = false;
+
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack it = contents[i];
+            UUID id = readBackpackId(keys, it);
+            if (id == null || !id.equals(backpackId))
+                continue;
+
+            if (backpackItems.refreshInPlace(it, typeDef, backpackId, data, totalSlots)) {
+                player.getInventory().setItem(i, it);
+                changed = true;
+            }
+        }
+
+        // setItem() sends slot updates; avoid updateInventory() here (engine runs often)
     }
 
     private boolean tickInstalledFurnaces(BackpackData data, Set<UUID> openModuleIds) {
