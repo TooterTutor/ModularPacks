@@ -645,6 +645,9 @@ public final class BackpackMenuListener implements Listener {
 
             // TANK: bucket interactions on the installed tank module
             if (isTankModule(clicked)) {
+                // If the storage area was modified, ensure we sync it into holder.data()
+                // before re-rendering, otherwise a render can overwrite "unsaved" changes.
+                renderer.saveVisibleStorageToData(holder);
                 if (handleTankCursorClick(player, holder, clicked, cursor)) {
                     updateModuleSnapshot(holder, clicked);
                     scheduleSave(player, holder);
@@ -669,6 +672,7 @@ public final class BackpackMenuListener implements Listener {
         // -----------------------------------------
         if (click == ClickType.SHIFT_RIGHT) {
             removeModuleToPlayer(player, holder, invSlot);
+            renderer.saveVisibleStorageToData(holder);
             renderer.render(holder);
             return;
         }
@@ -680,6 +684,7 @@ public final class BackpackMenuListener implements Listener {
             toggleModule(holder, clicked);
             updateModuleSnapshot(holder, clicked);
             scheduleSave(player, holder);
+            renderer.saveVisibleStorageToData(holder);
             renderer.render(holder);
             return;
         }
@@ -696,6 +701,7 @@ public final class BackpackMenuListener implements Listener {
                     return;
             }
 
+            renderer.saveVisibleStorageToData(holder);
             if (handleTankEmptyCursorClick(player, holder, clicked, click)) {
                 updateModuleSnapshot(holder, clicked);
                 scheduleSave(player, holder);
@@ -717,6 +723,7 @@ public final class BackpackMenuListener implements Listener {
                 refreshModuleVisuals(holder, clicked);
                 updateModuleSnapshot(holder, clicked);
                 scheduleSave(player, holder);
+                renderer.saveVisibleStorageToData(holder);
                 renderer.render(holder);
                 player.sendMessage(Text.c("&7Feeding: &f" + formatFeedingSettings(clicked)));
             }

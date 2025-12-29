@@ -8,7 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -78,8 +77,7 @@ public final class ModuleRecipeListener implements Listener {
                 return;
             }
 
-            if ((e.getClick() == ClickType.LEFT || e.getClick() == ClickType.SHIFT_LEFT)
-                    && StonecutterModuleLogic.handleClick(plugin, e, player))
+            if (StonecutterModuleLogic.handleClick(plugin, e, player))
                 return;
 
             if (ModuleClickHandler.handleShiftClickOutOfInputs(plugin, e, player, top, raw -> raw == 0,
@@ -94,8 +92,7 @@ public final class ModuleRecipeListener implements Listener {
                 return;
             }
 
-            if ((e.getClick() == ClickType.LEFT || e.getClick() == ClickType.SHIFT_LEFT)
-                    && SmithingModuleLogic.handleClick(plugin, e, player))
+            if (SmithingModuleLogic.handleClick(plugin, e, player))
                 return;
 
             if (ModuleClickHandler.handleShiftClickOutOfInputs(plugin, e, player, top, raw -> raw >= 0 && raw <= 2,

@@ -9,6 +9,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
@@ -85,15 +86,23 @@ public final class ModuleClickHandler {
         }
 
         // From here on, we ARE handling it.
-        ItemStack moving = movingNow.clone();
-        Inventory clicked = e.getClickedInventory();
-        int slot = e.getSlot();
+        int sourceRawSlot = e.getRawSlot();
 
         e.setCancelled(true);
 
         runNextTick(plugin, () -> {
-            ItemStack remainder = insertIntoSlots(top, inputSlots, preferred, moving.clone());
-            clicked.setItem(slot, (remainder == null || remainder.getAmount() <= 0) ? null : remainder);
+            InventoryView view = player.getOpenInventory();
+            if (view == null)
+                return;
+            if (sourceRawSlot < 0 || sourceRawSlot >= view.countSlots())
+                return;
+
+            ItemStack source = view.getItem(sourceRawSlot);
+            if (source == null || source.getType().isAir())
+                return;
+
+            ItemStack remainder = insertIntoSlots(top, inputSlots, preferred, source.clone());
+            view.setItem(sourceRawSlot, (remainder == null || remainder.getAmount() <= 0) ? null : remainder);
 
             if (updateAfter != null)
                 updateAfter.run();
@@ -125,13 +134,41 @@ public final class ModuleClickHandler {
         e.setCancelled(true);
 
         runNextTick(plugin, () -> {
-            moveTopSlotToPlayer(top, raw, player);
+            moveTopRawSlotToPlayer(raw, player);
             if (updateAfter != null)
                 updateAfter.run();
             player.updateInventory();
         });
 
         return true;
+    }
+
+    private static void moveTopRawSlotToPlayer(int topRawSlot, Player player) {
+        if (player == null)
+            return;
+
+        InventoryView view = player.getOpenInventory();
+        if (view == null)
+            return;
+
+        Inventory top = view.getTopInventory();
+        if (top == null)
+            return;
+
+        if (topRawSlot < 0 || topRawSlot >= top.getSize())
+            return;
+
+        ItemStack moving = view.getItem(topRawSlot);
+        if (moving == null || moving.getType().isAir())
+            return;
+
+        var leftovers = player.getInventory().addItem(moving.clone());
+        if (leftovers.isEmpty()) {
+            view.setItem(topRawSlot, null);
+        } else {
+            // If partial, keep the remainder in the top slot.
+            view.setItem(topRawSlot, leftovers.values().iterator().next());
+        }
     }
 
     public static void moveTopSlotToPlayer(Inventory top, int slot, Player player) {
