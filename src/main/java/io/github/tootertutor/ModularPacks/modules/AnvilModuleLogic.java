@@ -34,6 +34,13 @@ public final class AnvilModuleLogic {
         return player != null && SESSIONS.containsKey(player.getUniqueId());
     }
 
+    public static UUID sessionBackpackId(Player player) {
+        if (player == null)
+            return null;
+        Session s = SESSIONS.get(player.getUniqueId());
+        return s == null ? null : s.backpackId();
+    }
+
     /** Open a real vanilla anvil UI and seed slots 0/1 from module state. */
     public static void open(ModularPacksPlugin plugin, Player player,
             UUID backpackId, String backpackType, UUID moduleId) {
@@ -110,6 +117,8 @@ public final class AnvilModuleLogic {
         BackpackData data = plugin.repo().loadOrCreate(session.backpackId(), session.backpackType());
         data.moduleStates().put(session.moduleId(), bytes);
         plugin.repo().saveBackpack(data);
+        plugin.sessions().refreshLinkedBackpacksThrottled(session.backpackId(), data);
+        plugin.sessions().onRelatedInventoryClose(player, session.backpackId());
     }
 
 }

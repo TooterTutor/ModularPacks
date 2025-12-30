@@ -38,6 +38,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private ModuleEngineService engines;
     private ClickDebugListener clickDebug;
     private RecipeManager recipes;
+    private BackpackSessionManager sessions;
 
     @Override
     public void onEnable() {
@@ -54,6 +55,8 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.repository = new SQLiteBackpackRepository(this);
         this.repository.init();
+
+        this.sessions = new BackpackSessionManager(this);
 
         this.engines = new ModuleEngineService(this);
         this.engines.start();
@@ -131,6 +134,10 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
     public RecipeManager recipes() {
         return recipes;
+    }
+
+    public BackpackSessionManager sessions() {
+        return sessions;
     }
 
     public void reloadAll() {

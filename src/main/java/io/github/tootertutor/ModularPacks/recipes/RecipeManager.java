@@ -159,6 +159,7 @@ public final class RecipeManager implements Listener {
                 var data = plugin.repo().loadOrCreate(upgradeFromId, oldType);
                 data.backpackType(dyn.id);
                 plugin.repo().saveBackpack(data);
+                plugin.sessions().refreshLinkedBackpacksThrottled(upgradeFromId, data);
             } else {
                 // New backpack (no base ingredient): new UUID.
                 result = backpackItems.create(dyn.id);
@@ -672,6 +673,7 @@ public final class RecipeManager implements Listener {
         var data = plugin.repo().loadOrCreate(parsed.uuid(), oldType);
         data.backpackType(newType);
         plugin.repo().saveBackpack(data);
+        plugin.sessions().refreshLinkedBackpacksThrottled(parsed.uuid(), data);
 
         plugin.repo().ensureBackpackExists(parsed.uuid(), newType, player.getUniqueId(), player.getName());
     }

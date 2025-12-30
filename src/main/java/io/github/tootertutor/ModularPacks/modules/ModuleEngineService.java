@@ -222,6 +222,7 @@ public final class ModuleEngineService {
         if (changedAny) {
             plugin.repo().saveBackpack(data);
             refreshBackpackItemsFor(player, backpackId, typeDef, data);
+            plugin.sessions().refreshLinkedBackpacksThrottled(backpackId, data);
         }
     }
 

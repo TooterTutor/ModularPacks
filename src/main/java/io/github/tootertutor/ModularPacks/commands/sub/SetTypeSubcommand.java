@@ -97,6 +97,7 @@ public final class SetTypeSubcommand implements Subcommand {
         // Update DB row type (contents preserved; resize handled by render/load).
         data.backpackType(newType.id());
         plugin.repo().saveBackpack(data);
+        plugin.sessions().refreshLinkedBackpacksThrottled(backpackId, data);
 
         ItemStack updated = backpackItems.createExisting(backpackId, newType.id());
         updated.setAmount(Math.max(1, hand.getAmount()));

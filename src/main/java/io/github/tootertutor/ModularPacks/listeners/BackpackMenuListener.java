@@ -18,6 +18,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -544,6 +545,8 @@ public final class BackpackMenuListener implements Listener {
 
                 data.moduleStates().put(msh.moduleId(), FurnaceStateCodec.encode(fs));
                 plugin.repo().saveBackpack(data);
+                plugin.sessions().refreshLinkedBackpacksThrottled(msh.backpackId(), data);
+                plugin.sessions().onRelatedInventoryClose(player, msh.backpackId());
                 return;
             }
 
@@ -578,6 +581,8 @@ public final class BackpackMenuListener implements Listener {
 
             data.moduleStates().put(msh.moduleId(), ItemStackCodec.toBytes(items));
             plugin.repo().saveBackpack(data);
+            plugin.sessions().refreshLinkedBackpacksThrottled(msh.backpackId(), data);
+            plugin.sessions().onRelatedInventoryClose(player, msh.backpackId());
             return;
         }
 
@@ -604,6 +609,8 @@ public final class BackpackMenuListener implements Listener {
             renderer.saveVisibleStorageToData(holder);
             plugin.repo().saveBackpack(holder.data());
             refreshBackpackItemsFor(player, holder);
+            plugin.sessions().refreshLinkedBackpacksThrottled(holder.backpackId(), holder.data());
+            plugin.sessions().onRelatedInventoryClose(player, holder.backpackId());
 
             dirtySinceTick.remove(player.getUniqueId());
 
@@ -616,6 +623,14 @@ public final class BackpackMenuListener implements Listener {
             sortBurstNotifiedAtTick.remove(playerId);
         }
 
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        Player player = e.getPlayer();
+        if (player == null)
+            return;
+        plugin.sessions().releaseAllFor(player.getUniqueId());
     }
 
     // ------------------------------------------------------------
@@ -1546,6 +1561,7 @@ public final class BackpackMenuListener implements Listener {
                 renderer.saveVisibleStorageToData(current);
                 plugin.repo().saveBackpack(current.data());
                 refreshBackpackItemsFor(player, current);
+                plugin.sessions().refreshLinkedBackpacksThrottled(current.backpackId(), current.data());
                 dirtySinceTick.remove(player.getUniqueId());
             }
 
@@ -1570,10 +1586,12 @@ public final class BackpackMenuListener implements Listener {
             renderer.saveVisibleStorageToData(current);
             plugin.repo().saveBackpack(current.data());
             refreshBackpackItemsFor(player, current);
+            plugin.sessions().refreshLinkedBackpacksThrottled(current.backpackId(), current.data());
         } else {
             renderer.saveVisibleStorageToData(holder);
             plugin.repo().saveBackpack(holder.data());
             refreshBackpackItemsFor(player, holder);
+            plugin.sessions().refreshLinkedBackpacksThrottled(holder.backpackId(), holder.data());
         }
 
         dirtySinceTick.remove(player.getUniqueId());

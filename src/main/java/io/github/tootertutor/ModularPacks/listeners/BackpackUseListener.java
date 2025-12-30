@@ -52,6 +52,18 @@ public final class BackpackUseListener implements Listener {
 
         e.setCancelled(true);
         plugin.repo().ensureBackpackExists(backpackId, typeId, p.getUniqueId(), p.getName());
-        renderer.openMenu(p, backpackId, typeId);
+
+        if (!plugin.sessions().tryLock(p, backpackId, false)) {
+            String lockedTo = plugin.sessions().lockedToName(backpackId);
+            if (lockedTo == null)
+                lockedTo = "someone else";
+            p.sendMessage("That backpack is currently open by " + lockedTo + ".");
+            return;
+        }
+
+        if (renderer.openMenu(p, backpackId, typeId) == null) {
+            // If the GUI can't open (missing type config), don't leave a stale lock behind.
+            plugin.sessions().onRelatedInventoryClose(p, backpackId);
+        }
     }
 }

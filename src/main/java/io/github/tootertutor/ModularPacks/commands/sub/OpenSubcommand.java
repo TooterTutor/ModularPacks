@@ -68,6 +68,8 @@ public final class OpenSubcommand implements Subcommand {
                 return;
             }
 
+            // Admin override: if another player has it open, close them and take over.
+            plugin.sessions().tryLock(viewer, id, true);
             renderer.openMenu(viewer, id, type);
             return;
         }
@@ -106,6 +108,7 @@ public final class OpenSubcommand implements Subcommand {
         }
 
         BackpackSummary chosen = rows.get(idx);
+        plugin.sessions().tryLock(viewer, chosen.backpackId(), true);
         renderer.openMenu(viewer, chosen.backpackId(), chosen.backpackType());
     }
 
