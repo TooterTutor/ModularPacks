@@ -223,7 +223,7 @@ Upgrades:
         S: STRING
         I: IRON_INGOT
         L: LEATHER
-      OutputMaterial: NETHERITE_UPGRADE_SMITHING_TEMPLATE
+      OutputMaterial: ITEM_FRAME
       Glint: true
     DisplayName: "Module Template"
     Lore:

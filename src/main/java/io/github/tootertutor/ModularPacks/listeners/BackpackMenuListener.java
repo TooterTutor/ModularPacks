@@ -450,6 +450,9 @@ public final class BackpackMenuListener implements Listener {
         // If a backpack somehow ended up inside a backpack (hotbar swap, automation,
         // etc), the generic nesting guard will prevent removing it, so proactively
         // eject it now to avoid permanent loss.
+        //
+        // Also eject config-blocked items (BackpackInsertBlacklist / AllowShulkerBoxes /
+        // AllowBundles) so admin policy changes apply even to previously-stored items.
         Bukkit.getScheduler().runTask(plugin, () -> {
             Inventory top = player.getOpenInventory().getTopInventory();
             if (!(top.getHolder() instanceof BackpackMenuHolder openHolder))
@@ -457,7 +460,8 @@ public final class BackpackMenuListener implements Listener {
             if (!openHolder.backpackId().equals(holder.backpackId()))
                 return;
 
-            int moved = 0;
+            int movedBackpacks = 0;
+            int movedBlocked = 0;
 
             // Scan logical storage (all pages), not just currently-visible slots.
             ItemStack[] logical = ItemStackCodec.fromBytes(openHolder.data().contentsBytes());
@@ -470,19 +474,35 @@ public final class BackpackMenuListener implements Listener {
 
             for (int i = 0; i < logical.length; i++) {
                 ItemStack it = logical[i];
-                if (!isBackpack(it))
+                if (it == null || it.getType().isAir())
                     continue;
-                logical[i] = null;
-                giveOrDrop(player, it);
-                moved++;
+
+                if (isBackpack(it)) {
+                    logical[i] = null;
+                    giveOrDrop(player, it);
+                    movedBackpacks++;
+                    continue;
+                }
+
+                if (!plugin.cfg().isAllowedInBackpack(it)) {
+                    logical[i] = null;
+                    giveOrDrop(player, it);
+                    movedBlocked++;
+                }
             }
 
-            if (moved > 0) {
+            if (movedBackpacks > 0 || movedBlocked > 0) {
                 openHolder.data().contentsBytes(ItemStackCodec.toBytes(logical));
                 renderer.render(openHolder);
                 scheduleSave(player, openHolder);
-                player.sendMessage(Text.c("&cBackpacks can't be stored inside backpacks. Moved " + moved
-                        + " backpack(s) back to you."));
+                if (movedBackpacks > 0) {
+                    player.sendMessage(Text.c("&cBackpacks can't be stored inside backpacks. Moved " + movedBackpacks
+                            + " backpack(s) back to you."));
+                }
+                if (movedBlocked > 0) {
+                    player.sendMessage(Text.c("&cSome items are blocked from backpacks by server config. Moved "
+                            + movedBlocked + " item(s) back to you."));
+                }
                 player.updateInventory();
             }
         });
