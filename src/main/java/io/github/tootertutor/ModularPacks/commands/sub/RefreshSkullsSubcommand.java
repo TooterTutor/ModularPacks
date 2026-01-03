@@ -43,6 +43,11 @@ public final class RefreshSkullsSubcommand implements Subcommand {
     }
 
     @Override
+    public String permission() {
+        return "modularpacks.admin";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
         CommandSender sender = ctx.sender();
         if (!sender.hasPermission("modularpacks.admin")) {
@@ -252,4 +257,3 @@ public final class RefreshSkullsSubcommand implements Subcommand {
         int skippedUnknownType;
     }
 }
-

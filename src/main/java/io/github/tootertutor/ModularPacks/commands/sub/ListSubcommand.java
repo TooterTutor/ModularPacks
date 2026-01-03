@@ -32,6 +32,11 @@ public final class ListSubcommand implements Subcommand {
     }
 
     @Override
+    public String permission() {
+        return "modularpacks.admin";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
         if (!ctx.sender().hasPermission("modularpacks.admin")) {
             ctx.sender().sendMessage(Component.text("You do not have permission."));

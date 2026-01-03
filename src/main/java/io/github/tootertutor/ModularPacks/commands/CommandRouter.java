@@ -53,13 +53,29 @@ public final class CommandRouter implements CommandExecutor, TabCompleter {
         List<String> args = Arrays.asList(argsArr);
         if (args.size() <= 1) {
             String prefix = args.isEmpty() ? "" : args.get(0).toLowerCase(Locale.ROOT);
-            return subs.keySet().stream().filter(s -> s.startsWith(prefix)).sorted().toList();
+            return subs.entrySet().stream()
+                    .filter(e -> canUse(sender, e.getValue()))
+                    .map(Map.Entry::getKey)
+                    .filter(s -> s.startsWith(prefix))
+                    .sorted()
+                    .toList();
         }
 
         Subcommand sub = subs.get(args.get(0).toLowerCase(Locale.ROOT));
         if (sub == null)
             return List.of();
+        if (!canUse(sender, sub))
+            return List.of();
 
         return sub.tabComplete(new CommandContext(sender, Arrays.asList(argsArr).subList(1, args.size())));
+    }
+
+    private static boolean canUse(CommandSender sender, Subcommand sub) {
+        if (sender == null || sub == null)
+            return false;
+        String perm = sub.permission();
+        if (perm == null || perm.isBlank())
+            return true;
+        return sender.hasPermission(perm);
     }
 }

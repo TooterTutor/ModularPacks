@@ -26,6 +26,11 @@ public final class ReloadSubcommand implements Subcommand {
     }
 
     @Override
+    public String permission() {
+        return "modularpacks.reload";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
         if (!ctx.sender().hasPermission("modularpacks.reload")) {
             ctx.sender().sendMessage(Component.text("You do not have permission."));

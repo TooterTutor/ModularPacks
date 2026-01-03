@@ -11,8 +11,10 @@ commands:
     permission: modularpacks.command
 permissions:
   modularpacks.command:
-    default: op
+    default: true
   modularpacks.reload:
     default: op
   modularpacks.admin:
     default: op
+  modularpacks.recipe:
+    default: true

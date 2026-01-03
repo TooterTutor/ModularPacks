@@ -39,7 +39,17 @@ public final class GiveSubcommand implements Subcommand {
     }
 
     @Override
+    public String permission() {
+        return "modularpacks.admin";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
+        if (!ctx.sender().hasPermission("modularpacks.admin")) {
+            ctx.sender().sendMessage(Component.text("You do not have permission."));
+            return;
+        }
+
         if (ctx.size() < 1) {
             ctx.sender().sendMessage(Component.text("Usage: /backpack give type <typeId> [player] [amount]"));
             ctx.sender().sendMessage(Component.text("   or: /backpack give module <id> [player] [amount]"));

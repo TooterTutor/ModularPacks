@@ -8,6 +8,7 @@ import io.github.tootertutor.ModularPacks.commands.CommandRouter;
 import io.github.tootertutor.ModularPacks.commands.sub.GiveSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.ListSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.OpenSubcommand;
+import io.github.tootertutor.ModularPacks.commands.sub.RecipeSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.RefreshSkullsSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.RecoverSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.ReloadSubcommand;
@@ -29,6 +30,7 @@ import io.github.tootertutor.ModularPacks.listeners.ModuleFilterScreenListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventModulePlacementListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventModuleUseListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventNestingListener;
+import io.github.tootertutor.ModularPacks.listeners.RecipePreviewListener;
 import io.github.tootertutor.ModularPacks.listeners.SmithingModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.StonecutterModuleListener;
 import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
@@ -85,6 +87,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new CraftingModuleListener(this), this);
         Bukkit.getPluginManager().registerEvents(new SmithingModuleListener(this), this);
         Bukkit.getPluginManager().registerEvents(new StonecutterModuleListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new RecipePreviewListener(), this);
 
         if (cfg().debugClickLog()) {
             this.clickDebug = new ClickDebugListener(this);
@@ -101,6 +104,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         router.register(new ReloadSubcommand(this));
         router.register(new SetTypeSubcommand(this));
         router.register(new RefreshSkullsSubcommand(this));
+        router.register(new RecipeSubcommand(this));
         getCommand("backpack").setExecutor(router);
         getCommand("backpack").setTabCompleter(router);
 
