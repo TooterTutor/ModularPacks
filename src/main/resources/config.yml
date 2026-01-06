@@ -72,7 +72,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1001
-    SkullData:
+    SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDBiMWI1MzY3NDkxODM5MWEwN2E5ZDAwNTgyYzA1OGY5MjgwYmM1MjZhNzE2Yzc5NmVlNWVhYjRiZTEwYTc2MCJ9fX0=
   Copper:
     Rows: 3
     UpgradeSlots: 1
@@ -93,7 +93,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1002
-    SkullData:
+    SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMWU1ODNjYjc3MTU4MWQzYjI3YjIzZjYxN2M3YjhhNDNkY2Q3MjIwNDQ3ZmY5NWZmMTk2MDQxNGQyMzUwYmRiOSJ9fX0=
   Iron:
     Rows: 4
     UpgradeSlots: 2
@@ -115,7 +115,7 @@ BackpackTypes:
           - "{backpackId}"
           - "{installedModules}"
         CustomModelData: 1003
-        SkullData:
+        SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGRhZjhlZGMzMmFmYjQ2MWFlZTA3MTMwNTgwMjMxMDFmOTI0ZTJhN2VmYTg4M2RhZTcyZDVkNTdkNGMwNTNkNyJ9fX0=
       - "2":
         Type: Crafting
         Pattern:
@@ -133,7 +133,7 @@ BackpackTypes:
           - "{backpackId}"
           - "{installedModules}"
         CustomModelData: 1003
-        SkullData:
+        SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2Y4NzUyNWFkODRlZmQxNjgwNmEyNmNhMDE5ODRiMjgwZTViYTY0MDM1MDViNmY2Yzk4MDNjMjQ2NDJhYmZjNyJ9fX0=
   Gold:
     Rows: 6
     UpgradeSlots: 3
@@ -154,7 +154,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1004
-    SkullData:
+    SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTBkMWIwNzMyYmY3YTcwZGU0ZGMwMTU1OWNjNWM5ODExMDY4ZWY3YjYwOTUwMTAzODI3MDlmOTQwOTM5MjdmNiJ9fX0=
   Diamond:
     Rows: 8
     UpgradeSlots: 4
@@ -175,7 +175,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1005
-    SkullData:
+    SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM1ZDdjYzA5ZmZmYmNhM2UxYzAwZDQyMWFmYWE0MzJjZjcxZmNiMDk1NTVmNTQ1MjNlNTIyMGQxYWYwZjk3ZCJ9fX0=
   Netherite:
     Rows: 10
     UpgradeSlots: 5
@@ -225,7 +225,7 @@ Upgrades:
         L: LEATHER
       OutputMaterial: ITEM_FRAME
       Glint: true
-    DisplayName: "Module Template"
+    DisplayName: "&eModule Template"
     Lore:
       - "&7Base template required to craft backpack upgrades."
     CustomModelData: 3001
@@ -369,8 +369,34 @@ Upgrades:
       - "&7Voids all filtered items."
       - "{toggleState}"
       - "{moduleActions}"
-
     CustomModelData: 2005
+
+  Restock:
+    Enabled: true
+    Toggleable: true
+    SecondaryAction: true
+    ScreenType: Hopper
+    # Restock behavior tuning
+    RestockThreshold: 16
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " E "
+        - "RTR"
+        - " E "
+      Ingredients:
+        E: EMERALD
+        R: REDSTONE
+        T: MODULE:CraftingTemplate
+      OutputMaterial: EMERALD
+      Glint: true
+    DisplayName: "&aRestock Upgrade"
+    Lore:
+      - "&7Automatically restocks the Player's inventory."
+      - "{toggleState}"
+      - "{restockThreshold}"
+      - "{moduleActions}"
+    CustomModelData: 2014
 
   # Workstation upgrades allow opening various crafting/smelting/etc., interfaces directly from the backpack.
   Crafting:
@@ -567,4 +593,4 @@ Upgrades:
       - "{toggleState}"
       - "{jukeboxMode}"
       - "{moduleActions}"
-    CustomModelData: 2015
+    CustomModelData: 2013

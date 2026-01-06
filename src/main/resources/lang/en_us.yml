@@ -71,5 +71,8 @@ tankContainedFluid:
 tankContainedExp:
   - "&7Stored XP: &f{levels}/{maxLevels} &7levels"
 
+restockThreshold:
+  - "&7Restock Threshold: &f{threshold}"
+
 errors:
   modulePlaceBlocked: "&cYou can't place modules in the world."

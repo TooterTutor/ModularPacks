@@ -41,6 +41,7 @@ public final class ModuleEngineService {
     private final JukeboxEngine jukeboxEngine;
     private final MagnetVoidEngine magnetVoidEngine;
     private final FurnaceEngine furnaceEngine;
+    private final RestockEngine restockEngine;
     private BukkitTask task;
 
     public ModuleEngineService(ModularPacksPlugin plugin) {
@@ -50,6 +51,7 @@ public final class ModuleEngineService {
         this.jukeboxEngine = new JukeboxEngine(plugin);
         this.magnetVoidEngine = new MagnetVoidEngine(plugin);
         this.furnaceEngine = new FurnaceEngine(plugin);
+        this.restockEngine = new RestockEngine(plugin);
     }
 
     public void start() {
@@ -172,6 +174,13 @@ public final class ModuleEngineService {
             if (magnetId != null) {
                 changedAny |= magnetVoidEngine.applyMagnet(player, logical, readWhitelistFromState(data, magnetId),
                         backpackId, backpackType, voidId, voidWhitelist);
+            }
+
+            UUID restockId = findInstalledModuleId(data, "Restock");
+            if (restockId != null) {
+                int threshold = readRestockThresholdFromState(data, restockId);
+                java.util.List<ItemStack> whitelist = readRestockWhitelistFromState(data, restockId);
+                changedAny |= restockEngine.applyRestock(player, logical, threshold, whitelist);
             }
 
             if (changedAny) {
@@ -321,6 +330,59 @@ public final class ModuleEngineService {
             seen.add(it.getType());
         }
         return new java.util.ArrayList<>(seen);
+    }
+
+    private int readRestockThresholdFromState(BackpackData data, UUID moduleId) {
+        if (data == null || moduleId == null)
+            return RestockEngine.clampThreshold(0);
+        byte[] bytes = data.moduleStates().get(moduleId);
+        if (bytes == null || bytes.length == 0)
+            return RestockEngine.clampThreshold(0);
+
+        ItemStack[] arr = ItemStackCodec.fromBytes(bytes);
+        if (arr == null || arr.length == 0)
+            return RestockEngine.clampThreshold(0);
+
+        // Prefer merged-state index 9 (whitelist[0..8] + threshold[9]).
+        if (arr.length > 9 && arr[9] != null && !arr[9].getType().isAir()) {
+            return RestockEngine.clampThreshold(arr[9].getAmount());
+        }
+
+        // Back-compat (old hopper-only): slot 2 is the center.
+        if (arr.length > 2 && arr[2] != null && !arr[2].getType().isAir()) {
+            return RestockEngine.clampThreshold(arr[2].getAmount());
+        }
+
+        return RestockEngine.clampThreshold(0);
+    }
+
+    private java.util.List<ItemStack> readRestockWhitelistFromState(BackpackData data, UUID moduleId) {
+        if (data == null || moduleId == null)
+            return java.util.Collections.emptyList();
+        byte[] bytes = data.moduleStates().get(moduleId);
+        if (bytes == null || bytes.length == 0)
+            return java.util.Collections.emptyList();
+
+        ItemStack[] arr;
+        try {
+            arr = ItemStackCodec.fromBytes(bytes);
+        } catch (Exception ex) {
+            return java.util.Collections.emptyList();
+        }
+        if (arr == null || arr.length == 0)
+            return java.util.Collections.emptyList();
+
+        int limit = Math.min(9, arr.length);
+        java.util.ArrayList<ItemStack> out = new java.util.ArrayList<>();
+        for (int i = 0; i < limit; i++) {
+            ItemStack it = arr[i];
+            if (it == null || it.getType().isAir())
+                continue;
+            ItemStack s = it.clone();
+            s.setAmount(1);
+            out.add(s);
+        }
+        return out;
     }
 
     private static UUID readBackpackId(Keys keys, ItemStack item) {

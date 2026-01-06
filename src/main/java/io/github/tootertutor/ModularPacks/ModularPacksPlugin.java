@@ -31,6 +31,7 @@ import io.github.tootertutor.ModularPacks.listeners.PreventModulePlacementListen
 import io.github.tootertutor.ModularPacks.listeners.PreventModuleUseListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventNestingListener;
 import io.github.tootertutor.ModularPacks.listeners.RecipePreviewListener;
+import io.github.tootertutor.ModularPacks.listeners.RestockModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.SmithingModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.StonecutterModuleListener;
 import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
@@ -78,6 +79,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, renderer), this);
         Bukkit.getPluginManager().registerEvents(new ModuleRecipeListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ModuleFilterScreenListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new RestockModuleListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventNestingListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventModulePlacementListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventModuleUseListener(this), this);

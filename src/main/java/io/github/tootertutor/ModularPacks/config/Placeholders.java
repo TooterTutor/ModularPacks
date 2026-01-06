@@ -204,6 +204,19 @@ public final class Placeholders {
         } else {
             overrides.put("feedingMode", Replacement.scalar(""));
         }
+        if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
+            String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
+            // Value placeholder used inside lang templates (e.g. {restockThreshold} -> "&7... {threshold}")
+            overrides.put("threshold", Replacement.scalar(threshold));
+            overrides.put("Threshold", Replacement.scalar(threshold));
+            overrides.put("restockThresholdValue", Replacement.scalar(threshold));
+            overrides.put("RestockThresholdValue", Replacement.scalar(threshold));
+        } else {
+            overrides.put("threshold", Replacement.scalar(""));
+            overrides.put("Threshold", Replacement.scalar(""));
+            overrides.put("restockThresholdValue", Replacement.scalar(""));
+            overrides.put("RestockThresholdValue", Replacement.scalar(""));
+        }
 
         addUpgradeConfigScalars(plugin, def, overrides);
 
@@ -228,6 +241,18 @@ public final class Placeholders {
                 overrides.put("feedingMode", Replacement.scalar(resolveFeedingMode(plugin, moduleItem)));
             } else {
                 overrides.put("feedingMode", Replacement.scalar(""));
+            }
+            if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
+                String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
+                overrides.put("threshold", Replacement.scalar(threshold));
+                overrides.put("Threshold", Replacement.scalar(threshold));
+                overrides.put("restockThresholdValue", Replacement.scalar(threshold));
+                overrides.put("RestockThresholdValue", Replacement.scalar(threshold));
+            } else {
+                overrides.put("threshold", Replacement.scalar(""));
+                overrides.put("Threshold", Replacement.scalar(""));
+                overrides.put("restockThresholdValue", Replacement.scalar(""));
+                overrides.put("RestockThresholdValue", Replacement.scalar(""));
             }
             addUpgradeConfigScalars(plugin, def, overrides);
         } else {
@@ -394,6 +419,63 @@ public final class Placeholders {
         return plugin.lang().get("feedingMode.whitelistEffects", "&7Mode: &fFirst in Whitelist: Prefer Effects");
     }
 
+    private static int resolveRestockThreshold(ModularPacksPlugin plugin, ItemStack moduleItem, UpgradeDef def) {
+        if (plugin == null)
+            return 16;
+
+        int fallback = 16;
+        if (def != null && def.id() != null) {
+            fallback = plugin.getConfig().getInt("Upgrades." + def.id() + ".RestockThreshold", fallback);
+        }
+        fallback = Math.max(1, Math.min(64, fallback));
+
+        if (moduleItem == null || !moduleItem.hasItemMeta())
+            return fallback;
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return fallback;
+
+        Keys keys = plugin.keys();
+        String b64 = meta.getPersistentDataContainer().get(keys.MODULE_STATE_B64, PersistentDataType.STRING);
+        if (b64 == null || b64.isBlank())
+            return fallback;
+
+        byte[] bytes;
+        try {
+            bytes = java.util.Base64.getDecoder().decode(b64);
+        } catch (IllegalArgumentException ex) {
+            return fallback;
+        }
+        if (bytes == null || bytes.length == 0)
+            return fallback;
+
+        ItemStack[] arr;
+        try {
+            arr = ItemStackCodec.fromBytes(bytes);
+        } catch (Exception ex) {
+            return fallback;
+        }
+        if (arr == null || arr.length == 0)
+            return fallback;
+
+        // Prefer merged state index 9 (whitelist[0..8] + threshold[9]).
+        if (arr.length > 9 && arr[9] != null && !arr[9].getType().isAir()) {
+            int t = arr[9].getAmount();
+            if (t > 0)
+                return Math.max(1, Math.min(64, t));
+        }
+
+        // Back-compat (old hopper-only): slot 2 is the center.
+        if (arr.length > 2 && arr[2] != null && !arr[2].getType().isAir()) {
+            int t = arr[2].getAmount();
+            if (t > 0)
+                return Math.max(1, Math.min(64, t));
+        }
+
+        return fallback;
+    }
+
     private static void addUpgradeConfigScalars(ModularPacksPlugin plugin, UpgradeDef def,
             Map<String, Replacement> overrides) {
         if (plugin == null || def == null || def.id() == null)
@@ -415,6 +497,10 @@ public final class Placeholders {
 
             String lc = lowerCamel(key);
             if (lc != null && !lc.equals(key)) {
+                // Avoid overriding lang template keys (e.g. `restockThreshold` in en_us.yml).
+                if (plugin.lang() != null && plugin.lang().raw(lc) != null) {
+                    continue;
+                }
                 overrides.putIfAbsent(lc, Replacement.scalar(formatted));
             }
         }

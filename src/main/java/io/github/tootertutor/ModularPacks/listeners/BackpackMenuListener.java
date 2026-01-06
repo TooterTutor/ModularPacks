@@ -624,6 +624,33 @@ public final class BackpackMenuListener implements Listener {
                 }
             }
 
+            // Restock module uses:
+            // - DROPPER as whitelist (ghost filter)
+            // - HOPPER as threshold config
+            // Both must persist together, so we merge them into a single stored state.
+            if ((msh.screenType() == ScreenType.HOPPER || msh.screenType() == ScreenType.DROPPER)
+                    && isRestockModule(msh, data)) {
+                byte[] merged = mergeRestockState(data, msh.moduleId(), msh.screenType(), items);
+                items = ItemStackCodec.fromBytes(merged);
+
+                // Also write the merged state back into the stored module snapshot so lore placeholders
+                // (e.g. {restockThreshold}) can reflect the current value while installed.
+                byte[] snap = data.installedSnapshots().get(msh.moduleId());
+                if (snap != null && snap.length > 0) {
+                    try {
+                        ItemStack[] snapArr = ItemStackCodec.fromBytes(snap);
+                        if (snapArr.length > 0 && snapArr[0] != null) {
+                            ItemStack moduleItem = snapArr[0].clone();
+                            writeModuleStateToItem(moduleItem, merged);
+                            applyModuleLore(moduleItem);
+                            data.installedSnapshots().put(msh.moduleId(),
+                                    ItemStackCodec.toBytes(new ItemStack[] { moduleItem.clone() }));
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
             data.moduleStates().put(msh.moduleId(), ItemStackCodec.toBytes(items));
             plugin.repo().saveBackpack(data);
             plugin.sessions().refreshLinkedBackpacksThrottled(msh.backpackId(), data);
@@ -687,6 +714,112 @@ public final class BackpackMenuListener implements Listener {
             sortBurstNotifiedAtTick.remove(playerId);
         }
 
+    }
+
+    private boolean isRestockModule(ModuleScreenHolder msh, BackpackData data) {
+        if (msh == null || data == null)
+            return false;
+        byte[] snap = data.installedSnapshots().get(msh.moduleId());
+        if (snap == null || snap.length == 0)
+            return false;
+        ItemStack[] arr;
+        try {
+            arr = ItemStackCodec.fromBytes(snap);
+        } catch (Exception ex) {
+            return false;
+        }
+        if (arr.length == 0 || arr[0] == null || !arr[0].hasItemMeta())
+            return false;
+        ItemMeta meta = arr[0].getItemMeta();
+        if (meta == null)
+            return false;
+        String type = meta.getPersistentDataContainer().get(plugin.keys().MODULE_TYPE, PersistentDataType.STRING);
+        return type != null && type.equalsIgnoreCase("Restock");
+    }
+
+    private byte[] mergeRestockState(BackpackData data, UUID moduleId, ScreenType screenType, ItemStack[] viewItems) {
+        // Stored state format:
+        // - indices 0..8: whitelist (ghost filter entries)
+        // - index 9: threshold marker item (CHEST amount=threshold)
+        ItemStack[] stored = readRestockStoredState(data, moduleId);
+
+        if (screenType == ScreenType.DROPPER) {
+            // Update whitelist from the 9-slot dropper inventory.
+            for (int i = 0; i < 9; i++) {
+                stored[i] = (viewItems != null && i < viewItems.length) ? sanitizeGhost(viewItems[i]) : null;
+            }
+        } else if (screenType == ScreenType.HOPPER) {
+            int threshold = 16;
+            if (viewItems != null && viewItems.length > 2 && viewItems[2] != null && !viewItems[2].getType().isAir()) {
+                int amt = viewItems[2].getAmount();
+                if (amt > 0)
+                    threshold = Math.max(1, Math.min(64, amt));
+            }
+            stored[9] = makeRestockThresholdMarker(threshold);
+        }
+
+        return ItemStackCodec.toBytes(stored);
+    }
+
+    private ItemStack[] readRestockStoredState(BackpackData data, UUID moduleId) {
+        ItemStack[] out = new ItemStack[10];
+
+        // default threshold from config (if present)
+        int threshold = plugin.getConfig().getInt("Upgrades.Restock.RestockThreshold", 16);
+        threshold = Math.max(1, Math.min(64, threshold));
+        out[9] = makeRestockThresholdMarker(threshold);
+
+        if (data == null || moduleId == null)
+            return out;
+        byte[] existing = data.moduleStates().get(moduleId);
+        if (existing == null || existing.length == 0)
+            return out;
+
+        ItemStack[] arr;
+        try {
+            arr = ItemStackCodec.fromBytes(existing);
+        } catch (Exception ex) {
+            return out;
+        }
+
+        // Copy whitelist (first 9)
+        int limit = Math.min(9, arr.length);
+        for (int i = 0; i < limit; i++) {
+            out[i] = sanitizeGhost(arr[i]);
+        }
+
+        // Threshold marker: prefer index 9 (new), fallback to slot 2 (old hopper-only)
+        if (arr.length > 9 && arr[9] != null && !arr[9].getType().isAir()) {
+            int amt = arr[9].getAmount();
+            if (amt > 0)
+                out[9] = makeRestockThresholdMarker(amt);
+        } else if (arr.length > 2 && arr[2] != null && !arr[2].getType().isAir()) {
+            int amt = arr[2].getAmount();
+            if (amt > 0)
+                out[9] = makeRestockThresholdMarker(amt);
+        }
+
+        return out;
+    }
+
+    private ItemStack sanitizeGhost(ItemStack it) {
+        if (it == null || it.getType().isAir())
+            return null;
+        ItemStack s = it.clone();
+        s.setAmount(1);
+        return s;
+    }
+
+    private ItemStack makeRestockThresholdMarker(int threshold) {
+        int t = Math.max(1, Math.min(64, threshold));
+        ItemStack marker = new ItemStack(Material.CHEST);
+        marker.setAmount(t);
+        ItemMeta meta = marker.getItemMeta();
+        if (meta != null) {
+            meta.displayName(net.kyori.adventure.text.Component.text("Restock Threshold"));
+            marker.setItemMeta(meta);
+        }
+        return marker;
     }
 
     private EjectResult ejectProhibitedFromData(Player player, BackpackMenuHolder holder) {
@@ -883,6 +1016,27 @@ public final class BackpackMenuListener implements Listener {
         }
 
         // -----------------------------------------
+        // Restock: Primary=Whitelist (Dropper), Secondary=Threshold (Hopper)
+        // -----------------------------------------
+        if (isRestockModule(clicked)) {
+            // Primary action (left-click): whitelist
+            if (click == ClickType.LEFT) {
+                openRestockScreen(player, holder, clicked, ScreenType.DROPPER);
+                return;
+            }
+
+            // Secondary action (right-click): threshold
+            if (click == ClickType.RIGHT) {
+                String type = getModuleType(clicked);
+                var def = plugin.cfg().findUpgrade(type);
+                if (def == null || !def.secondaryAction())
+                    return;
+                openRestockScreen(player, holder, clicked, ScreenType.HOPPER);
+                return;
+            }
+        }
+
+        // -----------------------------------------
         // OPEN MODULE UI
         // -----------------------------------------
         if (click == ClickType.LEFT) {
@@ -915,6 +1069,35 @@ public final class BackpackMenuListener implements Listener {
     private boolean isJukeboxModule(ItemStack moduleItem) {
         String type = getModuleType(moduleItem);
         return type != null && type.equalsIgnoreCase("Jukebox");
+    }
+
+    private boolean isRestockModule(ItemStack moduleItem) {
+        String type = getModuleType(moduleItem);
+        return type != null && type.equalsIgnoreCase("Restock");
+    }
+
+    private void openRestockScreen(Player player, BackpackMenuHolder holder, ItemStack moduleItem, ScreenType screen) {
+        if (player == null || holder == null || moduleItem == null || screen == null)
+            return;
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return;
+
+        Keys keys = plugin.keys();
+        String idStr = meta.getPersistentDataContainer().get(keys.MODULE_ID, PersistentDataType.STRING);
+        if (idStr == null)
+            return;
+
+        UUID moduleId;
+        try {
+            moduleId = UUID.fromString(idStr);
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+
+        flushSaveNow(player, holder);
+        screens.open(player, holder.backpackId(), holder.type().id(), moduleId, screen);
     }
 
     private enum JukeboxMode {

@@ -151,7 +151,7 @@ public final class RecipeSubcommand implements Subcommand {
         }
 
         ItemStack[] grid = buildCraftingGrid(recipeSec, new UUIDResolver());
-        Component title = Component.text("Recipe: Module " + def.id());
+        Component title = Component.text(def.id());
         ItemStack out = createUpgradePreview(def.id());
         RecipePreviewUi.openCrafting(plugin, player, title, grid, out);
     }
@@ -203,7 +203,7 @@ public final class RecipeSubcommand implements Subcommand {
 
         if ("Crafting".equalsIgnoreCase(kind)) {
             ItemStack[] grid = buildCraftingGrid(recipe, new UUIDResolver());
-            Component title = Component.text("Recipe: Backpack " + type.id() + " (" + chosen.id + ")");
+            Component title = Component.text(type.id() + " (" + chosen.id + ")");
             ItemStack out = createBackpackPreview(type.id());
             RecipePreviewUi.openCrafting(plugin, player, title, grid, out);
             return;
@@ -229,7 +229,7 @@ public final class RecipeSubcommand implements Subcommand {
             ItemStack template = new ItemStack(templateMat);
             ItemStack base = createBackpackPreview(baseTypeId);
             ItemStack addition = new ItemStack(additionMat);
-            Component title = Component.text("Recipe: Backpack " + type.id() + " (Smithing)");
+            Component title = Component.text(type.id());
             ItemStack out = createBackpackPreview(type.id());
             RecipePreviewUi.openSmithing(plugin, player, title, template, base, addition, out);
             return;
@@ -440,7 +440,8 @@ public final class RecipeSubcommand implements Subcommand {
             }
 
             if (elem instanceof Map<?, ?> wrapper && !wrapper.isEmpty()) {
-                if (wrapper.containsKey("Type") || wrapper.containsKey("Pattern") || wrapper.containsKey("Ingredients")) {
+                if (wrapper.containsKey("Type") || wrapper.containsKey("Pattern")
+                        || wrapper.containsKey("Ingredients")) {
                     ConfigurationSection child = asSection(wrapper);
                     if (child != null)
                         out.add(new RecipeVariant(fallbackId, child));
@@ -475,7 +476,8 @@ public final class RecipeSubcommand implements Subcommand {
     }
 
     private static final class UUIDResolver {
-        // placeholder for future slot-specific rendering; kept to avoid changing the call sites too much.
+        // placeholder for future slot-specific rendering; kept to avoid changing the
+        // call sites too much.
         @SuppressWarnings("unused")
         private final Map<String, Object> unused = new java.util.HashMap<>();
     }

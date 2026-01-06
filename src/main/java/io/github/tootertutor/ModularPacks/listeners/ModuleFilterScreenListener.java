@@ -55,6 +55,11 @@ public final class ModuleFilterScreenListener implements Listener {
             return;
         }
 
+        // Restock: HOPPER is threshold config (not a ghost filter); DROPPER is whitelist (ghost filter).
+        if (moduleType != null && moduleType.equalsIgnoreCase("Restock") && msh.screenType() == ScreenType.HOPPER) {
+            return;
+        }
+
         int raw = e.getRawSlot();
         int topSize = top.getSize();
 
@@ -132,6 +137,11 @@ public final class ModuleFilterScreenListener implements Listener {
                     }
                 }
             }
+            return;
+        }
+
+        // Restock: HOPPER is threshold config (not a ghost filter); DROPPER is whitelist (ghost filter).
+        if (moduleType != null && moduleType.equalsIgnoreCase("Restock") && msh.screenType() == ScreenType.HOPPER) {
             return;
         }
 
