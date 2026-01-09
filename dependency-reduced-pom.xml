@@ -4,7 +4,7 @@
   <groupId>io.github.tootertutor</groupId>
   <artifactId>modularpacks</artifactId>
   <name>modularpacks</name>
-  <version>1.21.10-1.5</version>
+  <version>1.21.10-1.5-Hotfix</version>
   <build>
     <defaultGoal>clean package</defaultGoal>
     <resources>

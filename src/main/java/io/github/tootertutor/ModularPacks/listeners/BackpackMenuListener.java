@@ -39,6 +39,11 @@ import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.modules.AnvilModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.CraftingModuleUi;
+import io.github.tootertutor.ModularPacks.modules.FurnaceModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.SmithingModuleUi;
+import io.github.tootertutor.ModularPacks.modules.StonecutterModuleUi;
 import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
 import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
@@ -1739,6 +1744,100 @@ public final class BackpackMenuListener implements Listener {
         flushSaveNow(player, holder);
 
         screens.open(player, holder.backpackId(), holder.type().id(), moduleId, def.screenType());
+
+        // If a region/claim plugin cancels opening the target GUI, vanilla can close
+        // the backpack but refuse to open the module screen. In that case, we must
+        // re-open the backpack menu so our persistence hooks remain active.
+        scheduleModuleOpenVerification(player, holder, moduleId, def.screenType());
+    }
+
+    private void scheduleModuleOpenVerification(
+            Player player,
+            BackpackMenuHolder holder,
+            UUID moduleId,
+            ScreenType screenType) {
+        if (player == null || holder == null || moduleId == null || screenType == null)
+            return;
+
+        UUID playerId = player.getUniqueId();
+        UUID backpackId = holder.backpackId();
+        String typeId = holder.type().id();
+        int page = holder.page();
+
+        long delay = opensNextTick(screenType) ? 2L : 1L;
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Player p = Bukkit.getPlayer(playerId);
+            if (p == null || !p.isOnline())
+                return;
+
+            // Already back in the backpack (open was cancelled but previous UI stayed).
+            var top = p.getOpenInventory() != null ? p.getOpenInventory().getTopInventory() : null;
+            if (top != null) {
+                var h = top.getHolder();
+                if (h instanceof BackpackMenuHolder bmh && backpackId.equals(bmh.backpackId())) {
+                    return;
+                }
+            }
+
+            // Module UI opened successfully.
+            if (isModuleSessionOpen(p, backpackId, moduleId, screenType)) {
+                return;
+            }
+
+            // Don't yank the player out of another container they opened manually.
+            if (top != null && top.getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
+                return;
+            }
+
+            renderer.openMenu(p, backpackId, typeId, page);
+        }, delay);
+    }
+
+    private static boolean opensNextTick(ScreenType screenType) {
+        // These screens are opened via MenuType builders and are scheduled to the next tick
+        // by ScreenRouter.
+        return screenType == ScreenType.ANVIL
+                || screenType == ScreenType.CRAFTING
+                || screenType == ScreenType.SMITHING
+                || screenType == ScreenType.STONECUTTER
+                || screenType == ScreenType.SMELTING
+                || screenType == ScreenType.BLASTING
+                || screenType == ScreenType.SMOKING;
+    }
+
+    private static boolean isModuleSessionOpen(Player player, UUID backpackId, UUID moduleId, ScreenType screenType) {
+        if (player == null || backpackId == null || moduleId == null || screenType == null)
+            return false;
+
+        // MenuType-based module UIs are tracked with explicit per-player sessions.
+        if (screenType == ScreenType.ANVIL) {
+            return AnvilModuleLogic.hasSession(player) && backpackId.equals(AnvilModuleLogic.sessionBackpackId(player));
+        }
+        if (screenType == ScreenType.CRAFTING) {
+            CraftingModuleUi.Session s = CraftingModuleUi.session(player);
+            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+        }
+        if (screenType == ScreenType.SMITHING) {
+            SmithingModuleUi.Session s = SmithingModuleUi.session(player);
+            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+        }
+        if (screenType == ScreenType.STONECUTTER) {
+            StonecutterModuleUi.Session s = StonecutterModuleUi.session(player);
+            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+        }
+        if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING || screenType == ScreenType.SMOKING) {
+            FurnaceModuleLogic.Session s = FurnaceModuleLogic.session(player);
+            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+        }
+
+        // InventoryHolder-based screens.
+        var top = player.getOpenInventory() != null ? player.getOpenInventory().getTopInventory() : null;
+        if (top != null && top.getHolder() instanceof ModuleScreenHolder msh) {
+            return backpackId.equals(msh.backpackId()) && moduleId.equals(msh.moduleId()) && screenType == msh.screenType();
+        }
+
+        return false;
     }
 
     private int pageCount(BackpackMenuHolder holder) {

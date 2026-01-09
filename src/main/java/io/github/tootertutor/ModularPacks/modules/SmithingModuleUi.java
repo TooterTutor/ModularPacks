@@ -9,6 +9,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.MenuType;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.inventory.InventoryType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
@@ -73,6 +74,15 @@ public final class SmithingModuleUi {
         }
 
         player.openInventory(view);
+
+        // If another plugin cancelled the open, do NOT register a session (prevents
+        // stale hooks + accidental persistence/dupe issues).
+        InventoryView current = player.getOpenInventory();
+        if (current == null || current.getTopInventory() != view.getTopInventory()
+                || current.getTopInventory().getType() != InventoryType.SMITHING) {
+            return;
+        }
+
         SESSIONS.put(player.getUniqueId(), new Session(backpackId, backpackType, moduleId));
         player.updateInventory();
     }
@@ -102,4 +112,3 @@ public final class SmithingModuleUi {
         plugin.sessions().onRelatedInventoryClose(player, session.backpackId());
     }
 }
-

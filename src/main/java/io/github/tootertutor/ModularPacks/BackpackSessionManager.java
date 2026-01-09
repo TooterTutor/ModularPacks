@@ -93,8 +93,9 @@ public final class BackpackSessionManager {
 
     /**
      * Called when the viewer closes any inventory related to this backpack. Unlock
-     * happens next tick so transitions (backpack -> module, module -> backpack)
-     * don't drop the lock.
+     * happens after a short delay so transitions (backpack -> module, module ->
+     * backpack) don't drop the lock, and so a cancelled module-open can be
+     * recovered by re-opening the backpack UI.
      */
     public void onRelatedInventoryClose(Player viewer, UUID backpackId) {
         if (viewer == null || backpackId == null)
@@ -105,7 +106,7 @@ public final class BackpackSessionManager {
         if (current == null || !current.equals(viewerId))
             return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
             // Only unlock if they didn't transition into another session screen.
             if (isViewerStillInSession(viewerId, backpackId))
                 return;
@@ -114,7 +115,7 @@ public final class BackpackSessionManager {
             if (cur2 != null && cur2.equals(viewerId)) {
                 lockedToViewer.remove(backpackId);
             }
-        });
+        }, 2L);
     }
 
     public void releaseAllFor(UUID viewerId) {

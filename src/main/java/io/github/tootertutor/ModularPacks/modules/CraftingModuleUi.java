@@ -9,6 +9,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MenuType;
+import org.bukkit.event.inventory.InventoryType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
@@ -78,6 +79,15 @@ public final class CraftingModuleUi {
         CraftingModuleLogic.updateResult(plugin.recipes(), player, top);
 
         player.openInventory(view);
+
+        // If another plugin cancelled the open, do NOT register a session (prevents
+        // stale hooks + accidental persistence/dupe issues).
+        InventoryView current = player.getOpenInventory();
+        if (current == null || current.getTopInventory() != view.getTopInventory()
+                || current.getTopInventory().getType() != InventoryType.WORKBENCH) {
+            return;
+        }
+
         SESSIONS.put(player.getUniqueId(), new Session(backpackId, backpackType, moduleId));
         player.updateInventory();
     }

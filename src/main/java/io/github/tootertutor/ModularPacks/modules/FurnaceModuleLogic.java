@@ -10,6 +10,7 @@ import org.bukkit.inventory.MenuType;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.view.FurnaceView;
+import org.bukkit.event.inventory.InventoryType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
@@ -87,6 +88,15 @@ public final class FurnaceModuleLogic {
         view.setCookTime(s.cookTime, s.cookTotal);
 
         player.openInventory(view);
+
+        // If another plugin cancelled the open, do NOT register a session (prevents
+        // stale hooks + accidental persistence/dupe issues).
+        InventoryView current = player.getOpenInventory();
+        if (current == null || current.getTopInventory() != view.getTopInventory())
+            return;
+        InventoryType t = current.getTopInventory().getType();
+        if (t != InventoryType.FURNACE && t != InventoryType.BLAST_FURNACE && t != InventoryType.SMOKER)
+            return;
 
         SESSIONS.put(player.getUniqueId(), new Session(backpackId, backpackType, moduleId, screenType));
         player.updateInventory();

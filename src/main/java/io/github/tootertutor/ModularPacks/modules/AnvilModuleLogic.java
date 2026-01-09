@@ -90,7 +90,15 @@ public final class AnvilModuleLogic {
         // Actually open the view for the player.
         player.openInventory(view);
 
-        // Track this as "ours" only after the view was opened.
+        // If another plugin cancelled the open, do NOT register a session (prevents
+        // stale hooks + accidental persistence/dupe issues).
+        InventoryView current = player.getOpenInventory();
+        if (current == null || current.getTopInventory() != view.getTopInventory()
+                || current.getTopInventory().getType() != InventoryType.ANVIL) {
+            return;
+        }
+
+        // Track this as "ours" only after we confirm the view was opened.
         SESSIONS.put(player.getUniqueId(), new Session(backpackId, backpackType, moduleId));
 
         player.updateInventory();
