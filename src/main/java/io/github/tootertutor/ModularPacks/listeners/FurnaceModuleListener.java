@@ -1,7 +1,9 @@
 package io.github.tootertutor.ModularPacks.listeners;
 
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
+import org.bukkit.entity.ExperienceOrb;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -124,7 +126,7 @@ public final class FurnaceModuleListener implements Listener {
                     int xp = toVanillaXp(award);
                     if (xp > 0) {
                         try {
-                            player.giveExp(xp);
+                            dropVanillaLikeXp(player, xp);
                         } catch (Exception ignored) {
                         }
                     }
@@ -245,6 +247,60 @@ public final class FurnaceModuleListener implements Listener {
             whole++;
         }
         return Math.max(0, whole);
+    }
+
+    private static void dropVanillaLikeXp(Player player, int xp) {
+        if (player == null || xp <= 0)
+            return;
+        if (player.getWorld() == null)
+            return;
+
+        int remaining = xp;
+        var base = player.getLocation();
+        while (remaining > 0) {
+            int value = xpSplit(remaining);
+            remaining -= value;
+
+            double ox = (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.3;
+            double oz = (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.3;
+            var loc = base.clone().add(ox, 0.2, oz);
+
+            try {
+                player.getWorld().spawn(loc, ExperienceOrb.class, orb -> orb.setExperience(value));
+            } catch (Throwable ex) {
+                // Fallback (no mending), but don't lose XP.
+                try {
+                    player.giveExp(remaining + value);
+                } catch (Throwable ignored) {
+                }
+                return;
+            }
+        }
+    }
+
+    private static int xpSplit(int xp) {
+        // Vanilla-ish orb splitting (ExperienceOrbEntity#getExperienceValue).
+        if (xp >= 2477)
+            return 2477;
+        if (xp >= 1237)
+            return 1237;
+        if (xp >= 617)
+            return 617;
+        if (xp >= 307)
+            return 307;
+        if (xp >= 149)
+            return 149;
+        if (xp >= 73)
+            return 73;
+        if (xp >= 37)
+            return 37;
+        if (xp >= 17)
+            return 17;
+        if (xp >= 7)
+            return 7;
+        if (xp >= 3)
+            return 3;
+        return 1;
     }
 
     private boolean isBackpack(ItemStack item) {
