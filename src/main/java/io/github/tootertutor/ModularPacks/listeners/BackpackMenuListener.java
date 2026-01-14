@@ -42,9 +42,9 @@ import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.AnvilModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.CraftingModuleUi;
 import io.github.tootertutor.ModularPacks.modules.FurnaceModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
 import io.github.tootertutor.ModularPacks.modules.SmithingModuleUi;
 import io.github.tootertutor.ModularPacks.modules.StonecutterModuleUi;
-import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
 import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
 import io.github.tootertutor.ModularPacks.text.Text;
@@ -591,6 +591,7 @@ public final class BackpackMenuListener implements Listener {
                     fs.burnTotal = old.burnTotal;
                     fs.cookTime = old.cookTime;
                     fs.cookTotal = old.cookTotal;
+                    fs.xpStored = old.xpStored;
                 }
 
                 data.moduleStates().put(msh.moduleId(), FurnaceStateCodec.encode(fs));
@@ -638,8 +639,9 @@ public final class BackpackMenuListener implements Listener {
                 byte[] merged = mergeRestockState(data, msh.moduleId(), msh.screenType(), items);
                 items = ItemStackCodec.fromBytes(merged);
 
-                // Also write the merged state back into the stored module snapshot so lore placeholders
-                // (e.g. {restockThreshold}) can reflect the current value while installed.
+                // Also write the merged state back into the stored module snapshot so lore
+                // placeholders (e.g. {restockThreshold}) can reflect the current value while
+                // installed.
                 byte[] snap = data.installedSnapshots().get(msh.moduleId());
                 if (snap != null && snap.length > 0) {
                     try {
@@ -1764,7 +1766,7 @@ public final class BackpackMenuListener implements Listener {
         String typeId = holder.type().id();
         int page = holder.page();
 
-        long delay = opensNextTick(screenType) ? 2L : 1L;
+        long delay = opensNextTick(screenType) ? 1L : 1L;
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             Player p = Bukkit.getPlayer(playerId);
@@ -1795,8 +1797,8 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private static boolean opensNextTick(ScreenType screenType) {
-        // These screens are opened via MenuType builders and are scheduled to the next tick
-        // by ScreenRouter.
+        // These screens are opened via MenuType builders and are scheduled to the next
+        // tick by ScreenRouter.
         return screenType == ScreenType.ANVIL
                 || screenType == ScreenType.CRAFTING
                 || screenType == ScreenType.SMITHING
@@ -1826,7 +1828,8 @@ public final class BackpackMenuListener implements Listener {
             StonecutterModuleUi.Session s = StonecutterModuleUi.session(player);
             return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
         }
-        if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING || screenType == ScreenType.SMOKING) {
+        if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING
+                || screenType == ScreenType.SMOKING) {
             FurnaceModuleLogic.Session s = FurnaceModuleLogic.session(player);
             return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
         }
@@ -1834,7 +1837,8 @@ public final class BackpackMenuListener implements Listener {
         // InventoryHolder-based screens.
         var top = player.getOpenInventory() != null ? player.getOpenInventory().getTopInventory() : null;
         if (top != null && top.getHolder() instanceof ModuleScreenHolder msh) {
-            return backpackId.equals(msh.backpackId()) && moduleId.equals(msh.moduleId()) && screenType == msh.screenType();
+            return backpackId.equals(msh.backpackId()) && moduleId.equals(msh.moduleId())
+                    && screenType == msh.screenType();
         }
 
         return false;
@@ -2295,8 +2299,8 @@ public final class BackpackMenuListener implements Listener {
             items.add(it.clone());
         }
 
-        // Merge partial stacks BEFORE sorting (so COUNT sort and other comparators behave
-        // predictably and we don't leave unnecessary partials).
+        // Merge partial stacks BEFORE sorting (so COUNT sort and other comparators
+        // behave predictably and we don't leave unnecessary partials).
         items = mergePartialStacks(items);
 
         items.sort(BackpackSortMode.comparator(plugin, holder.sortMode()));

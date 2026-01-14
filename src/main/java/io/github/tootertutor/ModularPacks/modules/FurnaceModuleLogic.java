@@ -5,12 +5,12 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.MenuType;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.MenuType;
 import org.bukkit.inventory.view.FurnaceView;
-import org.bukkit.event.inventory.InventoryType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
@@ -46,9 +46,6 @@ public final class FurnaceModuleLogic {
             ScreenType screenType) {
 
         if (plugin == null || player == null || !player.isOnline())
-            return;
-
-        if (screenType != ScreenType.SMELTING && screenType != ScreenType.BLASTING && screenType != ScreenType.SMOKING)
             return;
 
         var builder = switch (screenType) {
@@ -95,8 +92,13 @@ public final class FurnaceModuleLogic {
         if (current == null || current.getTopInventory() != view.getTopInventory())
             return;
         InventoryType t = current.getTopInventory().getType();
-        if (t != InventoryType.FURNACE && t != InventoryType.BLAST_FURNACE && t != InventoryType.SMOKER)
-            return;
+        switch (t) {
+            case FURNACE, BLAST_FURNACE, SMOKER -> {
+            }
+            default -> {
+                return;
+            }
+        }
 
         SESSIONS.put(player.getUniqueId(), new Session(backpackId, backpackType, moduleId, screenType));
         player.updateInventory();
@@ -136,10 +138,40 @@ public final class FurnaceModuleLogic {
         fs.burnTotal = old.burnTotal;
         fs.cookTime = old.cookTime;
         fs.cookTotal = old.cookTotal;
+        fs.xpStored = reconcileXpStoredOnClose(old, output);
 
         data.moduleStates().put(session.moduleId(), FurnaceStateCodec.encode(fs));
         plugin.repo().saveBackpack(data);
         plugin.sessions().refreshLinkedBackpacksThrottled(session.backpackId(), data);
         plugin.sessions().onRelatedInventoryClose(player, session.backpackId());
+    }
+
+    private static double reconcileXpStoredOnClose(FurnaceStateCodec.State old, ItemStack output) {
+        if (old == null)
+            return 0.0;
+
+        double xpStored = Math.max(0.0, old.xpStored);
+        if (xpStored <= 0.0)
+            return 0.0;
+
+        if (isAir(output))
+            return 0.0;
+
+        // If we can't reliably reconcile against the old output stack, keep the stored XP.
+        if (isAir(old.output) || !old.output.isSimilar(output))
+            return xpStored;
+
+        int oldAmt = old.output.getAmount();
+        int newAmt = output.getAmount();
+        if (oldAmt <= 0 || newAmt <= 0)
+            return 0.0;
+        if (oldAmt == newAmt)
+            return xpStored;
+
+        return xpStored * (newAmt / (double) oldAmt);
+    }
+
+    private static boolean isAir(ItemStack item) {
+        return item == null || item.getType().isAir();
     }
 }

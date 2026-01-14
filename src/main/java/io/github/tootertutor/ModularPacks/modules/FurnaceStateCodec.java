@@ -23,6 +23,8 @@ public final class FurnaceStateCodec {
         public int burnTotal;
         public int cookTime;
         public int cookTotal;
+
+        public double xpStored;
     }
 
     public static byte[] encode(State s) {
@@ -38,6 +40,7 @@ public final class FurnaceStateCodec {
         yaml.set("burnTotal", s.burnTotal);
         yaml.set("cookTime", s.cookTime);
         yaml.set("cookTotal", s.cookTotal);
+        yaml.set("xpStored", s.xpStored);
 
         return yaml.saveToString().getBytes(StandardCharsets.UTF_8);
     }
@@ -67,6 +70,7 @@ public final class FurnaceStateCodec {
         s.burnTotal = yaml.getInt("burnTotal", 0);
         s.cookTime = yaml.getInt("cookTime", 0);
         s.cookTotal = yaml.getInt("cookTotal", 0);
+        s.xpStored = yaml.getDouble("xpStored", 0.0);
         return s;
     }
 

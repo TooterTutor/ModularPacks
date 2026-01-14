@@ -1,5 +1,7 @@
 package io.github.tootertutor.ModularPacks.modules;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.Set;
@@ -16,8 +18,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.SmokingRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.inventory.view.FurnaceView;
+import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
@@ -55,6 +57,7 @@ final class FurnaceEngine {
         s.burnTotal = stored.burnTotal;
         s.cookTime = stored.cookTime;
         s.cookTotal = stored.cookTotal;
+        s.xpStored = reconcileXpStored(stored, s.output);
 
         boolean changed = tickFurnaceLike(screenType, s, dtTicks);
         if (!changed)
@@ -206,6 +209,7 @@ final class FurnaceEngine {
             return changed;
 
         int producedPerCraft = Math.max(1, result.getAmount());
+        double xpPerCraft = Math.max(0.0, recipe.getExperience());
 
         boolean canOutput = true;
         int outputSpace = 0;
@@ -303,6 +307,10 @@ final class FurnaceEngine {
                 // craft)
                 s.input = BackpackInventoryUtil.decrementOne(s.input);
 
+                if (xpPerCraft > 0.0) {
+                    s.xpStored += xpPerCraft;
+                }
+
                 crafted = true;
                 newCookTime -= s.cookTotal;
 
@@ -328,6 +336,38 @@ final class FurnaceEngine {
         return changed;
     }
 
+    private static double reconcileXpStored(FurnaceStateCodec.State stored, ItemStack currentOutput) {
+        if (stored == null)
+            return 0.0;
+
+        double xp = Math.max(0.0, stored.xpStored);
+        if (xp <= 0.0)
+            return 0.0;
+
+        if (isAir(currentOutput) || isAir(stored.output))
+            return 0.0;
+
+        if (!stored.output.isSimilar(currentOutput))
+            return 0.0;
+
+        int storedAmt = stored.output.getAmount();
+        int currentAmt = currentOutput.getAmount();
+        if (storedAmt <= 0 || currentAmt <= 0)
+            return 0.0;
+
+        if (storedAmt == currentAmt)
+            return xp;
+
+        // Scale XP proportionally to the current output count (handles out-of-sync
+        // state due
+        // to click timing).
+        return xp * (currentAmt / (double) storedAmt);
+    }
+
+    private static boolean isAir(ItemStack item) {
+        return item == null || item.getType().isAir();
+    }
+
     private CookingRecipe<?> findCookingRecipe(ScreenType type, ItemStack input) {
         Iterator<Recipe> it = Bukkit.recipeIterator();
         while (it.hasNext()) {
@@ -335,11 +375,13 @@ final class FurnaceEngine {
             if (!(r instanceof CookingRecipe<?> cr))
                 continue;
 
-            boolean ok = (type == ScreenType.SMELTING && r instanceof FurnaceRecipe)
-                    || (type == ScreenType.BLASTING && r instanceof BlastingRecipe)
-                    || (type == ScreenType.SMOKING && r instanceof SmokingRecipe);
-
-            if (!ok)
+            boolean matchesType = switch (type) {
+                case SMELTING -> r instanceof FurnaceRecipe;
+                case BLASTING -> r instanceof BlastingRecipe;
+                case SMOKING -> r instanceof SmokingRecipe;
+                default -> false;
+            };
+            if (!matchesType)
                 continue;
 
             if (cr.getInputChoice() != null && cr.getInputChoice().test(input)) {
@@ -353,28 +395,11 @@ final class FurnaceEngine {
         if (fuel == null || fuel.getType().isAir())
             return 0;
 
-        int nms = FuelTimeLookup.tryGetBurnTimeTicks(fuel);
-        if (nms > 0)
-            return nms;
+        var itemType = fuel.getType().asItemType();
+        if (itemType == null || !itemType.isFuel())
+            return 0;
 
-        // Fallback (should only hit if reflection breaks).
-        Material m = fuel.getType();
-        if (m == Material.COAL || m == Material.CHARCOAL)
-            return 1600;
-        if (m == Material.COAL_BLOCK)
-            return 16000;
-        if (m == Material.BLAZE_ROD)
-            return 2400;
-        if (m == Material.LAVA_BUCKET)
-            return 20000;
-
-        String name = m.name();
-        if (name.endsWith("_PLANKS"))
-            return 300;
-        if (name.endsWith("_LOG") || name.endsWith("_WOOD"))
-            return 300;
-
-        return 0;
+        return Math.max(0, itemType.getBurnDuration());
     }
 
     private ItemStack consumeOneFuel(ItemStack fuel) {
@@ -391,95 +416,6 @@ final class FurnaceEngine {
     }
 
     /**
-     * Best-effort fuel-time lookup using CraftBukkit + NMS via reflection (so this
-     * compiles against paper-api).
-     */
-    private static final class FuelTimeLookup {
-        private static volatile boolean initialized;
-        private static volatile boolean available;
-        private static Method craftAsNmsCopy;
-        private static Method nmsGetItem;
-        private static java.util.Map<Object, Integer> fuelMap;
-
-        private FuelTimeLookup() {
-        }
-
-        static int tryGetBurnTimeTicks(ItemStack bukkitFuel) {
-            if (bukkitFuel == null || bukkitFuel.getType().isAir())
-                return 0;
-
-            ensureInit();
-            if (!available)
-                return 0;
-
-            try {
-                Object nmsStack = craftAsNmsCopy.invoke(null, bukkitFuel);
-                Object nmsItem = nmsGetItem.invoke(nmsStack);
-                Integer ticks = fuelMap.get(nmsItem);
-                return ticks == null ? 0 : Math.max(0, ticks);
-            } catch (ReflectiveOperationException ex) {
-                return 0;
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        private static void ensureInit() {
-            if (initialized)
-                return;
-            synchronized (FuelTimeLookup.class) {
-                if (initialized)
-                    return;
-                initialized = true;
-                try {
-                    String craftPackage = Bukkit.getServer().getClass().getPackage().getName();
-                    Class<?> craftItemStack = Class.forName(craftPackage + ".inventory.CraftItemStack");
-                    craftAsNmsCopy = craftItemStack.getMethod("asNMSCopy", ItemStack.class);
-
-                    Class<?> nmsItemStack = Class.forName("net.minecraft.world.item.ItemStack");
-                    nmsGetItem = nmsItemStack.getMethod("getItem");
-
-                    Class<?> abstractFurnace = Class.forName(
-                            "net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity");
-                    java.lang.reflect.Method getFuel = null;
-                    for (var m : abstractFurnace.getDeclaredMethods()) {
-                        if (!java.lang.reflect.Modifier.isStatic(m.getModifiers()))
-                            continue;
-                        if (m.getParameterCount() != 0)
-                            continue;
-                        if (!java.util.Map.class.isAssignableFrom(m.getReturnType()))
-                            continue;
-                        if (m.getName().toLowerCase().contains("fuel")) {
-                            getFuel = m;
-                            break;
-                        }
-                    }
-                    if (getFuel == null) {
-                        for (var m : abstractFurnace.getDeclaredMethods()) {
-                            if (!java.lang.reflect.Modifier.isStatic(m.getModifiers()))
-                                continue;
-                            if (m.getParameterCount() != 0)
-                                continue;
-                            if (!java.util.Map.class.isAssignableFrom(m.getReturnType()))
-                                continue;
-                            getFuel = m;
-                            break;
-                        }
-                    }
-                    if (getFuel == null) {
-                        available = false;
-                        return;
-                    }
-                    getFuel.setAccessible(true);
-                    fuelMap = (java.util.Map<Object, Integer>) getFuel.invoke(null);
-                    available = fuelMap != null;
-                } catch (ReflectiveOperationException ex) {
-                    available = false;
-                }
-            }
-        }
-    }
-
-    /**
      * Sends container data updates for furnace-like menus, including blast furnace
      * and smoker.
      * Uses reflection so this can compile against paper-api.
@@ -489,11 +425,11 @@ final class FurnaceEngine {
         private static volatile boolean available;
 
         private static Method craftPlayerGetHandle;
-        private static java.lang.reflect.Field serverPlayerConnectionField;
-        private static java.lang.reflect.Field serverPlayerContainerMenuField;
-        private static java.lang.reflect.Field menuContainerIdField;
+        private static Field serverPlayerConnectionField;
+        private static Field serverPlayerContainerMenuField;
+        private static Field menuContainerIdField;
         private static Method connectionSendMethod;
-        private static java.lang.reflect.Constructor<?> setDataPacketCtor;
+        private static Constructor<?> setDataPacketCtor;
 
         private ContainerDataSync() {
         }
