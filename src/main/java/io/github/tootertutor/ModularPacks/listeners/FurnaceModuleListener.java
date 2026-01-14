@@ -18,6 +18,7 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.FurnaceModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class FurnaceModuleListener implements Listener {
 
@@ -63,7 +64,7 @@ public final class FurnaceModuleListener implements Listener {
         int raw = e.getRawSlot();
         if (clickedTop && raw == 2) { // output slot
             ItemStack before = e.getCurrentItem();
-            if (before != null && !before.getType().isAir() && before.getAmount() > 0) {
+            if (ItemStacks.isNotAir(before) && before.getAmount() > 0) {
                 int beforeAmt = before.getAmount();
                 UUID expectedModuleId = session.moduleId();
                 UUID expectedBackpackId = session.backpackId();
@@ -91,7 +92,7 @@ public final class FurnaceModuleListener implements Listener {
                     }
 
                     ItemStack after = top.getItem(2);
-                    int afterAmt = (after == null || after.getType().isAir()) ? 0 : after.getAmount();
+                    int afterAmt = ItemStacks.isAir(after) ? 0 : after.getAmount();
                     int removed = beforeAmt - afterAmt;
                     if (removed <= 0)
                         return;
@@ -106,7 +107,7 @@ public final class FurnaceModuleListener implements Listener {
 
                     // Best-effort scaling if state output amount is slightly out of sync with
                     // the view (click timing vs engine tick persistence).
-                    if (state.output != null && !state.output.getType().isAir() && state.output.isSimilar(before)) {
+                    if (ItemStacks.isNotAir(state.output) && state.output.isSimilar(before)) {
                         int storedAmt = state.output.getAmount();
                         if (storedAmt > 0 && storedAmt != beforeAmt) {
                             xpStored *= (beforeAmt / (double) storedAmt);
@@ -159,7 +160,7 @@ public final class FurnaceModuleListener implements Listener {
                     || action == InventoryAction.PLACE_ONE
                     || action == InventoryAction.PLACE_SOME
                     || action == InventoryAction.SWAP_WITH_CURSOR) {
-                if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+                if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
                     e.setCancelled(true);
                     return;
                 }
@@ -168,7 +169,7 @@ public final class FurnaceModuleListener implements Listener {
                 int btn = e.getHotbarButton();
                 if (btn >= 0 && btn <= 8) {
                     ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (hotbar != null && !hotbar.getType().isAir() && !plugin.cfg().isAllowedInBackpack(hotbar)) {
+                    if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
                         e.setCancelled(true);
                         return;
                     }
@@ -178,7 +179,7 @@ public final class FurnaceModuleListener implements Listener {
 
         if (!clickedTop && e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
             ItemStack moving = e.getCurrentItem();
-            if (moving != null && !moving.getType().isAir() && !plugin.cfg().isAllowedInBackpack(moving)) {
+            if (ItemStacks.isNotAir(moving) && !plugin.cfg().isAllowedInBackpack(moving)) {
                 e.setCancelled(true);
             }
         }
@@ -192,12 +193,16 @@ public final class FurnaceModuleListener implements Listener {
             return;
 
         InventoryType topType = e.getView().getTopInventory().getType();
-        if (topType != InventoryType.FURNACE && topType != InventoryType.BLAST_FURNACE
-                && topType != InventoryType.SMOKER)
-            return;
+        switch (topType) {
+            case FURNACE, BLAST_FURNACE, SMOKER -> {
+            }
+            default -> {
+                return;
+            }
+        }
 
         ItemStack cursor = e.getOldCursor();
-        if (cursor == null || cursor.getType().isAir())
+        if (ItemStacks.isAir(cursor))
             return;
         if (plugin.cfg().isAllowedInBackpack(cursor))
             return;
@@ -219,8 +224,13 @@ public final class FurnaceModuleListener implements Listener {
             return;
 
         InventoryType type = e.getInventory().getType();
-        if (type != InventoryType.FURNACE && type != InventoryType.BLAST_FURNACE && type != InventoryType.SMOKER)
-            return;
+        switch (type) {
+            case FURNACE, BLAST_FURNACE, SMOKER -> {
+            }
+            default -> {
+                return;
+            }
+        }
 
         FurnaceModuleLogic.handleClose(plugin, player, e.getInventory());
     }

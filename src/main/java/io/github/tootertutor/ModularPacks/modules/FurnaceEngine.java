@@ -25,6 +25,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 final class FurnaceEngine {
 
@@ -146,7 +147,7 @@ final class FurnaceEngine {
         if (dtTicks <= 0)
             dtTicks = 1;
 
-        boolean hasInput = s.input != null && !s.input.getType().isAir();
+        boolean hasInput = ItemStacks.isNotAir(s.input);
         boolean changed = false;
 
         if (!hasInput) {
@@ -162,7 +163,7 @@ final class FurnaceEngine {
                 s.cookTime = Math.max(0, s.cookTime - 2 * dtTicks);
                 changed = true;
             }
-            if (s.burnTime <= 0 && (s.fuel == null || s.fuel.getType().isAir())) {
+            if (s.burnTime <= 0 && ItemStacks.isAir(s.fuel)) {
                 if (s.burnTotal != 0) {
                     s.burnTotal = 0;
                     changed = true;
@@ -185,7 +186,7 @@ final class FurnaceEngine {
                 s.cookTime = Math.max(0, s.cookTime - 2 * dtTicks);
                 changed = true;
             }
-            if (s.burnTime <= 0 && (s.fuel == null || s.fuel.getType().isAir())) {
+            if (s.burnTime <= 0 && ItemStacks.isAir(s.fuel)) {
                 if (s.burnTotal != 0) {
                     s.burnTotal = 0;
                     changed = true;
@@ -205,7 +206,7 @@ final class FurnaceEngine {
         }
 
         ItemStack result = recipe.getResult();
-        if (result == null || result.getType().isAir())
+        if (ItemStacks.isAir(result))
             return changed;
 
         int producedPerCraft = Math.max(1, result.getAmount());
@@ -213,7 +214,7 @@ final class FurnaceEngine {
 
         boolean canOutput = true;
         int outputSpace = 0;
-        if (s.output == null || s.output.getType().isAir()) {
+        if (ItemStacks.isAir(s.output)) {
             outputSpace = result.getMaxStackSize();
         } else {
             if (!s.output.isSimilar(result)) {
@@ -239,7 +240,7 @@ final class FurnaceEngine {
                 s.cookTime = Math.max(0, s.cookTime - 2 * dtTicks);
                 changed = true;
             }
-            if (s.burnTime <= 0 && (s.fuel == null || s.fuel.getType().isAir())) {
+            if (s.burnTime <= 0 && ItemStacks.isAir(s.fuel)) {
                 if (s.burnTotal != 0) {
                     s.burnTotal = 0;
                     changed = true;
@@ -265,7 +266,7 @@ final class FurnaceEngine {
                 s.cookTime = Math.max(0, s.cookTime - 2 * dtTicks);
                 changed = true;
             }
-            if (s.burnTime <= 0 && (s.fuel == null || s.fuel.getType().isAir())) {
+            if (s.burnTime <= 0 && ItemStacks.isAir(s.fuel)) {
                 if (s.burnTotal != 0) {
                     s.burnTotal = 0;
                     changed = true;
@@ -284,11 +285,11 @@ final class FurnaceEngine {
             boolean crafted = false;
 
             while (newCookTime >= s.cookTotal) {
-                if (s.input == null || s.input.getType().isAir())
+                if (ItemStacks.isAir(s.input))
                     break;
 
                 // Re-check output space for each craft (important when producedPerCraft > 1).
-                if (s.output == null || s.output.getType().isAir()) {
+                if (ItemStacks.isAir(s.output)) {
                     outputSpace = result.getMaxStackSize();
                 } else {
                     outputSpace = s.output.getMaxStackSize() - s.output.getAmount();
@@ -297,7 +298,7 @@ final class FurnaceEngine {
                     break;
 
                 // produce output
-                if (s.output == null || s.output.getType().isAir()) {
+                if (ItemStacks.isAir(s.output)) {
                     s.output = result.clone();
                 } else {
                     s.output.setAmount(s.output.getAmount() + producedPerCraft);
@@ -314,7 +315,7 @@ final class FurnaceEngine {
                 crafted = true;
                 newCookTime -= s.cookTotal;
 
-                if (s.input == null || s.input.getType().isAir()) {
+                if (ItemStacks.isAir(s.input)) {
                     newCookTime = 0;
                     break;
                 }
@@ -326,7 +327,7 @@ final class FurnaceEngine {
             }
         }
 
-        if (s.burnTime <= 0 && (s.fuel == null || s.fuel.getType().isAir())) {
+        if (s.burnTime <= 0 && ItemStacks.isAir(s.fuel)) {
             if (s.burnTotal != 0) {
                 s.burnTotal = 0;
                 changed = true;
@@ -365,7 +366,7 @@ final class FurnaceEngine {
     }
 
     private static boolean isAir(ItemStack item) {
-        return item == null || item.getType().isAir();
+        return ItemStacks.isAir(item);
     }
 
     private CookingRecipe<?> findCookingRecipe(ScreenType type, ItemStack input) {
@@ -392,7 +393,7 @@ final class FurnaceEngine {
     }
 
     private int fuelTicks(ItemStack fuel) {
-        if (fuel == null || fuel.getType().isAir())
+        if (ItemStacks.isAir(fuel))
             return 0;
 
         var itemType = fuel.getType().asItemType();
@@ -403,7 +404,7 @@ final class FurnaceEngine {
     }
 
     private ItemStack consumeOneFuel(ItemStack fuel) {
-        if (fuel == null || fuel.getType().isAir())
+        if (ItemStacks.isAir(fuel))
             return null;
 
         // Handle container fuel items (lava bucket -> bucket).

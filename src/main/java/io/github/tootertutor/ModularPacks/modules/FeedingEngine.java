@@ -18,6 +18,7 @@ import org.bukkit.potion.PotionEffectTypeCategory;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.Consumable;
 import io.papermc.paper.datacomponent.item.FoodProperties;
@@ -70,7 +71,7 @@ final class FeedingEngine {
 
         for (int i = 0; i < contents.length; i++) {
             ItemStack it = contents[i];
-            if (it == null || it.getType().isAir())
+            if (ItemStacks.isAir(it))
                 continue;
             if (!it.getType().isEdible())
                 continue;
@@ -115,7 +116,7 @@ final class FeedingEngine {
             FeedingSettings settings,
             int now) {
         ItemStack it = contents[index];
-        if (it == null || it.getType().isAir())
+        if (ItemStacks.isAir(it))
             return false;
 
         boolean debug = plugin.getConfig().getBoolean("Upgrades.Feeding.Debug", false);
@@ -129,7 +130,7 @@ final class FeedingEngine {
         Material rem = it.getType().getCraftingRemainingItem();
         if (rem != null && !rem.isAir()) {
             ItemStack leftover = BackpackInventoryUtil.insertIntoContents(contents, new ItemStack(rem, 1));
-            if (leftover != null && !leftover.getType().isAir() && leftover.getAmount() > 0) {
+            if (ItemStacks.isNotAir(leftover) && leftover.getAmount() > 0) {
                 var notFit = player.getInventory().addItem(leftover);
                 if (!notFit.isEmpty()) {
                     player.getWorld().dropItemNaturally(player.getLocation(), leftover);
@@ -184,7 +185,7 @@ final class FeedingEngine {
 
             for (int i = 0; i < contents.length; i++) {
                 ItemStack it = contents[i];
-                if (it == null || it.getType().isAir())
+                if (ItemStacks.isAir(it))
                     continue;
                 if (it.getType() != mat)
                     continue;
@@ -254,7 +255,7 @@ final class FeedingEngine {
     }
 
     private boolean hasHarmfulFoodEffects(ItemStack foodItem) {
-        if (foodItem == null || foodItem.getType().isAir())
+        if (ItemStacks.isAir(foodItem))
             return false;
 
         try {
@@ -297,7 +298,7 @@ final class FeedingEngine {
     }
 
     private void applyFoodValues(Player player, ItemStack foodItem) {
-        if (player == null || foodItem == null || foodItem.getType().isAir())
+        if (player == null || ItemStacks.isAir(foodItem))
             return;
 
         FoodValues values = FoodValues.lookup(foodItem);
@@ -313,7 +314,7 @@ final class FeedingEngine {
     }
 
     private int applyFoodEffects(Player player, ItemStack foodItem) {
-        if (player == null || foodItem == null || foodItem.getType().isAir())
+        if (player == null || ItemStacks.isAir(foodItem))
             return 0;
 
         int applied = 0;
@@ -383,7 +384,7 @@ final class FeedingEngine {
 
     private record FoodValues(int nutrition, float saturation) {
         static FoodValues lookup(ItemStack stack) {
-            if (stack == null || stack.getType().isAir())
+            if (ItemStacks.isAir(stack))
                 return new FoodValues(0, 0.0f);
 
             // Paper data components: works for all vanilla food items (and custom food
@@ -507,4 +508,3 @@ final class FeedingEngine {
         }
     }
 }
-

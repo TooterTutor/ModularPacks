@@ -16,6 +16,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class Placeholders {
     private Placeholders() {
@@ -97,7 +98,7 @@ public final class Placeholders {
             int limit = Math.min(decoded.length, Math.max(0, effectiveTotalSlots));
             for (int i = 0; i < limit; i++) {
                 ItemStack it = decoded[i];
-                if (it == null || it.getType().isAir())
+                if (ItemStacks.isAir(it))
                     continue;
                 usedSlots++;
                 itemCount += Math.max(0, it.getAmount());
@@ -460,14 +461,14 @@ public final class Placeholders {
             return fallback;
 
         // Prefer merged state index 9 (whitelist[0..8] + threshold[9]).
-        if (arr.length > 9 && arr[9] != null && !arr[9].getType().isAir()) {
+        if (arr.length > 9 && ItemStacks.isNotAir(arr[9])) {
             int t = arr[9].getAmount();
             if (t > 0)
                 return Math.max(1, Math.min(64, t));
         }
 
         // Back-compat (old hopper-only): slot 2 is the center.
-        if (arr.length > 2 && arr[2] != null && !arr[2].getType().isAir()) {
+        if (arr.length > 2 && ItemStacks.isNotAir(arr[2])) {
             int t = arr[2].getAmount();
             if (t > 0)
                 return Math.max(1, Math.min(64, t));

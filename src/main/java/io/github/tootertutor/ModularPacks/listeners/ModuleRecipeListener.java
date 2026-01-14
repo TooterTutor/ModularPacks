@@ -20,6 +20,7 @@ import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.modules.CraftingModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.SmithingModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.StonecutterModuleLogic;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class ModuleRecipeListener implements Listener {
 
@@ -54,7 +55,7 @@ public final class ModuleRecipeListener implements Listener {
                         || action == InventoryAction.PLACE_SOME
                         || action == InventoryAction.SWAP_WITH_CURSOR) {
                     ItemStack cursor = e.getCursor();
-                    if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+                    if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
@@ -65,7 +66,7 @@ public final class ModuleRecipeListener implements Listener {
                     int btn = e.getHotbarButton();
                     if (btn >= 0 && btn <= 8) {
                         ItemStack hotbar = player.getInventory().getItem(btn);
-                        if (hotbar != null && !hotbar.getType().isAir() && !plugin.cfg().isAllowedInBackpack(hotbar)) {
+                        if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
                             e.setCancelled(true);
                             Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                             return;
@@ -76,7 +77,7 @@ public final class ModuleRecipeListener implements Listener {
 
             if (!clickedTop && e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
                 ItemStack moving = e.getCurrentItem();
-                if (moving != null && !moving.getType().isAir() && !plugin.cfg().isAllowedInBackpack(moving)) {
+                if (ItemStacks.isNotAir(moving) && !plugin.cfg().isAllowedInBackpack(moving)) {
                     e.setCancelled(true);
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
@@ -174,7 +175,7 @@ public final class ModuleRecipeListener implements Listener {
 
         if (screen != ScreenType.DROPPER && screen != ScreenType.HOPPER) {
             ItemStack cursor = e.getOldCursor();
-            if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+            if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
                 int topSize = top.getSize();
                 for (int raw : e.getRawSlots()) {
                     if (raw >= 0 && raw < topSize) {
@@ -241,7 +242,7 @@ public final class ModuleRecipeListener implements Listener {
             return;
 
         ItemStack source = view.getItem(sourceRawSlot);
-        if (source == null || source.getType().isAir())
+        if (ItemStacks.isAir(source))
             return;
         if (!plugin.cfg().isAllowedInBackpack(source))
             return;
@@ -250,7 +251,7 @@ public final class ModuleRecipeListener implements Listener {
         ItemStack remainder = ModuleClickHandler.insertIntoSlots(top, craftingMatrixSlots(), 1, moving);
 
         view.setItem(sourceRawSlot,
-                (remainder == null || remainder.getType().isAir() || remainder.getAmount() <= 0) ? null : remainder);
+                (ItemStacks.isAir(remainder) || remainder.getAmount() <= 0) ? null : remainder);
         CraftingModuleLogic.updateResult(plugin.recipes(), player, top);
         player.updateInventory();
     }
@@ -269,7 +270,7 @@ public final class ModuleRecipeListener implements Listener {
             return;
 
         ItemStack moving = view.getItem(sourceRawSlot);
-        if (moving == null || moving.getType().isAir())
+        if (ItemStacks.isAir(moving))
             return;
 
         var leftovers = player.getInventory().addItem(moving.clone());

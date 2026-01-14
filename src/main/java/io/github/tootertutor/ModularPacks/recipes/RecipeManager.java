@@ -39,7 +39,8 @@ import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.item.UpgradeItems;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Registers recipes from config and handles "dynamic output" (unique IDs).
@@ -583,15 +584,13 @@ public final class RecipeManager implements Listener {
         ItemStack template = inv.getInputTemplate();
         ItemStack addition = inv.getInputMineral();
 
-        if (base == null || base.getType().isAir())
-            return;
-        if (template == null || template.getType().isAir())
-            return;
-        if (addition == null || addition.getType().isAir())
+        if (ItemStacks.isAir(base) || ItemStacks.isAir(template) || ItemStacks.isAir(addition))
             return;
 
-        // Only intervene for our backpack smithing (player heads). If we intercept broadly
-        // (Template+Addition only), we break vanilla netherite upgrades in real smithing tables.
+        // Only intervene for our backpack smithing (player heads). If we intercept
+        // broadly
+        // (Template+Addition only), we break vanilla netherite upgrades in real
+        // smithing tables.
         if (base.getType() != Material.PLAYER_HEAD)
             return;
 
@@ -661,7 +660,7 @@ public final class RecipeManager implements Listener {
         Player player = (Player) e.getWhoClicked();
 
         ItemStack result = e.getCurrentItem();
-        if (result == null || result.getType().isAir() || !result.hasItemMeta())
+        if (ItemStacks.isAir(result) || !result.hasItemMeta())
             return;
 
         Keys keys = plugin.keys();
@@ -849,7 +848,7 @@ public final class RecipeManager implements Listener {
     }
 
     private boolean matchesRequirement(ItemStack it, SpecialRequirement req) {
-        if (it == null || it.getType().isAir() || !it.hasItemMeta() || req == null)
+        if (ItemStacks.isAir(it) || !it.hasItemMeta() || req == null)
             return false;
         ItemMeta meta = it.getItemMeta();
         if (meta == null)
@@ -929,12 +928,12 @@ public final class RecipeManager implements Listener {
 
         // Alternative: CraftingRecipe is a YAML list:
         // - wrapper map format:
-        //   CraftingRecipe:
-        //     - "1": { ... }
-        //     - "2": { ... }
+        // CraftingRecipe:
+        // - "1": { ... }
+        // - "2": { ... }
         // - direct map format:
-        //   CraftingRecipe:
-        //     - { Type: Crafting, Pattern: [...], Ingredients: {...} }
+        // CraftingRecipe:
+        // - { Type: Crafting, Pattern: [...], Ingredients: {...} }
         List<?> rawList = typeSec.getList("CraftingRecipe");
         if (rawList == null || rawList.isEmpty())
             return List.of();
@@ -953,7 +952,8 @@ public final class RecipeManager implements Listener {
 
             if (elem instanceof Map<?, ?> wrapper && !wrapper.isEmpty()) {
                 // If this map looks like a recipe already, accept it directly.
-                if (wrapper.containsKey("Type") || wrapper.containsKey("Pattern") || wrapper.containsKey("Ingredients")) {
+                if (wrapper.containsKey("Type") || wrapper.containsKey("Pattern")
+                        || wrapper.containsKey("Ingredients")) {
                     ConfigurationSection child = asSection(wrapper);
                     if (child != null)
                         out.add(new RecipeVariant(fallbackId, child));
@@ -1005,7 +1005,7 @@ public final class RecipeManager implements Listener {
             return null;
         Keys keys = plugin.keys();
         for (ItemStack it : matrix) {
-            if (it == null || it.getType().isAir() || !it.hasItemMeta())
+            if (ItemStacks.isAir(it) || !it.hasItemMeta())
                 continue;
             ItemMeta meta = it.getItemMeta();
             if (meta == null)

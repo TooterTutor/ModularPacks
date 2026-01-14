@@ -12,6 +12,7 @@ import org.bukkit.inventory.StonecuttingRecipe;
 import org.bukkit.plugin.Plugin;
 
 import io.github.tootertutor.ModularPacks.listeners.ModuleClickHandler;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class StonecutterModuleLogic {
 
@@ -26,7 +27,7 @@ public final class StonecutterModuleLogic {
             return;
 
         ItemStack input = inv.getItem(INPUT_SLOT);
-        if (input == null || input.getType().isAir()) {
+        if (ItemStacks.isAir(input)) {
             inv.setItem(OUTPUT_SLOT, null);
             return;
         }
@@ -38,7 +39,7 @@ public final class StonecutterModuleLogic {
         }
 
         ItemStack result = recipe.getResult();
-        if (result == null || result.getType().isAir()) {
+        if (ItemStacks.isAir(result)) {
             inv.setItem(OUTPUT_SLOT, null);
             return;
         }
@@ -64,7 +65,7 @@ public final class StonecutterModuleLogic {
     private static void craftShift(Player player, Inventory inv) {
         for (int i = 0; i < 64; i++) {
             ItemStack input = inv.getItem(INPUT_SLOT);
-            if (input == null || input.getType().isAir())
+            if (ItemStacks.isAir(input))
                 return;
 
             StonecuttingRecipe recipe = findFirstMatch(input);
@@ -72,7 +73,7 @@ public final class StonecutterModuleLogic {
                 return;
 
             ItemStack out = recipe.getResult();
-            if (out == null || out.getType().isAir())
+            if (ItemStacks.isAir(out))
                 return;
 
             var leftovers = player.getInventory().addItem(out.clone());
@@ -85,7 +86,7 @@ public final class StonecutterModuleLogic {
 
     private static void craftOnceToCursor(Player player, Inventory inv) {
         ItemStack input = inv.getItem(INPUT_SLOT);
-        if (input == null || input.getType().isAir())
+        if (ItemStacks.isAir(input))
             return;
 
         StonecuttingRecipe recipe = findFirstMatch(input);
@@ -93,11 +94,11 @@ public final class StonecutterModuleLogic {
             return;
 
         ItemStack out = recipe.getResult();
-        if (out == null || out.getType().isAir())
+        if (ItemStacks.isAir(out))
             return;
 
         ItemStack cursor = player.getItemOnCursor();
-        if (cursor != null && !cursor.getType().isAir()) {
+        if (ItemStacks.isNotAir(cursor)) {
             if (!cursor.isSimilar(out))
                 return;
             int space = cursor.getMaxStackSize() - cursor.getAmount();

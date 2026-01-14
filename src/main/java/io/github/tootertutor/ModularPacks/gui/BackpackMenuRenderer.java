@@ -19,7 +19,7 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
 public final class BackpackMenuRenderer {

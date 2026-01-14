@@ -22,6 +22,7 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
  * Implements "ghost item" whitelist config for modules backed by DROPPER/HOPPER
@@ -80,8 +81,8 @@ public final class ModuleFilterScreenListener implements Listener {
             ItemStack cursor = player.getItemOnCursor();
             ItemStack current = top.getItem(raw);
 
-            boolean cursorEmpty = cursor == null || cursor.getType().isAir();
-            boolean currentEmpty = current == null || current.getType().isAir();
+            boolean cursorEmpty = ItemStacks.isAir(cursor);
+            boolean currentEmpty = ItemStacks.isAir(current);
 
             if (cursorEmpty) {
                 if (!currentEmpty) {
@@ -125,7 +126,7 @@ public final class ModuleFilterScreenListener implements Listener {
         // top inventory.
         if (moduleType != null && moduleType.equalsIgnoreCase("Jukebox")) {
             ItemStack cursor = e.getOldCursor();
-            if (cursor == null || cursor.getType().isAir())
+            if (ItemStacks.isAir(cursor))
                 return;
             if (!isMusicDisc(cursor.getType())) {
                 int topSize = top.getSize();
@@ -168,7 +169,7 @@ public final class ModuleFilterScreenListener implements Listener {
         if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
             if (!clickedTop) {
                 ItemStack moving = e.getCurrentItem();
-                if (moving == null || moving.getType().isAir())
+                if (ItemStacks.isAir(moving))
                     return;
                 if (!isMusicDisc(moving.getType())) {
                     e.setCancelled(true);
@@ -198,7 +199,7 @@ public final class ModuleFilterScreenListener implements Listener {
                     || action == InventoryAction.PLACE_SOME
                     || action == InventoryAction.SWAP_WITH_CURSOR) {
                 ItemStack cursor = e.getCursor();
-                if (cursor != null && !cursor.getType().isAir() && !isMusicDisc(cursor.getType())) {
+                if (ItemStacks.isNotAir(cursor) && !isMusicDisc(cursor.getType())) {
                     e.setCancelled(true);
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
@@ -209,7 +210,7 @@ public final class ModuleFilterScreenListener implements Listener {
                 int btn = e.getHotbarButton();
                 if (btn >= 0 && btn <= 8) {
                     ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (hotbar != null && !hotbar.getType().isAir() && !isMusicDisc(hotbar.getType())) {
+                    if (ItemStacks.isNotAir(hotbar) && !isMusicDisc(hotbar.getType())) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
@@ -222,7 +223,7 @@ public final class ModuleFilterScreenListener implements Listener {
                 int btn = e.getHotbarButton();
                 if (btn >= 0 && btn <= 8) {
                     ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (hotbar != null && !hotbar.getType().isAir() && !isMusicDisc(hotbar.getType())) {
+                    if (ItemStacks.isNotAir(hotbar) && !isMusicDisc(hotbar.getType())) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
@@ -255,7 +256,7 @@ public final class ModuleFilterScreenListener implements Listener {
             return;
 
         ItemStack source = view.getItem(sourceRawSlot);
-        if (source == null || source.getType().isAir())
+        if (ItemStacks.isAir(source))
             return;
         if (!isMusicDisc(source.getType()))
             return;
@@ -266,7 +267,7 @@ public final class ModuleFilterScreenListener implements Listener {
         }
 
         ItemStack remainder = ModuleClickHandler.insertIntoSlots(top, slots, 0, source.clone());
-        view.setItem(sourceRawSlot, (remainder == null || remainder.getType().isAir() || remainder.getAmount() <= 0)
+        view.setItem(sourceRawSlot, (ItemStacks.isAir(remainder) || remainder.getAmount() <= 0)
                 ? null
                 : remainder);
 
@@ -296,7 +297,7 @@ public final class ModuleFilterScreenListener implements Listener {
             return;
 
         ItemStack moving = view.getItem(topRawSlot);
-        if (moving == null || moving.getType().isAir())
+        if (ItemStacks.isAir(moving))
             return;
 
         var leftovers = player.getInventory().addItem(moving.clone());

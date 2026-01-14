@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.modules.SmithingModuleUi;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class SmithingModuleListener implements Listener {
 
@@ -46,7 +47,7 @@ public final class SmithingModuleListener implements Listener {
                     || action == InventoryAction.PLACE_SOME
                     || action == InventoryAction.SWAP_WITH_CURSOR) {
                 ItemStack cursor = e.getCursor();
-                if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+                if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
                     e.setCancelled(true);
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
@@ -56,7 +57,7 @@ public final class SmithingModuleListener implements Listener {
                 int btn = e.getHotbarButton();
                 if (btn >= 0 && btn <= 8) {
                     ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (hotbar != null && !hotbar.getType().isAir() && !plugin.cfg().isAllowedInBackpack(hotbar)) {
+                    if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
@@ -67,7 +68,7 @@ public final class SmithingModuleListener implements Listener {
 
         if (!clickedTop && e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
             ItemStack moving = e.getCurrentItem();
-            if (moving != null && !moving.getType().isAir() && !plugin.cfg().isAllowedInBackpack(moving)) {
+            if (ItemStacks.isNotAir(moving) && !plugin.cfg().isAllowedInBackpack(moving)) {
                 e.setCancelled(true);
                 Bukkit.getScheduler().runTask(plugin, player::updateInventory);
             }
@@ -86,7 +87,7 @@ public final class SmithingModuleListener implements Listener {
             return;
 
         ItemStack cursor = e.getOldCursor();
-        if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+        if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
             int topSize = top.getSize();
             for (int raw : e.getRawSlots()) {
                 if (raw >= 0 && raw < topSize) {
@@ -110,4 +111,3 @@ public final class SmithingModuleListener implements Listener {
         SmithingModuleUi.handleClose(plugin, player, e.getInventory());
     }
 }
-

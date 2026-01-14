@@ -20,6 +20,7 @@ import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import net.kyori.adventure.text.Component;
 
 public final class RefreshSkullsSubcommand implements Subcommand {
@@ -206,7 +207,7 @@ public final class RefreshSkullsSubcommand implements Subcommand {
     }
 
     private boolean isBackpack(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return false;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
@@ -217,7 +218,7 @@ public final class RefreshSkullsSubcommand implements Subcommand {
     }
 
     private UUID readBackpackId(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
@@ -233,7 +234,7 @@ public final class RefreshSkullsSubcommand implements Subcommand {
     }
 
     private String readBackpackType(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)

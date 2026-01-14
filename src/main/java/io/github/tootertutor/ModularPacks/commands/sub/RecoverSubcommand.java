@@ -19,6 +19,7 @@ import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.VoidedItemRecord;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.VoidedItemSummary;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import net.kyori.adventure.text.Component;
 
 public final class RecoverSubcommand implements Subcommand {
@@ -151,7 +152,7 @@ public final class RecoverSubcommand implements Subcommand {
         }
 
         ItemStack[] decoded = ItemStackCodec.fromBytes(rec.itemBytes);
-        if (decoded.length == 0 || decoded[0] == null || decoded[0].getType().isAir()) {
+        if (decoded.length == 0 || ItemStacks.isAir(decoded[0])) {
             ctx.sender().sendMessage(Component.text("Failed to decode stored item data for #" + id + "."));
             return;
         }

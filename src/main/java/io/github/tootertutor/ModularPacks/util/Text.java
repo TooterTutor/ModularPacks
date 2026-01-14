@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.text;
+package io.github.tootertutor.ModularPacks.util;
 
 import java.util.ArrayList;
 import java.util.List;

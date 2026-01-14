@@ -15,6 +15,7 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import net.kyori.adventure.text.Component;
 
 public final class SetTypeSubcommand implements Subcommand {
@@ -91,7 +92,7 @@ public final class SetTypeSubcommand implements Subcommand {
         if (newSize < oldSize && !force) {
             ItemStack[] logical = ItemStackCodec.fromBytes(data.contentsBytes());
             for (int i = newSize; i < logical.length; i++) {
-                if (logical[i] != null && !logical[i].getType().isAir()) {
+                if (ItemStacks.isNotAir(logical[i])) {
                     ctx.sender().sendMessage(Component.text(
                             "Backpack has items beyond the new size; use --force to truncate."));
                     return;
@@ -129,7 +130,7 @@ public final class SetTypeSubcommand implements Subcommand {
     }
 
     private static UUID readBackpackId(Keys keys, ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
@@ -145,7 +146,7 @@ public final class SetTypeSubcommand implements Subcommand {
     }
 
     private static String readBackpackType(Keys keys, ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)

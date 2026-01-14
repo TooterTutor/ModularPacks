@@ -17,6 +17,7 @@ import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.AnvilModuleLogic;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
  * Tracks active backpack "sessions" (open backpack GUI or a module GUI for that
@@ -200,7 +201,7 @@ public final class BackpackSessionManager {
     private static boolean isLinkedBackpack(Keys keys, ItemStack it, UUID backpackId) {
         if (keys == null || backpackId == null)
             return false;
-        if (it == null || it.getType().isAir() || !it.hasItemMeta())
+        if (ItemStacks.isAir(it) || !it.hasItemMeta())
             return false;
         ItemMeta meta = it.getItemMeta();
         if (meta == null)

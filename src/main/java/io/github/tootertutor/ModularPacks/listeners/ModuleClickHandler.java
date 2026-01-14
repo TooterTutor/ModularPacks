@@ -13,6 +13,8 @@ import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
+
 /**
  * Shared click/shift-click helpers for module GUIs.
  * All mutations can be scheduled next tick to avoid Bukkit reverting cancelled
@@ -75,7 +77,7 @@ public final class ModuleClickHandler {
             return false;
 
         ItemStack movingNow = e.getCurrentItem();
-        if (movingNow == null || movingNow.getType().isAir())
+        if (ItemStacks.isAir(movingNow))
             return false;
 
         // Decide now whether we handle it
@@ -98,7 +100,7 @@ public final class ModuleClickHandler {
                 return;
 
             ItemStack source = view.getItem(sourceRawSlot);
-            if (source == null || source.getType().isAir())
+            if (ItemStacks.isAir(source))
                 return;
 
             ItemStack remainder = insertIntoSlots(top, inputSlots, preferred, source.clone());
@@ -159,7 +161,7 @@ public final class ModuleClickHandler {
             return;
 
         ItemStack moving = view.getItem(topRawSlot);
-        if (moving == null || moving.getType().isAir())
+        if (ItemStacks.isAir(moving))
             return;
 
         var leftovers = player.getInventory().addItem(moving.clone());
@@ -178,7 +180,7 @@ public final class ModuleClickHandler {
             return;
 
         ItemStack moving = top.getItem(slot);
-        if (moving == null || moving.getType().isAir())
+        if (ItemStacks.isAir(moving))
             return;
 
         var leftovers = player.getInventory().addItem(moving.clone());
@@ -192,7 +194,7 @@ public final class ModuleClickHandler {
     public static ItemStack insertIntoSlots(Inventory inv, int[] slots, int preferredSlot, ItemStack stack) {
         if (inv == null || slots == null || slots.length == 0)
             return stack;
-        if (stack == null || stack.getType().isAir())
+        if (ItemStacks.isAir(stack))
             return stack;
 
         // Try preferred slot first (if valid), then all other allowed slots.
@@ -203,7 +205,7 @@ public final class ModuleClickHandler {
             if (slot < 0 || slot >= inv.getSize())
                 continue;
             ItemStack cur = inv.getItem(slot);
-            if (cur == null || cur.getType().isAir())
+            if (ItemStacks.isAir(cur))
                 continue;
             if (!cur.isSimilar(stack))
                 continue;
@@ -228,7 +230,7 @@ public final class ModuleClickHandler {
             if (slot < 0 || slot >= inv.getSize())
                 continue;
             ItemStack cur = inv.getItem(slot);
-            if (cur != null && !cur.getType().isAir())
+            if (ItemStacks.isNotAir(cur))
                 continue;
 
             int toPlace = Math.min(stack.getMaxStackSize(), stack.getAmount());

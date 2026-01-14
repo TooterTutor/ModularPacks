@@ -12,7 +12,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.UpgradeDef;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 public final class TankModuleLogic {
 
@@ -102,7 +102,8 @@ public final class TankModuleLogic {
         }
     }
 
-    private static List<String> expandContainedFluid(ModularPacksPlugin plugin, List<String> lore, TankStateCodec.State s) {
+    private static List<String> expandContainedFluid(ModularPacksPlugin plugin, List<String> lore,
+            TankStateCodec.State s) {
         if (lore == null || lore.isEmpty())
             return List.of();
 

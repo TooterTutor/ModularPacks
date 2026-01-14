@@ -26,6 +26,7 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 final class JukeboxEngine {
 
@@ -148,7 +149,7 @@ final class JukeboxEngine {
     }
 
     private static UUID readBackpackId(Keys keys, ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
@@ -236,7 +237,7 @@ final class JukeboxEngine {
 
         java.util.ArrayList<Material> playlist = new java.util.ArrayList<>();
         for (ItemStack it : items) {
-            if (it == null || it.getType().isAir())
+            if (ItemStacks.isAir(it))
                 continue;
             Material m = it.getType();
             if (!isMusicDisc(m))

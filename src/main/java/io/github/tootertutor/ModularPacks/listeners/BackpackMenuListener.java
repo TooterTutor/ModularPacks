@@ -47,7 +47,8 @@ import io.github.tootertutor.ModularPacks.modules.SmithingModuleUi;
 import io.github.tootertutor.ModularPacks.modules.StonecutterModuleUi;
 import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 public final class BackpackMenuListener implements Listener {
 
@@ -133,7 +134,7 @@ public final class BackpackMenuListener implements Listener {
                     || action == InventoryAction.PLACE_SOME
                     || action == InventoryAction.SWAP_WITH_CURSOR) {
                 ItemStack cursor = e.getCursor();
-                if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+                if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
                     e.setCancelled(true);
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
@@ -144,7 +145,7 @@ public final class BackpackMenuListener implements Listener {
                 int btn = e.getHotbarButton();
                 if (btn >= 0 && btn <= 8) {
                     ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (hotbar != null && !hotbar.getType().isAir() && !plugin.cfg().isAllowedInBackpack(hotbar)) {
+                    if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
@@ -217,7 +218,7 @@ public final class BackpackMenuListener implements Listener {
             e.setCancelled(true);
 
             ItemStack moving = e.getCurrentItem();
-            if (moving == null || moving.getType().isAir())
+            if (ItemStacks.isAir(moving))
                 return;
             if (isBackpack(moving)) {
                 Bukkit.getScheduler().runTask(plugin, player::updateInventory);
@@ -263,7 +264,7 @@ public final class BackpackMenuListener implements Listener {
                 e.setCancelled(true);
 
                 ItemStack cursor = player.getItemOnCursor();
-                if (cursor != null && !cursor.getType().isAir())
+                if (ItemStacks.isNotAir(cursor))
                     return;
 
                 // Block sort-mode changes while inventory is actively being mutated.
@@ -296,7 +297,7 @@ public final class BackpackMenuListener implements Listener {
 
                     // must not hold item
                     ItemStack cursor = player.getItemOnCursor();
-                    if (cursor != null && !cursor.getType().isAir())
+                    if (ItemStacks.isNotAir(cursor))
                         return;
 
                     // Block page changes while inventory is actively being mutated.
@@ -395,7 +396,7 @@ public final class BackpackMenuListener implements Listener {
         int visibleStorage = SlotLayout.storageAreaSize(topSize, hasNavRow);
 
         ItemStack cursor = e.getOldCursor();
-        if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+        if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
             for (int rawSlot : e.getRawSlots()) {
                 if (rawSlot >= 0 && rawSlot < visibleStorage) {
                     e.setCancelled(true);
@@ -507,7 +508,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private boolean isBackpack(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return false;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
@@ -519,7 +520,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private UUID readBackpackId(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
@@ -757,7 +758,7 @@ public final class BackpackMenuListener implements Listener {
             }
         } else if (screenType == ScreenType.HOPPER) {
             int threshold = 16;
-            if (viewItems != null && viewItems.length > 2 && viewItems[2] != null && !viewItems[2].getType().isAir()) {
+            if (viewItems != null && viewItems.length > 2 && ItemStacks.isNotAir(viewItems[2])) {
                 int amt = viewItems[2].getAmount();
                 if (amt > 0)
                     threshold = Math.max(1, Math.min(64, amt));
@@ -796,11 +797,11 @@ public final class BackpackMenuListener implements Listener {
         }
 
         // Threshold marker: prefer index 9 (new), fallback to slot 2 (old hopper-only)
-        if (arr.length > 9 && arr[9] != null && !arr[9].getType().isAir()) {
+        if (arr.length > 9 && ItemStacks.isNotAir(arr[9])) {
             int amt = arr[9].getAmount();
             if (amt > 0)
                 out[9] = makeRestockThresholdMarker(amt);
-        } else if (arr.length > 2 && arr[2] != null && !arr[2].getType().isAir()) {
+        } else if (arr.length > 2 && ItemStacks.isNotAir(arr[2])) {
             int amt = arr[2].getAmount();
             if (amt > 0)
                 out[9] = makeRestockThresholdMarker(amt);
@@ -810,7 +811,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private ItemStack sanitizeGhost(ItemStack it) {
-        if (it == null || it.getType().isAir())
+        if (ItemStacks.isAir(it))
             return null;
         ItemStack s = it.clone();
         s.setAmount(1);
@@ -847,7 +848,7 @@ public final class BackpackMenuListener implements Listener {
 
         for (int i = 0; i < logical.length; i++) {
             ItemStack it = logical[i];
-            if (it == null || it.getType().isAir())
+            if (ItemStacks.isAir(it))
                 continue;
 
             if (isBackpack(it)) {
@@ -900,7 +901,7 @@ public final class BackpackMenuListener implements Listener {
         // -----------------------------------------
         // Cursor has an item
         // -----------------------------------------
-        if (cursor != null && !cursor.getType().isAir()) {
+        if (ItemStacks.isNotAir(cursor)) {
             // INSTALL: cursor has module, socket empty
             if (isModuleItem(cursor) && isEmptySocket(clicked)) {
                 installModuleFromCursor(player, holder, invSlot, cursor);
@@ -928,7 +929,7 @@ public final class BackpackMenuListener implements Listener {
         // -----------------------------------------
         // From here on: cursor is empty
         // -----------------------------------------
-        if (clicked == null || clicked.getType().isAir())
+        if (ItemStacks.isAir(clicked))
             return;
 
         if (!isModuleItem(clicked))
@@ -1529,7 +1530,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private void giveOrDrop(Player player, ItemStack item) {
-        if (player == null || item == null || item.getType().isAir())
+        if (player == null || ItemStacks.isAir(item))
             return;
         var leftovers = player.getInventory().addItem(item);
         if (!leftovers.isEmpty()) {
@@ -1665,7 +1666,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private ItemStack refreshModuleVisuals(BackpackMenuHolder holder, ItemStack moduleItem) {
-        if (moduleItem == null || moduleItem.getType().isAir() || !moduleItem.hasItemMeta())
+        if (ItemStacks.isAir(moduleItem) || !moduleItem.hasItemMeta())
             return moduleItem;
 
         String type = getModuleType(moduleItem);
@@ -1685,7 +1686,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private void applyModuleLore(ItemStack moduleItem) {
-        if (moduleItem == null || moduleItem.getType().isAir() || !moduleItem.hasItemMeta())
+        if (ItemStacks.isAir(moduleItem) || !moduleItem.hasItemMeta())
             return;
 
         String type = getModuleType(moduleItem);
@@ -1852,7 +1853,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private ItemStack insertIntoBackpackLogical(BackpackMenuHolder holder, ItemStack stack) {
-        if (stack == null || stack.getType().isAir())
+        if (ItemStacks.isAir(stack))
             return stack;
         if (!plugin.cfg().isAllowedInBackpack(stack))
             return stack;
@@ -1886,7 +1887,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private ItemStack insertIntoLogicalRange(ItemStack[] logical, int start, int end, ItemStack stack) {
-        if (stack == null || stack.getType().isAir())
+        if (ItemStacks.isAir(stack))
             return stack;
         start = Math.max(0, start);
         end = Math.max(start, Math.min(end, logical.length));
@@ -1894,7 +1895,7 @@ public final class BackpackMenuListener implements Listener {
         // merge
         for (int i = start; i < end; i++) {
             ItemStack cur = logical[i];
-            if (cur == null || cur.getType().isAir())
+            if (ItemStacks.isAir(cur))
                 continue;
             if (!cur.isSimilar(stack))
                 continue;
@@ -1916,7 +1917,7 @@ public final class BackpackMenuListener implements Listener {
         // empty slots
         for (int i = start; i < end; i++) {
             ItemStack cur = logical[i];
-            if (cur != null && !cur.getType().isAir())
+            if (ItemStacks.isNotAir(cur))
                 continue;
 
             int toPlace = Math.min(stack.getMaxStackSize(), stack.getAmount());
@@ -1994,7 +1995,7 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private boolean isEmptySocket(ItemStack item) {
-        if (item == null || item.getType().isAir())
+        if (ItemStacks.isAir(item))
             return true;
 
         // If it is a socket placeholder, not a module
@@ -2177,7 +2178,7 @@ public final class BackpackMenuListener implements Listener {
             return false;
 
         ItemStack cursor = player.getItemOnCursor();
-        if (cursor != null && !cursor.getType().isAir())
+        if (ItemStacks.isNotAir(cursor))
             return false;
 
         return true;
@@ -2197,7 +2198,7 @@ public final class BackpackMenuListener implements Listener {
 
     private boolean stashCursorIntoBackpackOrPlayer(Player player, BackpackMenuHolder holder) {
         ItemStack cursor = player.getItemOnCursor();
-        if (cursor == null || cursor.getType().isAir())
+        if (ItemStacks.isAir(cursor))
             return false;
 
         Inventory inv = holder.getInventory();
@@ -2221,7 +2222,7 @@ public final class BackpackMenuListener implements Listener {
         // Merge into similar stacks first.
         for (int i = 0; i < valid; i++) {
             ItemStack cur = inv.getItem(i);
-            if (cur == null || cur.getType().isAir())
+            if (ItemStacks.isAir(cur))
                 continue;
             if (!cur.isSimilar(remaining))
                 continue;
@@ -2245,7 +2246,7 @@ public final class BackpackMenuListener implements Listener {
         // Put remaining into an empty slot.
         for (int i = 0; i < valid; i++) {
             ItemStack cur = inv.getItem(i);
-            if (cur != null && !cur.getType().isAir())
+            if (ItemStacks.isNotAir(cur))
                 continue;
 
             inv.setItem(i, remaining);
@@ -2257,7 +2258,7 @@ public final class BackpackMenuListener implements Listener {
         player.setItemOnCursor(null);
         var leftovers = player.getInventory().addItem(remaining);
         for (ItemStack left : leftovers.values()) {
-            if (left == null || left.getType().isAir())
+            if (ItemStacks.isAir(left))
                 continue;
             player.getWorld().dropItemNaturally(player.getLocation(), left);
         }
@@ -2266,13 +2267,13 @@ public final class BackpackMenuListener implements Listener {
 
     private boolean stashCursorIntoPlayer(Player player) {
         ItemStack cursor = player.getItemOnCursor();
-        if (cursor == null || cursor.getType().isAir())
+        if (ItemStacks.isAir(cursor))
             return false;
 
         player.setItemOnCursor(null);
         var leftovers = player.getInventory().addItem(cursor);
         for (ItemStack left : leftovers.values()) {
-            if (left == null || left.getType().isAir())
+            if (ItemStacks.isAir(left))
                 continue;
             player.getWorld().dropItemNaturally(player.getLocation(), left);
         }
@@ -2294,7 +2295,7 @@ public final class BackpackMenuListener implements Listener {
 
         List<ItemStack> items = new java.util.ArrayList<>(logical.length);
         for (ItemStack it : logical) {
-            if (it == null || it.getType().isAir())
+            if (ItemStacks.isAir(it))
                 continue;
             items.add(it.clone());
         }
@@ -2320,7 +2321,7 @@ public final class BackpackMenuListener implements Listener {
         java.util.ArrayList<ItemStack> merged = new java.util.ArrayList<>(input.size());
 
         for (ItemStack stack : input) {
-            if (stack == null || stack.getType().isAir())
+            if (ItemStacks.isAir(stack))
                 continue;
 
             ItemStack remaining = stack.clone();
@@ -2334,7 +2335,7 @@ public final class BackpackMenuListener implements Listener {
             // First, try to top up existing partial stacks.
             for (int i = 0; i < merged.size() && remaining.getAmount() > 0; i++) {
                 ItemStack existing = merged.get(i);
-                if (existing == null || existing.getType().isAir())
+                if (ItemStacks.isAir(existing))
                     continue;
                 if (existing.getMaxStackSize() <= 1)
                     continue;

@@ -16,6 +16,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.VoidedItemRecord;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 final class MagnetVoidEngine {
 
@@ -57,7 +58,7 @@ final class MagnetVoidEngine {
                 continue;
 
             ItemStack stack = itemEnt.getItemStack();
-            if (stack == null || stack.getType().isAir())
+            if (ItemStacks.isAir(stack))
                 continue;
             // Never auto-pickup backpacks/modules (prevents nesting, module loss, etc.)
             if (isProtectedFromVoid(stack))
@@ -81,7 +82,7 @@ final class MagnetVoidEngine {
             }
 
             ItemStack remainder = BackpackInventoryUtil.insertIntoContents(contents, stack.clone());
-            if (remainder == null || remainder.getType().isAir() || remainder.getAmount() <= 0) {
+            if (ItemStacks.isAir(remainder) || remainder.getAmount() <= 0) {
                 itemEnt.remove();
                 changed = true;
                 processed++;
@@ -100,7 +101,7 @@ final class MagnetVoidEngine {
     }
 
     private boolean isProtectedFromVoid(ItemStack stack) {
-        if (stack == null || stack.getType().isAir() || !stack.hasItemMeta())
+        if (ItemStacks.isAir(stack) || !stack.hasItemMeta())
             return false;
         ItemMeta meta = stack.getItemMeta();
         if (meta == null)
@@ -118,7 +119,7 @@ final class MagnetVoidEngine {
             UUID voidModuleId,
             ItemStack stack,
             Location loc) {
-        if (player == null || backpackId == null || voidModuleId == null || stack == null || stack.getType().isAir())
+        if (player == null || backpackId == null || voidModuleId == null || ItemStacks.isAir(stack))
             return false;
 
         byte[] bytes;
@@ -160,4 +161,3 @@ final class MagnetVoidEngine {
         }
     }
 }
-

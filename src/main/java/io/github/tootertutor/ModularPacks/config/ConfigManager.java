@@ -18,6 +18,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class ConfigManager {
 
@@ -179,7 +180,7 @@ public final class ConfigManager {
     }
 
     public boolean isAllowedInBackpack(ItemStack stack) {
-        if (stack == null || stack.getType().isAir())
+        if (ItemStacks.isAir(stack))
             return true;
 
         Material mat = stack.getType();

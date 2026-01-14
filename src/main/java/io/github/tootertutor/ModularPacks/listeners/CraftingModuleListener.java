@@ -16,6 +16,7 @@ import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.modules.CraftingModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.CraftingModuleUi;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class CraftingModuleListener implements Listener {
 
@@ -46,7 +47,7 @@ public final class CraftingModuleListener implements Listener {
                     || action == InventoryAction.PLACE_SOME
                     || action == InventoryAction.SWAP_WITH_CURSOR) {
                 ItemStack cursor = e.getCursor();
-                if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+                if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
                     e.setCancelled(true);
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
@@ -56,7 +57,7 @@ public final class CraftingModuleListener implements Listener {
                 int btn = e.getHotbarButton();
                 if (btn >= 0 && btn <= 8) {
                     ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (hotbar != null && !hotbar.getType().isAir() && !plugin.cfg().isAllowedInBackpack(hotbar)) {
+                    if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
@@ -94,7 +95,7 @@ public final class CraftingModuleListener implements Listener {
         }
 
         ItemStack cursor = e.getOldCursor();
-        if (cursor != null && !cursor.getType().isAir() && !plugin.cfg().isAllowedInBackpack(cursor)) {
+        if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
             int topSize = top.getSize();
             for (int raw : e.getRawSlots()) {
                 if (raw >= 0 && raw < topSize) {

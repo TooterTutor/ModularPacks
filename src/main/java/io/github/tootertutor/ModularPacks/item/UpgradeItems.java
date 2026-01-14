@@ -12,7 +12,7 @@ import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.UpgradeDef;
 import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 public final class UpgradeItems {
 
@@ -40,11 +40,13 @@ public final class UpgradeItems {
 
         // PDC: make it portable + unambiguous (no name-matching hacks)
         //
-        // CraftingTemplate is intentionally stackable (it's a crafting ingredient, not an installable module),
+        // CraftingTemplate is intentionally stackable (it's a crafting ingredient, not
+        // an installable module),
         // so it does NOT get a unique MODULE_ID.
         if (!"CraftingTemplate".equalsIgnoreCase(upgradeId)) {
             UUID moduleId = UUID.randomUUID();
-            meta.getPersistentDataContainer().set(plugin.keys().MODULE_ID, PersistentDataType.STRING, moduleId.toString());
+            meta.getPersistentDataContainer().set(plugin.keys().MODULE_ID, PersistentDataType.STRING,
+                    moduleId.toString());
         }
         meta.getPersistentDataContainer().set(plugin.keys().MODULE_TYPE, PersistentDataType.STRING, upgradeId);
         meta.getPersistentDataContainer().set(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE, (byte) 1);

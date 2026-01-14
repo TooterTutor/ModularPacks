@@ -17,7 +17,7 @@ import io.github.tootertutor.ModularPacks.commands.CommandContext;
 import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.gui.RecipePreviewUi;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
 public final class RecipeSubcommand implements Subcommand {

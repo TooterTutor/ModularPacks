@@ -20,7 +20,8 @@ import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
 
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 public final class CraftingModuleLogic {
 
@@ -107,7 +108,7 @@ public final class CraftingModuleLogic {
             }
 
             ItemStack out = craftResult(recipes, player, match, matrix);
-            if (out == null || out.getType().isAir())
+            if (ItemStacks.isAir(out))
                 return;
             var leftovers = player.getInventory().addItem(out);
             if (!leftovers.isEmpty())
@@ -125,16 +126,16 @@ public final class CraftingModuleLogic {
 
         ItemStack cursor = e.getCursor();
         boolean dynamic = recipes != null && recipes.isDynamicRecipe(match.recipe);
-        if (dynamic && cursor != null && !cursor.getType().isAir()) {
+        if (dynamic && ItemStacks.isNotAir(cursor)) {
             // Dynamic UUID-bearing items should not stack.
             return;
         }
 
         ItemStack out = craftResult(recipes, player, match, matrix);
-        if (out == null || out.getType().isAir())
+        if (ItemStacks.isAir(out))
             return;
 
-        if (cursor != null && !cursor.getType().isAir()) {
+        if (ItemStacks.isNotAir(cursor)) {
             if (!cursor.isSimilar(out))
                 return;
             int space = cursor.getMaxStackSize() - cursor.getAmount();
@@ -164,7 +165,7 @@ public final class CraftingModuleLogic {
         for (int i = 0; i < MATRIX_SIZE; i++) {
             int consume = consumePerSlot[i];
             ItemStack in = matrix[i];
-            if (consume <= 0 || in == null || in.getType().isAir())
+            if (consume <= 0 || ItemStacks.isAir(in))
                 continue;
 
             int remainingAmount = in.getAmount() - consume;
@@ -194,7 +195,7 @@ public final class CraftingModuleLogic {
     }
 
     private static boolean isEmpty(ItemStack s) {
-        return s == null || s.getType().isAir();
+        return ItemStacks.isAir(s);
     }
 
     private static final class CraftMatch {
@@ -222,11 +223,12 @@ public final class CraftingModuleLogic {
         // ourselves.
         Recipe direct = tryGetCraftingRecipe(player, matrix);
         if (direct != null) {
-            if (recipes != null && recipes.isDynamicRecipe(direct) && !recipes.validateDynamicIngredients(direct, matrix))
+            if (recipes != null && recipes.isDynamicRecipe(direct)
+                    && !recipes.validateDynamicIngredients(direct, matrix))
                 return null;
 
             ItemStack out = direct.getResult();
-            if (out == null || out.getType().isAir())
+            if (ItemStacks.isAir(out))
                 return null;
 
             // The server already confirmed this recipe matches the matrix; don't try
@@ -347,7 +349,7 @@ public final class CraftingModuleLogic {
         }
 
         ItemStack out = shapeless.getResult();
-        if (out == null || out.getType().isAir())
+        if (ItemStacks.isAir(out))
             return null;
 
         return new CraftMatch(recipe, out.clone(), consume);
@@ -373,7 +375,7 @@ public final class CraftingModuleLogic {
                 int[] consume = new int[MATRIX_SIZE];
                 if (matchesAtOffset(matrix, shape, shapeWidth, shapeHeight, choices, offX, offY, consume)) {
                     ItemStack out = shaped.getResult();
-                    if (out == null || out.getType().isAir())
+                    if (ItemStacks.isAir(out))
                         return null;
                     return new CraftMatch(recipe, out.clone(), consume);
                 }

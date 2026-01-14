@@ -17,6 +17,7 @@ import org.bukkit.inventory.meta.trim.TrimMaterial;
 import org.bukkit.plugin.Plugin;
 
 import io.github.tootertutor.ModularPacks.listeners.ModuleClickHandler;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class SmithingModuleLogic {
 
@@ -56,7 +57,7 @@ public final class SmithingModuleLogic {
     }
 
     public static int preferredInsertSlot(ItemStack stack) {
-        if (stack == null || stack.getType().isAir())
+        if (ItemStacks.isAir(stack))
             return -1;
 
         Material t = stack.getType();
@@ -77,7 +78,7 @@ public final class SmithingModuleLogic {
             ItemStack base = inv.getItem(BASE_SLOT);
             ItemStack addition = inv.getItem(ADDITION_SLOT);
             ItemStack result = computeResult(template, base, addition);
-            if (result == null || result.getType().isAir())
+            if (ItemStacks.isAir(result))
                 return;
 
             var leftovers = player.getInventory().addItem(result.clone());
@@ -95,11 +96,11 @@ public final class SmithingModuleLogic {
         ItemStack base = inv.getItem(BASE_SLOT);
         ItemStack addition = inv.getItem(ADDITION_SLOT);
         ItemStack out = computeResult(template, base, addition);
-        if (out == null || out.getType().isAir())
+        if (ItemStacks.isAir(out))
             return;
 
         ItemStack cursor = player.getItemOnCursor();
-        if (cursor != null && !cursor.getType().isAir()) {
+        if (ItemStacks.isNotAir(cursor)) {
             if (!cursor.isSimilar(out))
                 return;
             int space = cursor.getMaxStackSize() - cursor.getAmount();
@@ -127,7 +128,7 @@ public final class SmithingModuleLogic {
             if (r instanceof SmithingTransformRecipe tr) {
                 if (matchesTransform(tr, template, base, addition)) {
                     ItemStack result = tr.getResult();
-                    if (result == null || result.getType().isAir())
+                    if (ItemStacks.isAir(result))
                         return null;
 
                     ItemStack out = new ItemStack(result.getType(), Math.max(1, result.getAmount()));
@@ -206,7 +207,7 @@ public final class SmithingModuleLogic {
     }
 
     private static boolean isEmpty(ItemStack s) {
-        return s == null || s.getType().isAir();
+        return ItemStacks.isAir(s);
     }
 
     private static ItemStack decrementOne(ItemStack stack) {

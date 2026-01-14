@@ -21,7 +21,8 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
 public final class RestockModuleListener implements Listener {
@@ -154,9 +155,9 @@ public final class RestockModuleListener implements Listener {
         inv.setItem(SLOT_DECREASE, arrow("&cDecrease"));
         inv.setItem(SLOT_INCREASE, arrow("&aIncrease"));
 
-        if (inv.getItem(1) == null || inv.getItem(1).getType().isAir())
+        if (ItemStacks.isAir(inv.getItem(1)))
             inv.setItem(1, filler());
-        if (inv.getItem(3) == null || inv.getItem(3).getType().isAir())
+        if (ItemStacks.isAir(inv.getItem(3)))
             inv.setItem(3, filler());
 
         writeThreshold(inv, threshold);
@@ -182,11 +183,11 @@ public final class RestockModuleListener implements Listener {
             return fallback;
 
         // Prefer index 9 (merged state), fallback to slot 2 (old hopper-only).
-        if (arr.length > 9 && arr[9] != null && !arr[9].getType().isAir()) {
+        if (arr.length > 9 && ItemStacks.isNotAir(arr[9])) {
             int amt = arr[9].getAmount();
             return clampBetween1And64(amt);
         }
-        if (arr.length > 2 && arr[2] != null && !arr[2].getType().isAir()) {
+        if (arr.length > 2 && ItemStacks.isNotAir(arr[2])) {
             int amt = arr[2].getAmount();
             return clampBetween1And64(amt);
         }
@@ -198,7 +199,7 @@ public final class RestockModuleListener implements Listener {
         if (inv == null || inv.getSize() <= SLOT_CENTER)
             return DEFAULT_THRESHOLD;
         ItemStack center = inv.getItem(SLOT_CENTER);
-        if (center == null || center.getType().isAir())
+        if (ItemStacks.isAir(center))
             return DEFAULT_THRESHOLD;
         int amt = center.getAmount();
         if (amt <= 0)

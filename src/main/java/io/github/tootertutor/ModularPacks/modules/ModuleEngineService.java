@@ -24,7 +24,7 @@ import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.FurnaceModuleLogic;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
  * Periodically ticks open module screens and passive backpack modules.
@@ -305,7 +305,7 @@ public final class ModuleEngineService {
 
         Set<Material> out = new LinkedHashSet<>();
         for (ItemStack it : arr) {
-            if (it == null || it.getType().isAir())
+            if (ItemStacks.isAir(it))
                 continue;
             out.add(it.getType());
         }
@@ -325,7 +325,7 @@ public final class ModuleEngineService {
 
         java.util.LinkedHashSet<Material> seen = new java.util.LinkedHashSet<>();
         for (ItemStack it : arr) {
-            if (it == null || it.getType().isAir())
+            if (ItemStacks.isAir(it))
                 continue;
             seen.add(it.getType());
         }
@@ -344,12 +344,12 @@ public final class ModuleEngineService {
             return RestockEngine.clampThreshold(0);
 
         // Prefer merged-state index 9 (whitelist[0..8] + threshold[9]).
-        if (arr.length > 9 && arr[9] != null && !arr[9].getType().isAir()) {
+        if (arr.length > 9 && ItemStacks.isNotAir(arr[9])) {
             return RestockEngine.clampThreshold(arr[9].getAmount());
         }
 
         // Back-compat (old hopper-only): slot 2 is the center.
-        if (arr.length > 2 && arr[2] != null && !arr[2].getType().isAir()) {
+        if (arr.length > 2 && ItemStacks.isNotAir(arr[2])) {
             return RestockEngine.clampThreshold(arr[2].getAmount());
         }
 
@@ -376,7 +376,7 @@ public final class ModuleEngineService {
         java.util.ArrayList<ItemStack> out = new java.util.ArrayList<>();
         for (int i = 0; i < limit; i++) {
             ItemStack it = arr[i];
-            if (it == null || it.getType().isAir())
+            if (ItemStacks.isAir(it))
                 continue;
             ItemStack s = it.clone();
             s.setAmount(1);
@@ -386,7 +386,7 @@ public final class ModuleEngineService {
     }
 
     private static UUID readBackpackId(Keys keys, ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
@@ -402,7 +402,7 @@ public final class ModuleEngineService {
     }
 
     private static String readBackpackType(Keys keys, ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta())
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
             return null;
         ItemMeta meta = item.getItemMeta();
         if (meta == null)

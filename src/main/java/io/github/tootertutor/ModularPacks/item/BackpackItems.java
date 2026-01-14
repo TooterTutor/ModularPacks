@@ -12,7 +12,8 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
-import io.github.tootertutor.ModularPacks.text.Text;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 public final class BackpackItems {
 
@@ -68,7 +69,7 @@ public final class BackpackItems {
 
     public boolean refreshInPlace(ItemStack item, BackpackTypeDef type, UUID backpackId, BackpackData data,
             int totalSlots) {
-        if (item == null || item.getType().isAir() || type == null || backpackId == null)
+        if (ItemStacks.isAir(item) || type == null || backpackId == null)
             return false;
 
         ItemMeta meta = item.getItemMeta();
@@ -76,7 +77,8 @@ public final class BackpackItems {
             return false;
 
         meta.displayName(Text.c(type.displayName()));
-        meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_ID, PersistentDataType.STRING, backpackId.toString());
+        meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_ID, PersistentDataType.STRING,
+                backpackId.toString());
         meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_TYPE, PersistentDataType.STRING, type.id());
 
         if (type.customModelData() > 0) {

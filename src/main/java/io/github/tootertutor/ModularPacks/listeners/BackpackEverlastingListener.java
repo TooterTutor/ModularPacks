@@ -28,6 +28,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class BackpackEverlastingListener implements Listener {
 
@@ -199,12 +200,12 @@ public final class BackpackEverlastingListener implements Listener {
                 return;
 
             for (ItemStack it : restore) {
-                if (it == null || it.getType().isAir())
+                if (ItemStacks.isAir(it))
                     continue;
                 var leftovers = p.getInventory().addItem(it);
                 if (!leftovers.isEmpty()) {
                     for (ItemStack left : leftovers.values()) {
-                        if (left == null || left.getType().isAir())
+                        if (ItemStacks.isAir(left))
                             continue;
                         p.getWorld().dropItemNaturally(p.getLocation(), left);
                     }
@@ -218,7 +219,7 @@ public final class BackpackEverlastingListener implements Listener {
             return;
 
         ItemStack stack = item.getItemStack();
-        if (stack == null || stack.getType().isAir())
+        if (ItemStacks.isAir(stack))
             return;
 
         Player owner = ownerId == null ? null : Bukkit.getPlayer(ownerId);
@@ -226,7 +227,7 @@ public final class BackpackEverlastingListener implements Listener {
             var leftovers = owner.getInventory().addItem(stack);
             if (!leftovers.isEmpty()) {
                 for (ItemStack left : leftovers.values()) {
-                    if (left == null || left.getType().isAir())
+                    if (ItemStacks.isAir(left))
                         continue;
                     owner.getWorld().dropItemNaturally(owner.getLocation(), left);
                 }
@@ -250,7 +251,7 @@ public final class BackpackEverlastingListener implements Listener {
     }
 
     private BackpackRef readBackpackRef(ItemStack stack) {
-        if (stack == null || stack.getType().isAir() || !stack.hasItemMeta())
+        if (ItemStacks.isAir(stack) || !stack.hasItemMeta())
             return null;
         ItemMeta meta = stack.getItemMeta();
         if (meta == null)

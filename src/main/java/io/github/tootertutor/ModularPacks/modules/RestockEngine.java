@@ -9,6 +9,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class RestockEngine {
 
@@ -54,7 +55,7 @@ public final class RestockEngine {
         boolean changed = false;
         for (int slot = startInclusive; slot < endExclusive; slot++) {
             ItemStack stack = inv.getItem(slot);
-            if (stack == null || stack.getType().isAir())
+            if (ItemStacks.isAir(stack))
                 continue;
 
             // Never restock backpacks/modules themselves.
@@ -83,7 +84,7 @@ public final class RestockEngine {
 
             for (int i = 0; i < backpackContents.length && need > 0; i++) {
                 ItemStack src = backpackContents[i];
-                if (src == null || src.getType().isAir())
+                if (ItemStacks.isAir(src))
                     continue;
                 if (hasBlockedPdc(src))
                     continue;
@@ -113,10 +114,10 @@ public final class RestockEngine {
     }
 
     private boolean matchesWhitelist(ItemStack stack, List<ItemStack> whitelist) {
-        if (stack == null || stack.getType().isAir() || whitelist == null || whitelist.isEmpty())
+        if (ItemStacks.isAir(stack) || whitelist == null || whitelist.isEmpty())
             return false;
         for (ItemStack allowed : whitelist) {
-            if (allowed == null || allowed.getType().isAir())
+            if (ItemStacks.isAir(allowed))
                 continue;
             if (allowed.isSimilar(stack))
                 return true;

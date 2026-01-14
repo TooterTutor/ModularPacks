@@ -15,6 +15,7 @@ import org.bukkit.inventory.view.FurnaceView;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import net.kyori.adventure.text.Component;
 
 public final class FurnaceModuleLogic {
@@ -172,6 +173,6 @@ public final class FurnaceModuleLogic {
     }
 
     private static boolean isAir(ItemStack item) {
-        return item == null || item.getType().isAir();
+        return ItemStacks.isAir(item);
     }
 }

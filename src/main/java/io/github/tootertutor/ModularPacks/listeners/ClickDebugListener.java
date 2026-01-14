@@ -25,6 +25,7 @@ import org.bukkit.scheduler.BukkitTask;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
  * Debug-only listener: logs inventory click/drag events to a file for
@@ -198,7 +199,7 @@ public final class ClickDebugListener implements Listener {
     private static String itemSummary(ItemStack it) {
         if (it == null)
             return "null";
-        if (it.getType() == null || it.getType().isAir())
+        if (ItemStacks.isAir(it))
             return "AIR";
         String type = it.getType().name();
         int amt = it.getAmount();
