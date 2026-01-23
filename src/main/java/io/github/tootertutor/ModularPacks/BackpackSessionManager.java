@@ -1,7 +1,9 @@
 package io.github.tootertutor.ModularPacks;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -69,6 +71,7 @@ public final class BackpackSessionManager {
 
         if (current == null) {
             lockedToViewer.put(backpackId, viewerId);
+            closeGroupSessions(backpackId, viewerId);
             return true;
         }
 
@@ -78,19 +81,12 @@ public final class BackpackSessionManager {
         // Stale lock: viewer no longer actually looking at this backpack.
         if (!isViewerStillInSession(current, backpackId)) {
             lockedToViewer.put(backpackId, viewerId);
+            closeGroupSessions(backpackId, viewerId);
             return true;
         }
 
-        if (!adminOverride)
-            return false;
-
-        // Admin override: close the other viewer, and take the lock.
-        Player other = Bukkit.getPlayer(current);
-        if (other != null && other.isOnline()) {
-            other.sendMessage(Text.c("&cAnother player has taken over the shared backpack."));
-            other.closeInventory();
-        }
-
+        // Always allow takeover: close other viewers and move the lock.
+        closeGroupSessions(backpackId, viewerId);
         lockedToViewer.put(backpackId, viewerId);
         return true;
     }
@@ -211,6 +207,47 @@ public final class BackpackSessionManager {
         }
 
         return false;
+    }
+
+    private void closeGroupSessions(UUID backpackId, UUID exceptViewer) {
+        if (backpackId == null)
+            return;
+
+        Set<UUID> group = new HashSet<>();
+        group.add(backpackId);
+
+        String typeId = plugin.repo().findBackpackType(backpackId);
+        if (typeId != null) {
+            var data = plugin.repo().loadOrCreate(backpackId, typeId);
+            if (data != null) {
+                if (data.isShareHost()) {
+                    group.addAll(plugin.repo().listJoinedBackpacks(backpackId));
+                } else if (data.shareHostId() != null) {
+                    UUID hostId = data.shareHostId();
+                    group.add(hostId);
+                    group.addAll(plugin.repo().listJoinedBackpacks(hostId));
+                }
+            }
+        }
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (exceptViewer != null && exceptViewer.equals(p.getUniqueId()))
+                continue;
+
+            boolean inSession = false;
+            for (UUID id : group) {
+                if (isViewerStillInSession(p.getUniqueId(), id)) {
+                    inSession = true;
+                    break;
+                }
+            }
+
+            if (!inSession)
+                continue;
+
+            p.sendMessage(Text.c("&cAnother player has taken over this backpack."));
+            p.closeInventory();
+        }
     }
 
     private static boolean isLinkedBackpack(Keys keys, ItemStack it, UUID backpackId) {

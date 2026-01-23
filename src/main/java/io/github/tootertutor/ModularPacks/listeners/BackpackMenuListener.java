@@ -2213,7 +2213,20 @@ public final class BackpackMenuListener implements Listener {
 
                 renderer.saveVisibleStorageToData(current);
                 plugin.repo().saveBackpack(current.data());
+                // Re-render to ensure client view matches persisted state (prevents ghost/dupe
+                // views)
+                renderer.render(current);
                 refreshBackpackItemsFor(player, current);
+
+                // Refresh linked backpack items for host and all joiners (so joiners see host
+                // changes)
+                if (current.data().isShareHost()) {
+                    var joined = plugin.repo().listJoinedBackpacks(current.backpackId());
+                    for (UUID j : joined) {
+                        plugin.sessions().refreshLinkedBackpacksThrottled(j, current.data());
+                    }
+                }
+                // Always refresh the host/backpack itself
                 plugin.sessions().refreshLinkedBackpacksThrottled(current.backpackId(), current.data());
                 dirtySinceTick.remove(player.getUniqueId());
             }

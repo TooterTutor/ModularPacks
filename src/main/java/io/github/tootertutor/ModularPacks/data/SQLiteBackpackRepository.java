@@ -503,6 +503,32 @@ public final class SQLiteBackpackRepository {
         return joinedIds;
     }
 
+    /**
+     * List backpack IDs that are currently joined to the given host.
+     */
+    public java.util.List<UUID> listJoinedBackpacks(UUID hostId) {
+        if (hostId == null)
+            return java.util.List.of();
+
+        java.util.List<UUID> out = new java.util.ArrayList<>();
+        try (PreparedStatement ps = connection
+                .prepareStatement("SELECT backpack_id FROM backpacks WHERE share_host_id = ?")) {
+            ps.setString(1, hostId.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String idStr = rs.getString("backpack_id");
+                    try {
+                        out.add(UUID.fromString(idStr));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to list joined backpacks for host " + hostId, e);
+        }
+        return out;
+    }
+
     public void saveModules(UUID backpackId, Map<Integer, UUID> slotToModule, Map<UUID, byte[]> snapshots,
             Map<UUID, byte[]> states) {
         try {
