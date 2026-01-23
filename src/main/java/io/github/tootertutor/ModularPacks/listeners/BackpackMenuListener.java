@@ -317,7 +317,33 @@ public final class BackpackMenuListener implements Listener {
 
                         // If this is a HOST backpack, disconnect all joined backpacks first
                         if (holder.data().isShareHost()) {
-                            plugin.repo().disconnectAllJoinedBackpacks(holder.backpackId());
+                            var joinedIds = plugin.repo().disconnectAllJoinedBackpacks(holder.backpackId());
+                            // Force-close any joined sessions to avoid ghost locks/UIs
+                            for (UUID joinedId : joinedIds) {
+                                // Close any open inventories that are for this joined backpack
+                                for (Player online : Bukkit.getOnlinePlayers()) {
+                                    var openInv = online.getOpenInventory().getTopInventory();
+                                    if (openInv != null) {
+                                        var h = openInv.getHolder();
+                                        boolean matches = (h instanceof BackpackMenuHolder bmh
+                                                && joinedId.equals(bmh.backpackId()))
+                                                || (h instanceof ModuleScreenHolder msh
+                                                        && joinedId.equals(msh.backpackId()));
+                                        if (matches) {
+                                            online.sendMessage(Text.c(
+                                                    "&cThe host closed sharing; your backpack is now private."));
+                                            online.closeInventory();
+                                        }
+                                    }
+                                }
+
+                                // Release any lock held for this joined backpack
+                                UUID viewerId = plugin.sessions().lockedTo(joinedId);
+                                if (viewerId != null) {
+                                    plugin.sessions().releaseAllFor(viewerId);
+                                }
+                                plugin.sessions().releaseLock(joinedId);
+                            }
                         }
 
                         // If this is a JOINED backpack, restore its original contents

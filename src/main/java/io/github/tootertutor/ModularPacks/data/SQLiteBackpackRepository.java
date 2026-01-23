@@ -463,22 +463,44 @@ public final class SQLiteBackpackRepository {
      * Sets their is_shared=false, share_host_id=null, share_password=''.
      * Called when a host backpack goes back to private mode.
      */
-    public void disconnectAllJoinedBackpacks(UUID hostId) {
+    public java.util.List<UUID> disconnectAllJoinedBackpacks(UUID hostId) {
         if (hostId == null)
-            return;
+            return java.util.List.of();
 
+        java.util.List<UUID> joinedIds = new java.util.ArrayList<>();
+
+        // Collect joined backpack IDs first (so we can close their sessions)
+        try (PreparedStatement find = connection
+                .prepareStatement("SELECT backpack_id FROM backpacks WHERE share_host_id = ?")) {
+            find.setString(1, hostId.toString());
+            try (ResultSet rs = find.executeQuery()) {
+                while (rs.next()) {
+                    String idStr = rs.getString("backpack_id");
+                    try {
+                        joinedIds.add(UUID.fromString(idStr));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to list joined backpacks for host " + hostId, e);
+        }
+
+        // Flip them back to private
         try (PreparedStatement ps = connection.prepareStatement(
                 "UPDATE backpacks SET is_shared = 0, share_host_id = NULL, share_password = '', updated_at = ? WHERE share_host_id = ?")) {
             ps.setLong(1, System.currentTimeMillis());
             ps.setString(2, hostId.toString());
             int updated = ps.executeUpdate();
             if (updated > 0) {
-                System.out
-                        .println("[ModularPacks] Disconnected " + updated + " joined backpack(s) from host " + hostId);
+                plugin.getLogger().info(
+                        "[ModularPacks] Disconnected " + updated + " joined backpack(s) from host " + hostId);
             }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to disconnect joined backpacks from host " + hostId, e);
         }
+
+        return joinedIds;
     }
 
     public void saveModules(UUID backpackId, Map<Integer, UUID> slotToModule, Map<UUID, byte[]> snapshots,

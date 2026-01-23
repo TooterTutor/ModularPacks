@@ -130,6 +130,15 @@ public final class BackpackSessionManager {
     }
 
     /**
+     * Release the lock for a specific backpack ID, regardless of who holds it.
+     */
+    public void releaseLock(UUID backpackId) {
+        if (backpackId == null)
+            return;
+        lockedToViewer.remove(backpackId);
+    }
+
+    /**
      * Refresh all online players' backpack items that point at this backpackId.
      * Throttled to avoid scanning inventories too frequently (magnet/feeding).
      */

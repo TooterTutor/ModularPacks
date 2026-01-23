@@ -53,12 +53,50 @@ public final class BackpackUseListener implements Listener {
         e.setCancelled(true);
         plugin.repo().ensureBackpackExists(backpackId, typeId, p.getUniqueId(), p.getName());
 
+        // Load backpack data early to check share validity
+        var data = plugin.repo().loadOrCreate(backpackId, typeId);
+
+        // Auto-detach if host stopped sharing
+        if (data != null && data.shareHostId() != null) {
+            UUID hostId = data.shareHostId();
+            String hostType = plugin.repo().findBackpackType(hostId);
+            boolean hostStillShared = false;
+            if (hostType != null) {
+                var hostData = plugin.repo().loadOrCreate(hostId, hostType);
+                hostStillShared = hostData != null && hostData.isShared() && hostData.isShareHost();
+            }
+
+            if (!hostStillShared) {
+                // Restore joiner's own contents and detach from host
+                var restored = plugin.repo().loadJoinerContents(backpackId);
+                if (restored != null && restored.contentsBytes() != null) {
+                    data.contentsBytes(restored.contentsBytes());
+                    data.installedModules().clear();
+                    data.installedSnapshots().clear();
+                    data.moduleStates().clear();
+                    if (restored.installedModules() != null) {
+                        data.installedModules().putAll(restored.installedModules());
+                    }
+                    if (restored.installedSnapshots() != null) {
+                        data.installedSnapshots().putAll(restored.installedSnapshots());
+                    }
+                    if (restored.moduleStates() != null) {
+                        data.moduleStates().putAll(restored.moduleStates());
+                    }
+                }
+
+                data.setShared(false);
+                data.sharePassword("");
+                data.shareHostId(null);
+                plugin.repo().saveBackpack(data);
+            }
+        }
+
         // Attempt normal lock first
         boolean locked = plugin.sessions().tryLock(p, backpackId, false);
 
         // If locked by someone else, allow share members to take over the lock
         if (!locked) {
-            var data = plugin.repo().loadOrCreate(backpackId, typeId);
             if (data != null && data.isShared()) {
                 locked = plugin.sessions().tryLock(p, backpackId, true);
                 if (locked) {
