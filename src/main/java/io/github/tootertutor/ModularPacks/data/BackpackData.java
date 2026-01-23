@@ -22,6 +22,11 @@ public final class BackpackData {
     private final Map<UUID, byte[]> installedSnapshots = new HashMap<>();
     private final Map<UUID, byte[]> moduleStates = new HashMap<>();
 
+    // Sharing fields
+    private boolean isShared = false;
+    private String sharePassword = "";
+    private UUID shareHostId = null; // null if this is the host, otherwise UUID of the host backpack
+
     public BackpackData(UUID backpackId, String backpackType) {
         this.backpackId = backpackId;
         this.backpackType = backpackType;
@@ -57,6 +62,46 @@ public final class BackpackData {
 
     public Map<UUID, byte[]> moduleStates() {
         return moduleStates;
+    }
+
+    public boolean isShared() {
+        return isShared;
+    }
+
+    public void setShared(boolean shared) {
+        this.isShared = shared;
+    }
+
+    public String sharePassword() {
+        return sharePassword;
+    }
+
+    public void sharePassword(String password) {
+        this.sharePassword = password == null ? "" : password;
+    }
+
+    public UUID shareHostId() {
+        return shareHostId;
+    }
+
+    public void shareHostId(UUID hostId) {
+        this.shareHostId = hostId;
+    }
+
+    /**
+     * Get the effective backpack ID to load data from.
+     * If this backpack is joined to a host, return the host ID; otherwise return
+     * this backpack's ID.
+     */
+    public UUID getEffectiveBackpackId() {
+        return shareHostId != null ? shareHostId : backpackId;
+    }
+
+    /**
+     * Check if this backpack is a host (shared but has no host ID).
+     */
+    public boolean isShareHost() {
+        return isShared && shareHostId == null;
     }
 
 }

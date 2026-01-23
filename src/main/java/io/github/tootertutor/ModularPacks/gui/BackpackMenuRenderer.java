@@ -51,7 +51,7 @@ public final class BackpackMenuRenderer {
         // upgrade sockets live in bottom row (even for non-paginated if hasNavRow)
         int invSize = invRows * 9;
         List<Integer> upgradeSlots = hasNavRow
-                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots())
+                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated)
                 : List.of();
 
         BackpackMenuHolder holder = new BackpackMenuHolder(
@@ -108,7 +108,7 @@ public final class BackpackMenuRenderer {
 
         int invSize = invRows * 9;
         List<Integer> upgradeSlots = hasNavRow
-                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots())
+                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated)
                 : List.of();
 
         int pageSize = paginated ? 45 : type.rows() * 9;
@@ -152,7 +152,7 @@ public final class BackpackMenuRenderer {
 
         int invSize = invRows * 9;
         List<Integer> upgradeSlots = hasNavRow
-                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots())
+                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated)
                 : java.util.Collections.emptyList();
 
         int pageSize = paginated ? 45 : type.rows() * 9;
@@ -320,6 +320,48 @@ public final class BackpackMenuRenderer {
             }
 
             inv.setItem(sortSlot, namedItem(Material.COMPARATOR, "&eSort", lore));
+        }
+
+        // Render mode button (opposite side of sort button)
+        int modeSlot = SlotLayout.modeButtonSlot(invSize, holder.upgradeSlots(), holder.paginated(), sortSlot);
+        if (modeSlot >= 0) {
+            renderModeButton(inv, holder.data(), modeSlot);
+        }
+    }
+
+    private void renderModeButton(Inventory inv, BackpackData data, int slot) {
+        List<String> lore = new ArrayList<>();
+
+        if (data.isShared()) {
+            // Shared mode (Host or Join)
+            if (data.isShareHost()) {
+                // Host mode
+                String shortId = data.backpackId().toString().substring(0, 8);
+                lore.add("&bHost Mode");
+                lore.add("&7ID: &f" + shortId);
+                lore.add("&7Password: &f" + (data.sharePassword().isEmpty() ? "(none)" : data.sharePassword()));
+                lore.add("&7");
+                lore.add("&8[&6\u029f-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Private");
+                lore.add("&8[&6\u0280-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 Set Password");
+                inv.setItem(slot, namedItem(Material.ENDER_EYE, "&bShared", lore));
+            } else {
+                // Join mode
+                String shortId = data.shareHostId().toString().substring(0, 8);
+                lore.add("&dJoin Mode");
+                lore.add("&7Host ID: &f" + shortId);
+                lore.add("&7Password: &f" + (data.sharePassword().isEmpty() ? "(none)" : data.sharePassword()));
+                lore.add("&7");
+                lore.add("&8[&6\u029f-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Private");
+                lore.add("&8[&6\u0280-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 Change Join");
+                inv.setItem(slot, namedItem(Material.ENDER_PEARL, "&dJoined", lore));
+            }
+        } else {
+            // Private mode
+            lore.add("&7Your backpack is private.");
+            lore.add("&7");
+            lore.add("&8[&6\u029f-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Host Mode");
+            lore.add("&8[&6\u0280-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Join Mode");
+            inv.setItem(slot, namedItem(Material.BARRIER, "&cPrivate", lore));
         }
     }
 

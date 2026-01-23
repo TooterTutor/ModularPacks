@@ -57,6 +57,18 @@ public final class SQLiteBackpackRepository {
                     st.executeUpdate("ALTER TABLE backpacks ADD COLUMN updated_at INTEGER");
                 } catch (SQLException ignored) {
                 }
+                try {
+                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN is_shared BOOLEAN DEFAULT 0");
+                } catch (SQLException ignored) {
+                }
+                try {
+                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN share_password TEXT");
+                } catch (SQLException ignored) {
+                }
+                try {
+                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN share_host_id TEXT");
+                } catch (SQLException ignored) {
+                }
 
                 st.executeUpdate("""
                             CREATE TABLE IF NOT EXISTS backpack_modules (
@@ -127,31 +139,73 @@ public final class SQLiteBackpackRepository {
         BackpackData data = new BackpackData(backpackId, backpackType);
 
         try {
-            // backpacks row
+            // Load share metadata from the requesting backpackId
+            UUID effectiveId = backpackId;
             try (PreparedStatement ps = connection.prepareStatement(
-                    "SELECT backpack_type, contents FROM backpacks WHERE backpack_id = ?")) {
+                    "SELECT share_host_id, share_password, is_shared FROM backpacks WHERE backpack_id = ?")) {
                 ps.setString(1, backpackId.toString());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        data.backpackType(rs.getString("backpack_type"));
-                        data.contentsBytes(rs.getBytes("contents"));
+                        String hostIdStr = rs.getString("share_host_id");
+                        String password = rs.getString("share_password");
+                        boolean isShared = rs.getBoolean("is_shared");
+
+                        if (hostIdStr != null) {
+                            // This is a joined backpack; load host's data
+                            effectiveId = UUID.fromString(hostIdStr);
+                            data.setShared(isShared);
+                            data.sharePassword(password);
+                            data.shareHostId(UUID.fromString(hostIdStr));
+                        } else if (isShared) {
+                            // This is a host backpack (shared but no host_id)
+                            data.setShared(isShared);
+                            data.sharePassword(password);
+                        }
                     } else {
-                        // insert new
+                        // Own backpack doesn't exist yet; ensure it will be created
+                        // This is necessary to have the share columns initialized
                         try (PreparedStatement ins = connection.prepareStatement(
-                                "INSERT INTO backpacks(backpack_id, backpack_type, contents) VALUES(?,?,?)")) {
+                                "INSERT INTO backpacks(backpack_id, backpack_type, contents, is_shared, share_password, share_host_id) VALUES(?,?,?,?,?,?)")) {
                             ins.setString(1, backpackId.toString());
                             ins.setString(2, backpackType);
                             ins.setBytes(3, null);
+                            ins.setBoolean(4, false);
+                            ins.setString(5, "");
+                            ins.setString(6, null);
                             ins.executeUpdate();
                         }
                     }
                 }
             }
 
-            // modules
+            // Load contents from effective backpack ID
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "SELECT backpack_type, contents FROM backpacks WHERE backpack_id = ?")) {
+                ps.setString(1, effectiveId.toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        data.backpackType(rs.getString("backpack_type"));
+                        data.contentsBytes(rs.getBytes("contents"));
+                    } else {
+                        // insert new host backpack if it doesn't exist
+                        try (PreparedStatement ins = connection.prepareStatement(
+                                "INSERT INTO backpacks(backpack_id, backpack_type, contents, is_shared, share_password, share_host_id) VALUES(?,?,?,?,?,?)")) {
+                            ins.setString(1, effectiveId.toString());
+                            ins.setString(2, backpackType);
+                            ins.setBytes(3, null);
+                            ins.setBoolean(4, false);
+                            ins.setString(5, "");
+                            ins.setString(6, null);
+                            ins.executeUpdate();
+                        }
+                    }
+                }
+            }
+
+            // modules from effective backpack ID
             try (PreparedStatement ps = connection.prepareStatement(
                     "SELECT slot_index, module_id, module_snapshot, module_state FROM backpack_modules WHERE backpack_id = ?")) {
-                ps.setString(1, backpackId.toString());
+                ps.setString(1, effectiveId.toString());
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         int slotIndex = rs.getInt("slot_index");
@@ -191,16 +245,87 @@ public final class SQLiteBackpackRepository {
         return null;
     }
 
+    public boolean isPlayerValidShareMember(UUID playerId, UUID backpackId) {
+        // Check if a player is authorized to access a shared backpack
+        // This includes: being a participant in a shared host, or having joined as a
+        // player
+        if (playerId == null || backpackId == null)
+            return false;
+
+        try {
+            // Load the backpack to check its share state
+            BackpackData data = loadOrCreate(backpackId, null);
+            if (data == null)
+                return false;
+
+            // If it's not shared, only the owner can access (not our concern here)
+            if (!data.isShared())
+                return false;
+
+            // If loadOrCreate succeeded, this player has a row and is allowed
+            return true;
+
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public BackpackData loadJoinerContents(UUID joinerId) {
+        // Load ONLY the joiner's original contents from their own row
+        // Used when leaving a shared host to restore the joiner's items
+        BackpackData data = new BackpackData(joinerId, null);
+
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT backpack_type, contents FROM backpacks WHERE backpack_id = ?")) {
+            ps.setString(1, joinerId.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String type = rs.getString("backpack_type");
+                    byte[] contents = rs.getBytes("contents");
+                    data.backpackType(type);
+                    data.contentsBytes(contents);
+                    return data;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to load joiner contents " + joinerId, e);
+        }
+        return null;
+    }
+
+    public UUID findBackpackByUuidPrefix(String uuidPrefix) {
+        if (uuidPrefix == null || uuidPrefix.isEmpty())
+            return null;
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT backpack_id FROM backpacks WHERE backpack_id LIKE ? LIMIT 1")) {
+            ps.setString(1, uuidPrefix + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String idStr = rs.getString("backpack_id");
+                    try {
+                        return UUID.fromString(idStr);
+                    } catch (IllegalArgumentException ex) {
+                        return null;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to query backpack by prefix " + uuidPrefix, e);
+        }
+        return null;
+    }
+
     public void ensureBackpackExists(UUID backpackId, String backpackType, UUID ownerUuid, String ownerName) {
         if (backpackId == null || backpackType == null)
             return;
 
         long now = System.currentTimeMillis();
 
-        try (PreparedStatement ins = connection.prepareStatement("""
-                INSERT OR IGNORE INTO backpacks(backpack_id, backpack_type, contents, owner_uuid, owner_name, created_at, updated_at)
-                VALUES(?,?,?,?,?,?,?)
-                """)) {
+        try (PreparedStatement ins = connection.prepareStatement(
+                """
+                        INSERT OR IGNORE INTO backpacks(backpack_id, backpack_type, contents, owner_uuid, owner_name, created_at, updated_at)
+                        VALUES(?,?,?,?,?,?,?)
+                        """)) {
             ins.setString(1, backpackId.toString());
             ins.setString(2, backpackType);
             ins.setBytes(3, null);
@@ -261,19 +386,76 @@ public final class SQLiteBackpackRepository {
     }
 
     public void saveBackpack(BackpackData data) {
+        // If this is a joined backpack, we need to:
+        // 1. Save contents to the HOST's backpack
+        // 2. Save share metadata to the JOINER's backpack
+
+        if (data.shareHostId() != null) {
+            // This is a joined backpack
+            UUID hostId = data.shareHostId();
+            UUID joinerId = data.backpackId();
+
+            // Save contents to host
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ? WHERE backpack_id = ?")) {
+                ps.setString(1, data.backpackType());
+                ps.setBytes(2, data.contentsBytes());
+                ps.setLong(3, System.currentTimeMillis());
+                ps.setString(4, hostId.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to save host backpack contents " + hostId, e);
+            }
+
+            // Save share metadata to joiner's backpack (don't overwrite host's metadata)
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE backpacks SET is_shared = ?, share_password = ?, share_host_id = ?, updated_at = ? WHERE backpack_id = ?")) {
+                ps.setBoolean(1, data.isShared());
+                ps.setString(2, data.sharePassword());
+                ps.setString(3, data.shareHostId() != null ? data.shareHostId().toString() : null);
+                ps.setLong(4, System.currentTimeMillis());
+                ps.setString(5, joinerId.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to save joiner metadata " + joinerId, e);
+            }
+
+            // Modules go to the host's backpack
+            saveModules(hostId, data.installedModules(), data.installedSnapshots(), data.moduleStates());
+        } else {
+            // This is an own backpack (not joined)
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ?, is_shared = ?, share_password = ?, share_host_id = ? WHERE backpack_id = ?")) {
+                ps.setString(1, data.backpackType());
+                ps.setBytes(2, data.contentsBytes());
+                ps.setLong(3, System.currentTimeMillis());
+                ps.setBoolean(4, data.isShared());
+                ps.setString(5, data.sharePassword());
+                ps.setString(6, data.shareHostId() != null ? data.shareHostId().toString() : null);
+                ps.setString(7, data.backpackId().toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to save backpack " + data.backpackId(), e);
+            }
+
+            saveModules(data.backpackId(), data.installedModules(), data.installedSnapshots(), data.moduleStates());
+        }
+    }
+
+    public void saveShareMetadataOnly(BackpackData data) {
+        // Save ONLY the share metadata without touching contents
+        // Used when joining/leaving to avoid overwriting backpack contents
         try (PreparedStatement ps = connection.prepareStatement(
-                "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ? WHERE backpack_id = ?")) {
-            ps.setString(1, data.backpackType());
-            ps.setBytes(2, data.contentsBytes());
-            ps.setLong(3, System.currentTimeMillis());
-            ps.setString(4, data.backpackId().toString());
+                "UPDATE backpacks SET is_shared = ?, share_password = ?, share_host_id = ?, updated_at = ? WHERE backpack_id = ?")) {
+            ps.setBoolean(1, data.isShared());
+            ps.setString(2, data.sharePassword());
+            ps.setString(3, data.shareHostId() != null ? data.shareHostId().toString() : null);
+            ps.setLong(4, System.currentTimeMillis());
+            ps.setString(5, data.backpackId().toString());
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to save backpack " + data.backpackId(), e);
+            throw new RuntimeException("Failed to save share metadata for " + data.backpackId(), e);
         }
-
-        saveModules(data.backpackId(), data.installedModules(), data.installedSnapshots(), data.moduleStates());
-
     }
 
     public void saveModules(UUID backpackId, Map<Integer, UUID> slotToModule, Map<UUID, byte[]> snapshots,

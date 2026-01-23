@@ -28,6 +28,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
@@ -45,6 +46,7 @@ import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
+import net.wesjd.anvilgui.AnvilGUI;
 
 public final class BackpackMenuListener implements Listener {
 
@@ -279,6 +281,82 @@ public final class BackpackMenuListener implements Listener {
                     scheduleSave(player, holder);
                     renderer.render(holder);
                     return;
+                }
+
+                return;
+            }
+
+            // Mode button (share/private toggle)
+            int modeSlot = SlotLayout.modeButtonSlot(topSize, holder.upgradeSlots(), holder.paginated(), sortSlot);
+            if (modeSlot >= 0 && rawSlot == modeSlot) {
+                e.setCancelled(true);
+
+                ItemStack cursor = player.getItemOnCursor();
+                if (ItemStacks.isNotAir(cursor))
+                    return;
+
+                if (!holder.data().isShared()) {
+                    // Currently Private
+                    if (e.getClick() == ClickType.LEFT) {
+                        // Left: Become Host
+                        holder.data().setShared(true);
+                        holder.data().shareHostId(null);
+                        holder.data().sharePassword("");
+                        scheduleSave(player, holder);
+                        renderer.render(holder);
+                        return;
+                    } else if (e.getClick() == ClickType.RIGHT) {
+                        // Right: Become Join mode
+                        openJoinDialog(player, holder);
+                        return;
+                    }
+                } else {
+                    // Currently Shared
+                    if (e.getClick() == ClickType.LEFT) {
+                        // Left: Become Private
+
+                        // If this is a JOINED backpack, restore its original contents
+                        if (holder.data().shareHostId() != null) {
+                            // System.out.println("[ModularPacks] Leave: Restoring joined backpack " +
+                            // holder.backpackId()
+                            // + " from host " + holder.data().shareHostId());
+                            // Load the joiner's original contents from the database
+                            BackpackData restored = plugin.repo().loadJoinerContents(holder.backpackId());
+                            if (restored != null && restored.contentsBytes() != null) {
+                                holder.data().contentsBytes(restored.contentsBytes());
+                                holder.data().installedModules().clear();
+                                holder.data().installedSnapshots().clear();
+                                holder.data().moduleStates().clear();
+                                // Copy back the modules if they exist
+                                if (restored.installedModules() != null) {
+                                    holder.data().installedModules().putAll(restored.installedModules());
+                                }
+                                if (restored.installedSnapshots() != null) {
+                                    holder.data().installedSnapshots().putAll(restored.installedSnapshots());
+                                }
+                                if (restored.moduleStates() != null) {
+                                    holder.data().moduleStates().putAll(restored.moduleStates());
+                                }
+                                // System.out.println("[ModularPacks] Leave: Restored joiner's contents");
+                            }
+                        }
+
+                        holder.data().setShared(false);
+                        holder.data().sharePassword("");
+                        holder.data().shareHostId(null);
+                        scheduleSave(player, holder);
+                        renderer.render(holder);
+                        return;
+                    } else if (e.getClick() == ClickType.RIGHT) {
+                        if (holder.data().isShareHost()) {
+                            // Right on Host: Set password
+                            openPasswordDialog(player, holder);
+                        } else {
+                            // Right on Join: Change join settings
+                            openJoinDialog(player, holder);
+                        }
+                        return;
+                    }
                 }
 
                 return;
@@ -2392,6 +2470,147 @@ public final class BackpackMenuListener implements Listener {
         }
 
         return merged;
+    }
+
+    private void openPasswordDialog(Player player, BackpackMenuHolder holder) {
+        String currentPassword = holder.data().sharePassword();
+
+        new AnvilGUI.Builder()
+                .onClick((slot, stateSnapshot) -> {
+                    if (slot != AnvilGUI.Slot.OUTPUT) {
+                        return java.util.Collections.emptyList();
+                    }
+
+                    String password = stateSnapshot.getText();
+                    if (password == null) {
+                        password = "";
+                    }
+                    holder.data().sharePassword(password);
+                    flushSaveNow(player, holder);
+
+                    return java.util.Arrays.asList(
+                            AnvilGUI.ResponseAction.close(),
+                            AnvilGUI.ResponseAction.run(() -> {
+                                Bukkit.getScheduler().runTask(plugin, () -> {
+                                    renderer.openMenu(player, holder.backpackId(), holder.type().id(), holder.page());
+                                });
+                            }));
+                })
+                .text(currentPassword.isEmpty() ? "Enter password" : currentPassword)
+                .title("Set Share Password")
+                .plugin(plugin)
+                .open(player);
+    }
+
+    private void openJoinDialog(Player player, BackpackMenuHolder holder) {
+        new AnvilGUI.Builder()
+                .onClick((slot, stateSnapshot) -> {
+                    if (slot != AnvilGUI.Slot.OUTPUT) {
+                        return java.util.Collections.emptyList();
+                    }
+
+                    String input = stateSnapshot.getText();
+                    if (input == null || input.trim().isEmpty()) {
+                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    }
+
+                    // Parse format: "UUID" or "UUID password"
+                    String[] parts = input.trim().split("\\s+", 2);
+                    String hostIdStr = parts[0];
+                    String password = parts.length > 1 ? parts[1] : "";
+
+                    UUID hostId;
+                    try {
+                        hostId = UUID.fromString(hostIdStr);
+                    } catch (IllegalArgumentException ex) {
+                        // If full UUID fails, try searching by UUID prefix
+                        if (hostIdStr.length() > 0 && hostIdStr.length() <= 8) {
+                            hostId = plugin.repo().findBackpackByUuidPrefix(hostIdStr);
+                            if (hostId == null) {
+                                player.sendMessage(Text.c("&cNo backpack found with ID starting with: " + hostIdStr));
+                                return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                            }
+                        } else {
+                            player.sendMessage(
+                                    Text.c("&cInvalid backpack ID format. Use full UUID or first 8 characters."));
+                            return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                        }
+                    }
+
+                    // Verify host backpack exists and is shared
+                    String hostType = plugin.repo().findBackpackType(hostId);
+                    if (hostType == null) {
+                        player.sendMessage(Text.c("&cHost backpack not found"));
+                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    }
+
+                    BackpackData hostData = plugin.repo().loadOrCreate(hostId, hostType);
+                    if (!hostData.isShared() || !hostData.isShareHost()) {
+                        player.sendMessage(Text.c("&cThat backpack is not shared or is not a host"));
+                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    }
+
+                    BackpackTypeDef hostDef = plugin.cfg().findType(hostType);
+                    BackpackTypeDef joinerDef = holder.type();
+
+                    if (hostDef == null || joinerDef == null) {
+                        player.sendMessage(Text.c("&cUnable to determine backpack tiers; cannot join."));
+                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    }
+
+                    if (!hasMatchingTier(joinerDef, hostDef)) {
+                        player.sendMessage(Text.c("&cYour backpack tier (" + joinerDef.displayName()
+                                + "&c) must match the host tier (" + hostDef.displayName() + "&c)."));
+                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    }
+
+                    // Check password
+                    if (!hostData.sharePassword().isEmpty() && !hostData.sharePassword().equals(password)) {
+                        player.sendMessage(Text.c("&cIncorrect password"));
+                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    }
+
+                    // Join successful
+                    // IMPORTANT: Save the joiner's current contents FIRST to preserve them in their
+                    // own row
+                    plugin.repo().saveBackpack(holder.data());
+
+                    holder.data().setShared(true);
+                    holder.data().shareHostId(hostId);
+                    holder.data().sharePassword(password);
+                    // System.out.println(
+                    // "[ModularPacks] Join: Set backpack " + holder.backpackId() + " to join host "
+                    // + hostId);
+                    player.sendMessage(Text.c("&aSet password to: &f'" + password + "'"));
+                    // Save ONLY the share metadata, not the contents (to avoid overwriting host's
+                    // data)
+                    plugin.repo().saveShareMetadataOnly(holder.data());
+                    player.sendMessage(Text.c("&aSuccessfully joined backpack"));
+
+                    return java.util.Arrays.asList(
+                            AnvilGUI.ResponseAction.close(),
+                            AnvilGUI.ResponseAction.run(() -> {
+                                Bukkit.getScheduler().runTask(plugin, () -> {
+                                    // System.out.println(
+                                    // "[ModularPacks] Join: Reopening menu for backpack " + holder.backpackId());
+                                    renderer.openMenu(player, holder.backpackId(), holder.type().id(), holder.page());
+                                });
+                            }));
+                })
+                .text("Backpack-ID password")
+                .title("Join Shared Backpack")
+                .plugin(plugin)
+                .open(player);
+    }
+
+    private static boolean hasMatchingTier(BackpackTypeDef joiner, BackpackTypeDef host) {
+        if (joiner == null || host == null)
+            return false;
+        String a = joiner.id();
+        String b = host.id();
+        if (a == null || b == null)
+            return false;
+        return a.equalsIgnoreCase(b);
     }
 
 }

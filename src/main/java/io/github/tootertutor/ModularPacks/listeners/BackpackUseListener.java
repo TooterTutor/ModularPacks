@@ -53,7 +53,21 @@ public final class BackpackUseListener implements Listener {
         e.setCancelled(true);
         plugin.repo().ensureBackpackExists(backpackId, typeId, p.getUniqueId(), p.getName());
 
-        if (!plugin.sessions().tryLock(p, backpackId, false)) {
+        // Attempt normal lock first
+        boolean locked = plugin.sessions().tryLock(p, backpackId, false);
+
+        // If locked by someone else, allow share members to take over the lock
+        if (!locked) {
+            var data = plugin.repo().loadOrCreate(backpackId, typeId);
+            if (data != null && data.isShared()) {
+                locked = plugin.sessions().tryLock(p, backpackId, true);
+                if (locked) {
+                    p.sendMessage("You have taken over the shared backpack session.");
+                }
+            }
+        }
+
+        if (!locked) {
             String lockedTo = plugin.sessions().lockedToName(backpackId);
             if (lockedTo == null)
                 lockedTo = "someone else";
