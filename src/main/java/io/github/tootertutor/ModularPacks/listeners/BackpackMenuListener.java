@@ -315,6 +315,11 @@ public final class BackpackMenuListener implements Listener {
                     if (e.getClick() == ClickType.LEFT) {
                         // Left: Become Private
 
+                        // If this is a HOST backpack, disconnect all joined backpacks first
+                        if (holder.data().isShareHost()) {
+                            plugin.repo().disconnectAllJoinedBackpacks(holder.backpackId());
+                        }
+
                         // If this is a JOINED backpack, restore its original contents
                         if (holder.data().shareHostId() != null) {
                             // System.out.println("[ModularPacks] Leave: Restoring joined backpack " +

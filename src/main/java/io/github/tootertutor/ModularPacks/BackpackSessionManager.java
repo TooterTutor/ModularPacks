@@ -19,6 +19,7 @@ import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Tracks active backpack "sessions" (open backpack GUI or a module GUI for that
@@ -86,6 +87,7 @@ public final class BackpackSessionManager {
         // Admin override: close the other viewer, and take the lock.
         Player other = Bukkit.getPlayer(current);
         if (other != null && other.isOnline()) {
+            other.sendMessage(Text.c("&cAnother player has taken over the shared backpack."));
             other.closeInventory();
         }
 
