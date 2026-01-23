@@ -22,6 +22,7 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
+import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
@@ -42,10 +43,12 @@ public final class ModuleEngineService {
     private final MagnetVoidEngine magnetVoidEngine;
     private final FurnaceEngine furnaceEngine;
     private final RestockEngine restockEngine;
+    private final ScreenRouter screenRouter;
     private BukkitTask task;
 
-    public ModuleEngineService(ModularPacksPlugin plugin) {
+    public ModuleEngineService(ModularPacksPlugin plugin, ScreenRouter screenRouter) {
         this.plugin = plugin;
+        this.screenRouter = screenRouter;
         this.backpackItems = new BackpackItems(plugin);
         this.feedingEngine = new FeedingEngine(plugin);
         this.jukeboxEngine = new JukeboxEngine(plugin);
@@ -76,14 +79,18 @@ public final class ModuleEngineService {
             if (top.getHolder() instanceof BackpackMenuHolder bmh) {
                 openBackpackIds.add(bmh.backpackId());
             }
-            if (FurnaceModuleLogic.hasSession(player)) {
-                FurnaceModuleLogic.Session session = FurnaceModuleLogic.session(player);
-                if (session != null) {
-                    openModuleIds.add(session.moduleId());
-                    ScreenType st = session.screenType();
+            // Check FurnaceModule instance from ScreenRouter
+            FurnaceModule furnaceModule = screenRouter.getFurnaceModule();
+            if (furnaceModule != null && furnaceModule.hasSession(player)) {
+                UUID backpackId = furnaceModule.getSessionBackpackId(player);
+                UUID moduleId = furnaceModule.getSessionModuleId(player);
+                String backpackType = furnaceModule.getSessionBackpackType(player);
+                ScreenType st = furnaceModule.getSessionScreenType(player);
+                if (moduleId != null && backpackId != null && backpackType != null && st != null) {
+                    openModuleIds.add(moduleId);
                     if (st == ScreenType.SMELTING || st == ScreenType.BLASTING || st == ScreenType.SMOKING) {
-                        furnaceEngine.tickFurnaceScreen(player, session.backpackId(), session.backpackType(),
-                                session.moduleId(), st, top, ENGINE_DT_TICKS);
+                        furnaceEngine.tickFurnaceScreen(player, backpackId, backpackType,
+                                moduleId, st, top, ENGINE_DT_TICKS);
                     }
                 }
                 continue;

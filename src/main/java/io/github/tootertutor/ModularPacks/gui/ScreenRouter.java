@@ -9,26 +9,80 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.api.ModularPacksAPI;
+import io.github.tootertutor.ModularPacks.api.modules.ModuleRegistry;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
-import io.github.tootertutor.ModularPacks.modules.AnvilModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.CraftingModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.CraftingModuleUi;
-import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
-import io.github.tootertutor.ModularPacks.modules.FurnaceModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.SmithingModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.SmithingModuleUi;
-import io.github.tootertutor.ModularPacks.modules.StonecutterModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.StonecutterModuleUi;
+import io.github.tootertutor.ModularPacks.modules.AnvilModule;
+import io.github.tootertutor.ModularPacks.modules.CraftingModule;
+import io.github.tootertutor.ModularPacks.modules.FurnaceModule;
+import io.github.tootertutor.ModularPacks.modules.SmithingModule;
+import io.github.tootertutor.ModularPacks.modules.StonecutterModule;
 import net.kyori.adventure.text.Component;
 
 public final class ScreenRouter {
 
 	private final ModularPacksPlugin plugin;
 
+	private final SmithingModule smithingModule;
+	private final StonecutterModule stonecutterModule;
+	private final CraftingModule craftingModule;
+	private final AnvilModule anvilModule;
+	private final FurnaceModule furnaceModule;
+
 	public ScreenRouter(ModularPacksPlugin plugin) {
 		this.plugin = plugin;
+		this.smithingModule = new SmithingModule();
+		this.stonecutterModule = new StonecutterModule();
+		this.craftingModule = new CraftingModule();
+		this.anvilModule = new AnvilModule();
+		this.furnaceModule = new FurnaceModule();
+
+		// Ensure the central registry can see these built-in modules (used for session
+		// tracking and API access). Duplicate registrations throw, so guard
+		// best-effort.
+		ModuleRegistry registry = ModularPacksAPI.getInstance().getModuleRegistry();
+		try {
+			registry.registerModule(this.smithingModule);
+			registry.registerModule(this.stonecutterModule);
+			registry.registerModule(this.craftingModule);
+			registry.registerModule(this.anvilModule);
+			registry.registerModule(this.furnaceModule);
+		} catch (IllegalArgumentException ex) {
+			plugin.getLogger().warning("Module already registered: " + ex.getMessage());
+		}
+	}
+
+	public FurnaceModule getFurnaceModule() {
+		return furnaceModule;
+	}
+
+	public SmithingModule getSmithingModule() {
+		return smithingModule;
+	}
+
+	public StonecutterModule getStonecutterModule() {
+		return stonecutterModule;
+	}
+
+	public CraftingModule getCraftingModule() {
+		return craftingModule;
+	}
+
+	public AnvilModule getAnvilModule() {
+		return anvilModule;
+	}
+
+	private void openNextTick(Runnable task) {
+		Bukkit.getScheduler().runTask(plugin, () -> {
+			try {
+				task.run();
+			} catch (Exception ex) {
+				plugin.getLogger().severe("Module open failed: " + ex.getMessage());
+				ex.printStackTrace();
+			}
+		});
 	}
 
 	/**
@@ -38,53 +92,33 @@ public final class ScreenRouter {
 		if (screenType == ScreenType.NONE)
 			return;
 
+		// plugin.getLogger().info("Opening module screen " + screenType + " for " +
+		// player.getName() + " backpack="
+		// + backpackId + " module=" + moduleId);
+
 		if (screenType == ScreenType.ANVIL) {
-			// Opening MenuType-backed views from inside InventoryClickEvent (or other
-			// inventory events) is unreliable; schedule to next tick.
-			Bukkit.getScheduler().runTask(plugin, () -> {
-				if (!player.isOnline())
-					return;
-				AnvilModuleLogic.open(plugin, player, backpackId, backpackType, moduleId);
-			});
+			openNextTick(() -> anvilModule.open(plugin, player, backpackId, backpackType, moduleId));
 			return;
 		}
 
 		if (screenType == ScreenType.CRAFTING) {
-			// Recipe-book auto-fill only works in a real crafting view (MenuType.CRAFTING),
-			// not a plugin-created WORKBENCH inventory.
-			Bukkit.getScheduler().runTask(plugin, () -> {
-				if (!player.isOnline())
-					return;
-				CraftingModuleUi.open(plugin, player, backpackId, backpackType, moduleId);
-			});
+			openNextTick(() -> craftingModule.open(plugin, player, backpackId, backpackType, moduleId));
 			return;
 		}
 
 		if (screenType == ScreenType.SMITHING) {
-			Bukkit.getScheduler().runTask(plugin, () -> {
-				if (!player.isOnline())
-					return;
-				SmithingModuleUi.open(plugin, player, backpackId, backpackType, moduleId);
-			});
+			openNextTick(() -> smithingModule.open(plugin, player, backpackId, backpackType, moduleId));
 			return;
 		}
 
 		if (screenType == ScreenType.STONECUTTER) {
-			Bukkit.getScheduler().runTask(plugin, () -> {
-				if (!player.isOnline())
-					return;
-				StonecutterModuleUi.open(plugin, player, backpackId, backpackType, moduleId);
-			});
+			openNextTick(() -> stonecutterModule.open(plugin, player, backpackId, backpackType, moduleId));
 			return;
 		}
 
-		if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING || screenType == ScreenType.SMOKING) {
-			// Furnace-like progress bars only work correctly with MenuType-based views.
-			Bukkit.getScheduler().runTask(plugin, () -> {
-				if (!player.isOnline())
-					return;
-				FurnaceModuleLogic.open(plugin, player, backpackId, backpackType, moduleId, screenType);
-			});
+		if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING
+				|| screenType == ScreenType.SMOKING) {
+			openNextTick(() -> furnaceModule.open(plugin, player, backpackId, backpackType, moduleId, screenType));
 			return;
 		}
 
@@ -117,54 +151,30 @@ public final class ScreenRouter {
 			return;
 		}
 
-		if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING
-				|| screenType == ScreenType.SMOKING) {
-			// Furnace-like uses FurnaceStateCodec bytes
-			var fs = FurnaceStateCodec.decode(state);
-
-			// Migration fallback: if decode returned empty but we might have old gzipped
-			// ItemStack[]
-			if ((fs.input == null && fs.fuel == null && fs.output == null) && state != null && state.length > 0) {
-				try {
-					ItemStack[] old = ItemStackCodec.fromBytes(state);
-					if (old.length >= 3) {
-						fs.input = old[0];
-						fs.fuel = old[1];
-						fs.output = old[2];
-					}
-				} catch (Exception ignored) {
-					// leave empty
-				}
-			}
-
-			inv.setItem(0, fs.input);
-			inv.setItem(1, fs.fuel);
-			inv.setItem(2, fs.output);
-
-		} else {
-			// Everything else uses ItemStackCodec bytes (gzipped)
-			ItemStack[] saved = ItemStackCodec.fromBytes(state);
-			int limit = Math.min(inv.getSize(), saved.length);
-			for (int i = 0; i < limit; i++) {
-				inv.setItem(i, saved[i]);
-			}
+		// Everything uses ItemStackCodec bytes (gzipped)
+		// Note: Furnace types should not reach this code path as they use
+		// MenuType-based views
+		ItemStack[] saved = ItemStackCodec.fromBytes(state);
+		int limit = Math.min(inv.getSize(), saved.length);
+		for (int i = 0; i < limit; i++) {
+			inv.setItem(i, saved[i]);
 		}
 
 		// Result/output slots are derived; never trust persisted values.
 		if (screenType == ScreenType.CRAFTING) {
 			inv.setItem(0, null);
-			CraftingModuleLogic.updateResult(plugin.recipes(), player, inv);
+			craftingModule.updateResult(plugin.recipes(), player, inv);
 		}
 		if (screenType == ScreenType.STONECUTTER) {
 			if (inv.getSize() > 1) {
 				inv.setItem(1, null);
-				StonecutterModuleLogic.updateResult(inv);
+				stonecutterModule.updateResult(inv);
 			}
 		}
 		if (screenType == ScreenType.SMITHING) {
 			if (inv.getSize() > 3) {
 				inv.setItem(3, null);
-				SmithingModuleLogic.updateResult(inv);
+				smithingModule.updateResult(inv);
 			}
 		}
 

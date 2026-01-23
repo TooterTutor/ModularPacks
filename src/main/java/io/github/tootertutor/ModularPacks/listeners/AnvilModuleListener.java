@@ -13,22 +13,24 @@ import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.AnvilModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.AnvilModule;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class AnvilModuleListener implements Listener {
 
     private final ModularPacksPlugin plugin;
+    private final AnvilModule module;
 
-    public AnvilModuleListener(ModularPacksPlugin plugin) {
+    public AnvilModuleListener(ModularPacksPlugin plugin, AnvilModule module) {
         this.plugin = plugin;
+        this.module = module;
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!AnvilModuleLogic.hasSession(player))
+        if (!module.hasSession(player))
             return;
         if (e.getView().getTopInventory().getType() != InventoryType.ANVIL)
             return;
@@ -82,7 +84,7 @@ public final class AnvilModuleListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!AnvilModuleLogic.hasSession(player))
+        if (!module.hasSession(player))
             return;
         if (e.getView().getTopInventory().getType() != InventoryType.ANVIL)
             return;
@@ -106,12 +108,12 @@ public final class AnvilModuleListener implements Listener {
     public void onClose(InventoryCloseEvent e) {
         if (!(e.getPlayer() instanceof Player player))
             return;
-        if (!AnvilModuleLogic.hasSession(player))
+        if (!module.hasSession(player))
             return;
         if (e.getInventory().getType() != InventoryType.ANVIL)
             return;
 
-        AnvilModuleLogic.handleClose(plugin, player, e.getInventory());
+        module.handleClose(plugin, player, e.getInventory());
     }
 
     private boolean isBackpack(ItemStack item) {

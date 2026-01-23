@@ -14,30 +14,29 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.modules.SmithingModuleUi;
+import io.github.tootertutor.ModularPacks.modules.SmithingModule;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class SmithingModuleListener implements Listener {
 
     private final ModularPacksPlugin plugin;
+    private final SmithingModule module;
 
-    public SmithingModuleListener(ModularPacksPlugin plugin) {
+    public SmithingModuleListener(ModularPacksPlugin plugin, SmithingModule module) {
         this.plugin = plugin;
+        this.module = module;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!SmithingModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         Inventory top = e.getView().getTopInventory();
         if (top == null || top.getType() != InventoryType.SMITHING)
             return;
-
-        // Respect container rules (AllowShulkerBoxes / AllowBundles / blacklist) for
-        // persistent module storage.
         boolean clickedTop = e.getClickedInventory() != null && e.getClickedInventory().equals(top);
         int raw = e.getRawSlot();
         if (clickedTop && raw >= 0 && raw < top.getSize()) {
@@ -79,7 +78,7 @@ public final class SmithingModuleListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!SmithingModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         Inventory top = e.getView().getTopInventory();
@@ -103,11 +102,11 @@ public final class SmithingModuleListener implements Listener {
     public void onClose(InventoryCloseEvent e) {
         if (!(e.getPlayer() instanceof Player player))
             return;
-        if (!SmithingModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
         if (e.getInventory().getType() != InventoryType.SMITHING)
             return;
 
-        SmithingModuleUi.handleClose(plugin, player, e.getInventory());
+        module.handleClose(plugin, player, e.getInventory());
     }
 }

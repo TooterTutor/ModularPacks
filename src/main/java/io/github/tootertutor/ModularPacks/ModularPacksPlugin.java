@@ -4,19 +4,22 @@ import org.bukkit.Bukkit;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import io.github.tootertutor.ModularPacks.api.ModularPacksAPI;
+import io.github.tootertutor.ModularPacks.api.modules.ModuleFactory;
 import io.github.tootertutor.ModularPacks.commands.CommandRouter;
 import io.github.tootertutor.ModularPacks.commands.sub.GiveSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.ListSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.OpenSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.RecipeSubcommand;
-import io.github.tootertutor.ModularPacks.commands.sub.RefreshSkullsSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.RecoverSubcommand;
+import io.github.tootertutor.ModularPacks.commands.sub.RefreshSkullsSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.ReloadSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.SetTypeSubcommand;
 import io.github.tootertutor.ModularPacks.config.ConfigManager;
 import io.github.tootertutor.ModularPacks.config.LangManager;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
+import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.listeners.AnvilModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.BackpackEverlastingListener;
@@ -25,8 +28,8 @@ import io.github.tootertutor.ModularPacks.listeners.BackpackUseListener;
 import io.github.tootertutor.ModularPacks.listeners.ClickDebugListener;
 import io.github.tootertutor.ModularPacks.listeners.CraftingModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.FurnaceModuleListener;
-import io.github.tootertutor.ModularPacks.listeners.ModuleRecipeListener;
 import io.github.tootertutor.ModularPacks.listeners.ModuleFilterScreenListener;
+import io.github.tootertutor.ModularPacks.listeners.ModuleRecipeListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventModulePlacementListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventModuleUseListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventNestingListener;
@@ -47,11 +50,17 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private ClickDebugListener clickDebug;
     private RecipeManager recipes;
     private BackpackSessionManager sessions;
+    private ModuleFactory moduleFactory;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         saveResource("lang/en_us.yml", false);
+
+        // Initialize the public API
+        ModularPacksAPI.initialize(this);
+        ModularPacksAPI api = ModularPacksAPI.getInstance();
+        this.moduleFactory = new ModuleFactory(this, api.getModuleRegistry());
 
         this.keys = new Keys(this);
 
@@ -66,7 +75,11 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.sessions = new BackpackSessionManager(this);
 
-        this.engines = new ModuleEngineService(this);
+        // Create module instances
+        ScreenRouter screenRouter = new ScreenRouter(
+                this);
+
+        this.engines = new ModuleEngineService(this, screenRouter);
         this.engines.start();
 
         this.recipes = new RecipeManager(this);
@@ -76,7 +89,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         BackpackMenuRenderer renderer = new BackpackMenuRenderer(this);
 
         Bukkit.getPluginManager().registerEvents(new BackpackUseListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, renderer), this);
+        Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, renderer, screenRouter), this);
         Bukkit.getPluginManager().registerEvents(new ModuleRecipeListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ModuleFilterScreenListener(this), this);
         Bukkit.getPluginManager().registerEvents(new RestockModuleListener(this), this);
@@ -84,11 +97,15 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PreventModulePlacementListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventModuleUseListener(this), this);
         Bukkit.getPluginManager().registerEvents(new BackpackEverlastingListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new AnvilModuleListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new FurnaceModuleListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new CraftingModuleListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new SmithingModuleListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new StonecutterModuleListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new AnvilModuleListener(this, screenRouter.getAnvilModule()), this);
+        Bukkit.getPluginManager().registerEvents(new FurnaceModuleListener(this, screenRouter.getFurnaceModule()),
+                this);
+        Bukkit.getPluginManager().registerEvents(new CraftingModuleListener(this, screenRouter.getCraftingModule()),
+                this);
+        Bukkit.getPluginManager().registerEvents(new SmithingModuleListener(this, screenRouter.getSmithingModule()),
+                this);
+        Bukkit.getPluginManager()
+                .registerEvents(new StonecutterModuleListener(this, screenRouter.getStonecutterModule()), this);
         Bukkit.getPluginManager().registerEvents(new RecipePreviewListener(), this);
 
         if (cfg().debugClickLog()) {
@@ -154,6 +171,10 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
     public BackpackSessionManager sessions() {
         return sessions;
+    }
+
+    public ModuleFactory moduleFactory() {
+        return moduleFactory;
     }
 
     public void reloadAll() {

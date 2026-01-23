@@ -9,8 +9,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import org.bukkit.NamespacedKey;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
@@ -134,7 +134,6 @@ public final class ConfigManager {
                 boolean enabled = s.getBoolean("Enabled", true);
                 boolean toggleable = s.getBoolean("Toggleable", false);
                 boolean secondaryAction = s.getBoolean("SecondaryAction", false);
-                String screenType = s.getString("ScreenType", "NONE");
 
                 String displayName = s.getString("DisplayName", id);
                 String matName = s.getString("OutputMaterial", s.getString("CraftingRecipe.OutputMaterial", "PAPER"));
@@ -144,11 +143,32 @@ public final class ConfigManager {
                 int customModelData = s.getInt("CustomModelData", 0);
                 boolean glint = s.getBoolean("Glint", s.getBoolean("CraftingRecipe.Glint", false));
 
+                // Derive screen types from module ID to avoid config confusion.
+                ScreenType screenType = deriveScreenType(id);
+
                 upgrades.put(id.toLowerCase(Locale.ROOT),
                         new UpgradeDef(id, displayName, material, lore, customModelData, glint, enabled, toggleable,
-                                secondaryAction, ScreenType.from(screenType)));
+                                secondaryAction, screenType));
             }
         }
+    }
+
+    private ScreenType deriveScreenType(String id) {
+        if (id == null)
+            return ScreenType.NONE;
+        String key = id.trim().toLowerCase(Locale.ROOT);
+        return switch (key) {
+            case "crafting" -> ScreenType.CRAFTING;
+            case "smithing" -> ScreenType.SMITHING;
+            case "stonecutter" -> ScreenType.STONECUTTER;
+            case "anvil" -> ScreenType.ANVIL;
+            case "smelting" -> ScreenType.SMELTING;
+            case "blasting" -> ScreenType.BLASTING;
+            case "smoking" -> ScreenType.SMOKING;
+            case "restock" -> ScreenType.DROPPER; // primary UI (whitelist)
+            case "feeding", "void", "magnet", "jukebox" -> ScreenType.DROPPER;
+            default -> ScreenType.NONE;
+        };
     }
 
     public boolean resizeGui() {

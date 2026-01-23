@@ -14,22 +14,24 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.modules.StonecutterModuleUi;
+import io.github.tootertutor.ModularPacks.modules.StonecutterModule;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class StonecutterModuleListener implements Listener {
 
     private final ModularPacksPlugin plugin;
+    private final StonecutterModule module;
 
-    public StonecutterModuleListener(ModularPacksPlugin plugin) {
+    public StonecutterModuleListener(ModularPacksPlugin plugin, StonecutterModule module) {
         this.plugin = plugin;
+        this.module = module;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!StonecutterModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         Inventory top = e.getView().getTopInventory();
@@ -77,7 +79,7 @@ public final class StonecutterModuleListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!StonecutterModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         Inventory top = e.getView().getTopInventory();
@@ -101,11 +103,11 @@ public final class StonecutterModuleListener implements Listener {
     public void onClose(InventoryCloseEvent e) {
         if (!(e.getPlayer() instanceof Player player))
             return;
-        if (!StonecutterModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
         if (e.getInventory().getType() != InventoryType.STONECUTTER)
             return;
 
-        StonecutterModuleUi.handleClose(plugin, player, e.getInventory());
+        module.handleClose(plugin, player, e.getInventory());
     }
 }

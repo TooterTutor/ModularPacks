@@ -16,18 +16,21 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.FurnaceModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.FurnaceModule;
 import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class FurnaceModuleListener implements Listener {
 
     private final ModularPacksPlugin plugin;
+    private final FurnaceModule module;
 
-    public FurnaceModuleListener(ModularPacksPlugin plugin) {
+    public FurnaceModuleListener(ModularPacksPlugin plugin, FurnaceModule module) {
         this.plugin = plugin;
+        this.module = module;
     }
 
     private boolean isFurnaceTop(Player player, InventoryType type) {
@@ -44,7 +47,7 @@ public final class FurnaceModuleListener implements Listener {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
 
-        FurnaceModuleLogic.Session session = FurnaceModuleLogic.session(player);
+        AbstractModule.ModuleSession session = module.getSession(player);
         if (session == null)
             return;
 
@@ -73,7 +76,7 @@ public final class FurnaceModuleListener implements Listener {
                 String expectedBackpackType = session.backpackType();
 
                 org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
-                    FurnaceModuleLogic.Session s2 = FurnaceModuleLogic.session(player);
+                    AbstractModule.ModuleSession s2 = module.getSession(player);
                     if (s2 == null)
                         return;
                     if (!expectedModuleId.equals(s2.moduleId()))
@@ -191,7 +194,7 @@ public final class FurnaceModuleListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!FurnaceModuleLogic.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         InventoryType topType = e.getView().getTopInventory().getType();
@@ -222,7 +225,7 @@ public final class FurnaceModuleListener implements Listener {
     public void onClose(InventoryCloseEvent e) {
         if (!(e.getPlayer() instanceof Player player))
             return;
-        if (!FurnaceModuleLogic.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         InventoryType type = e.getInventory().getType();
@@ -234,7 +237,7 @@ public final class FurnaceModuleListener implements Listener {
             }
         }
 
-        FurnaceModuleLogic.handleClose(plugin, player, e.getInventory());
+        module.handleClose(plugin, player, e.getInventory());
     }
 
     private static int toVanillaXp(double xp) {

@@ -9,35 +9,38 @@ import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.event.inventory.PrepareItemCraftEvent;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.modules.CraftingModule;
 import io.github.tootertutor.ModularPacks.modules.CraftingModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.CraftingModuleUi;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class CraftingModuleListener implements Listener {
 
     private final ModularPacksPlugin plugin;
+    private final CraftingModule module;
 
-    public CraftingModuleListener(ModularPacksPlugin plugin) {
+    public CraftingModuleListener(ModularPacksPlugin plugin, CraftingModule module) {
         this.plugin = plugin;
+        this.module = module;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!CraftingModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         Inventory top = e.getView().getTopInventory();
         if (top == null || top.getSize() < 10)
             return;
 
-        // Block disallowed items from entering the crafting module's persistent storage.
+        // Block disallowed items from entering the crafting module's persistent
+        // storage.
         boolean clickedTop = e.getClickedInventory() != null && e.getClickedInventory().equals(top);
         int raw = e.getRawSlot();
         if (clickedTop && raw >= 0 && raw < top.getSize()) {
@@ -71,9 +74,11 @@ public final class CraftingModuleListener implements Listener {
             return;
         }
 
-        // Any matrix change should refresh output next tick (covers recipe book auto-fill too).
+        // Any matrix change should refresh output next tick (covers recipe book
+        // auto-fill too).
         if (raw >= 0 && raw < top.getSize()) {
-            Bukkit.getScheduler().runTask(plugin, () -> CraftingModuleLogic.updateResult(plugin.recipes(), player, top));
+            Bukkit.getScheduler().runTask(plugin,
+                    () -> CraftingModuleLogic.updateResult(plugin.recipes(), player, top));
         }
     }
 
@@ -81,7 +86,7 @@ public final class CraftingModuleListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
-        if (!CraftingModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         Inventory top = e.getView().getTopInventory();
@@ -109,7 +114,8 @@ public final class CraftingModuleListener implements Listener {
         // Any drag into the top inventory should refresh output next tick.
         for (int raw : e.getRawSlots()) {
             if (raw >= 0 && raw < top.getSize()) {
-                Bukkit.getScheduler().runTask(plugin, () -> CraftingModuleLogic.updateResult(plugin.recipes(), player, top));
+                Bukkit.getScheduler().runTask(plugin,
+                        () -> CraftingModuleLogic.updateResult(plugin.recipes(), player, top));
                 return;
             }
         }
@@ -121,7 +127,7 @@ public final class CraftingModuleListener implements Listener {
             return;
         if (!(e.getView().getPlayer() instanceof Player player))
             return;
-        if (!CraftingModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         Inventory top = e.getInventory();
@@ -136,10 +142,10 @@ public final class CraftingModuleListener implements Listener {
     public void onClose(InventoryCloseEvent e) {
         if (!(e.getPlayer() instanceof Player player))
             return;
-        if (!CraftingModuleUi.hasSession(player))
+        if (!module.hasSession(player))
             return;
 
         // e.getInventory() is the top inventory being closed for crafting views.
-        CraftingModuleUi.handleClose(plugin, player, e.getInventory());
+        module.handleClose(plugin, player, e.getInventory());
     }
 }

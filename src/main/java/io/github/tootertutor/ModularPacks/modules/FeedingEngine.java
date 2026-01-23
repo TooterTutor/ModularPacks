@@ -35,7 +35,8 @@ final class FeedingEngine {
         this.plugin = plugin;
     }
 
-    boolean applyFeeding(Player player, ItemStack[] contents, ItemStack moduleSnapshot, List<Material> orderedWhitelist) {
+    boolean applyFeeding(Player player, ItemStack[] contents, ItemStack moduleSnapshot,
+            List<Material> orderedWhitelist) {
         if (player == null || contents == null)
             return false;
 

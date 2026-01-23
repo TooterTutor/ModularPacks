@@ -212,7 +212,6 @@ Upgrades:
   CraftingTemplate:
     Enabled: true
     Toggleable: false
-    ScreenType: NONE
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -234,7 +233,6 @@ Upgrades:
     Enabled: true
     Toggleable: false
     # Type of screen to open when clicking on the upgrade in the backpack GUI.
-    ScreenType: NONE
     # Crafting Recipe for the upgrade
     CraftingRecipe:
       Type: Crafting
@@ -249,15 +247,14 @@ Upgrades:
       Glint: true
     DisplayName: "&bEverlasting Upgrade"
     Lore:
-      - "&7Prevents the backpack from falling into the void, or despawning."
-      - "{moduleActions}"
+      - "&7Makes the backpack fully indestructible."
+      - "{moduleActionsEverlasting}"
     CustomModelData: 2001
 
   Magnet:
     Enabled: true
     Toggleable: true
     # Type of screen to open when clicking on the upgrade in the backpack GUI.
-    ScreenType: Dropper
     # Magnet behavior tuning
     Range: 6.0
     MaxItemsPerTick: 32
@@ -286,8 +283,6 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: true
-    ScreenType: NONE
-    # Tank behavior (currently supports storing/filling water & lava buckets)
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -306,7 +301,7 @@ Upgrades:
     Lore:
       - "&7Allows Fluids or Experience to be stored."
       - "{toggleState}"
-      - "{moduleActions}"
+      - "{moduleActionsTank}"
       - "{containedFluid}"
     CustomModelData: 2003
 
@@ -314,7 +309,6 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: true
-    ScreenType: Dropper
     # Feeding behavior tuning
     MinFoodLevel: 18
     CooldownTicks: 20
@@ -343,13 +337,12 @@ Upgrades:
       - "&7Automatically feeds the Player when hungry."
       - "{toggleState}"
       - "{feedingMode}"
-      - "{moduleActions}"
+      - "{moduleActionsFeeding}"
     CustomModelData: 2004
 
   Void:
     Enabled: true
     Toggleable: true
-    ScreenType: Dropper
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -375,7 +368,6 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: true
-    ScreenType: Hopper
     # Restock behavior tuning
     RestockThreshold: 16
     CraftingRecipe:
@@ -395,14 +387,13 @@ Upgrades:
       - "&7Automatically restocks the Player's inventory."
       - "{toggleState}"
       - "{restockThreshold}"
-      - "{moduleActions}"
+      - "{moduleActionsRestock}"
     CustomModelData: 2014
 
   # Workstation upgrades allow opening various crafting/smelting/etc., interfaces directly from the backpack.
   Crafting:
     Enabled: true
     Toggleable: false
-    ScreenType: Crafting
     Pattern:
     CraftingRecipe:
       Type: Crafting
@@ -426,7 +417,6 @@ Upgrades:
   Smelting:
     Enabled: true
     Toggleable: false
-    ScreenType: Smelting
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -449,7 +439,6 @@ Upgrades:
   Blasting:
     Enabled: true
     Toggleable: false
-    ScreenType: Blasting
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -472,7 +461,6 @@ Upgrades:
   Smoking:
     Enabled: true
     Toggleable: false
-    ScreenType: Smoking
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -495,7 +483,6 @@ Upgrades:
   Stonecutter:
     Enabled: true
     Toggleable: false
-    ScreenType: Stonecutter
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -518,7 +505,6 @@ Upgrades:
   Anvil:
     Enabled: true
     Toggleable: false
-    ScreenType: Anvil
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -541,7 +527,6 @@ Upgrades:
   Smithing:
     Enabled: true
     Toggleable: false
-    ScreenType: Smithing
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -565,7 +550,6 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: true
-    ScreenType: Dropper
     # Playback config:
     # - Mode: Shuffle | RepeatOne | RepeatAll
     # - TrackDurationTicks: Approximate duration before advancing (vanilla disc lengths vary)
@@ -592,5 +576,5 @@ Upgrades:
       - "&7A portable Jukebox."
       - "{toggleState}"
       - "{jukeboxMode}"
-      - "{moduleActions}"
+      - "{moduleActionsJukebox}"
     CustomModelData: 2013

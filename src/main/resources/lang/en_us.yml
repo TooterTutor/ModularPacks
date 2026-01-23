@@ -2,18 +2,6 @@ moduleActions:
   - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
-
-moduleActionsPrimary:
-  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open Module."
-  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
-  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
-
-moduleActionsSecondary:
-  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Activate Module."
-  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Module Action."
-  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
-  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
-
 moduleActionsFeeding:
   - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit whitelist."
   - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Cycle feeding mode."
@@ -32,7 +20,13 @@ moduleActionsJukebox:
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
-moduleActionsPassive:
+moduleActionsRestock:
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit Whitelist."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Edit Threshold."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
+  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
+moduleActionsEverlasting:
   - "&8[&6ᴘᴀꜱꜱɪᴠᴇ&8]&7 Always active."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 

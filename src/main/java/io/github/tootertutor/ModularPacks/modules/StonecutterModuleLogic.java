@@ -63,25 +63,18 @@ public final class StonecutterModuleLogic {
     }
 
     private static void craftShift(Player player, Inventory inv) {
-        for (int i = 0; i < 64; i++) {
+        ModuleLogicHelper.standardCraftShift(player, 64, () -> {
             ItemStack input = inv.getItem(INPUT_SLOT);
             if (ItemStacks.isAir(input))
-                return;
-
+                return null;
             StonecuttingRecipe recipe = findFirstMatch(input);
             if (recipe == null)
-                return;
-
-            ItemStack out = recipe.getResult();
-            if (ItemStacks.isAir(out))
-                return;
-
-            var leftovers = player.getInventory().addItem(out.clone());
-            if (!leftovers.isEmpty())
-                return;
-
-            inv.setItem(INPUT_SLOT, decrementOne(input));
-        }
+                return null;
+            return recipe.getResult();
+        }, () -> {
+            ItemStack input = inv.getItem(INPUT_SLOT);
+            inv.setItem(INPUT_SLOT, ModuleLogicHelper.decrementOne(input));
+        });
     }
 
     private static void craftOnceToCursor(Player player, Inventory inv) {
@@ -93,25 +86,11 @@ public final class StonecutterModuleLogic {
         if (recipe == null)
             return;
 
-        ItemStack out = recipe.getResult();
-        if (ItemStacks.isAir(out))
-            return;
+        ItemStack result = recipe.getResult();
 
-        ItemStack cursor = player.getItemOnCursor();
-        if (ItemStacks.isNotAir(cursor)) {
-            if (!cursor.isSimilar(out))
-                return;
-            int space = cursor.getMaxStackSize() - cursor.getAmount();
-            if (space < out.getAmount())
-                return;
-            cursor = cursor.clone();
-            cursor.setAmount(cursor.getAmount() + out.getAmount());
-        } else {
-            cursor = out.clone();
-        }
-
-        player.setItemOnCursor(cursor);
-        inv.setItem(INPUT_SLOT, decrementOne(input));
+        ModuleLogicHelper.standardCraftOnceToCursor(player, result, () -> {
+            inv.setItem(INPUT_SLOT, ModuleLogicHelper.decrementOne(input));
+        });
     }
 
     private static StonecuttingRecipe findFirstMatch(ItemStack input) {
@@ -126,14 +105,4 @@ public final class StonecutterModuleLogic {
         return null;
     }
 
-    private static ItemStack decrementOne(ItemStack stack) {
-        if (stack == null)
-            return null;
-        ItemStack s = stack.clone();
-        int amt = s.getAmount();
-        if (amt <= 1)
-            return null;
-        s.setAmount(amt - 1);
-        return s;
-    }
 }

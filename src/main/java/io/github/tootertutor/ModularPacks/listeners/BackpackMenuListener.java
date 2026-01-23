@@ -3,6 +3,7 @@ package io.github.tootertutor.ModularPacks.listeners;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,12 +40,7 @@ import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.AnvilModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.CraftingModuleUi;
-import io.github.tootertutor.ModularPacks.modules.FurnaceModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
-import io.github.tootertutor.ModularPacks.modules.SmithingModuleUi;
-import io.github.tootertutor.ModularPacks.modules.StonecutterModuleUi;
 import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
@@ -82,14 +78,14 @@ public final class BackpackMenuListener implements Listener {
     }
 
     public BackpackMenuListener(ModularPacksPlugin plugin) {
-        this(plugin, new BackpackMenuRenderer(plugin));
+        this(plugin, new BackpackMenuRenderer(plugin), new ScreenRouter(plugin));
     }
 
-    public BackpackMenuListener(ModularPacksPlugin plugin, BackpackMenuRenderer renderer) {
+    public BackpackMenuListener(ModularPacksPlugin plugin, BackpackMenuRenderer renderer, ScreenRouter screens) {
         this.plugin = plugin;
         this.renderer = renderer;
         this.backpackItems = new BackpackItems(plugin);
-        this.screens = new ScreenRouter(plugin);
+        this.screens = screens;
     }
 
     @EventHandler
@@ -1742,11 +1738,30 @@ public final class BackpackMenuListener implements Listener {
 
         UUID moduleId = UUID.fromString(idStr);
 
+        ScreenType screenType = def.screenType();
+        if (screenType == ScreenType.NONE) {
+            String t = moduleType.toLowerCase(Locale.ROOT);
+            // Defensive defaults so modules still open even if config is missing
+            // ScreenType.
+            switch (t) {
+                case "crafting" -> screenType = ScreenType.CRAFTING;
+                case "smithing" -> screenType = ScreenType.SMITHING;
+                case "stonecutter" -> screenType = ScreenType.STONECUTTER;
+                case "anvil" -> screenType = ScreenType.ANVIL;
+                case "smelting" -> screenType = ScreenType.SMELTING;
+                case "blasting" -> screenType = ScreenType.BLASTING;
+                case "smoking" -> screenType = ScreenType.SMOKING;
+                case "restock" -> screenType = ScreenType.DROPPER; // primary UI (whitelist)
+                case "feeding", "void", "magnet", "jukebox", "tank" -> screenType = ScreenType.DROPPER;
+                default -> screenType = ScreenType.NONE;
+            }
+        }
+
         // Ensure the module install + current backpack state is persisted before we
         // open a module UI that loads/saves via the repository.
         flushSaveNow(player, holder);
 
-        screens.open(player, holder.backpackId(), holder.type().id(), moduleId, def.screenType());
+        screens.open(player, holder.backpackId(), holder.type().id(), moduleId, screenType);
 
         // If a region/claim plugin cancels opening the target GUI, vanilla can close
         // the backpack but refuse to open the module screen. In that case, we must
@@ -1809,30 +1824,39 @@ public final class BackpackMenuListener implements Listener {
                 || screenType == ScreenType.SMOKING;
     }
 
-    private static boolean isModuleSessionOpen(Player player, UUID backpackId, UUID moduleId, ScreenType screenType) {
+    private boolean isModuleSessionOpen(Player player, UUID backpackId, UUID moduleId, ScreenType screenType) {
         if (player == null || backpackId == null || moduleId == null || screenType == null)
             return false;
 
         // MenuType-based module UIs are tracked with explicit per-player sessions.
         if (screenType == ScreenType.ANVIL) {
-            return AnvilModuleLogic.hasSession(player) && backpackId.equals(AnvilModuleLogic.sessionBackpackId(player));
+            UUID sessionBackpackId = screens.getAnvilModule().getSessionBackpackId(player);
+            return sessionBackpackId != null && backpackId.equals(sessionBackpackId);
         }
         if (screenType == ScreenType.CRAFTING) {
-            CraftingModuleUi.Session s = CraftingModuleUi.session(player);
-            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+            UUID sessionBackpackId = screens.getCraftingModule().getSessionBackpackId(player);
+            UUID sessionModuleId = screens.getCraftingModule().getSessionModuleId(player);
+            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
+                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
         }
         if (screenType == ScreenType.SMITHING) {
-            SmithingModuleUi.Session s = SmithingModuleUi.session(player);
-            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+            UUID sessionBackpackId = screens.getSmithingModule().getSessionBackpackId(player);
+            UUID sessionModuleId = screens.getSmithingModule().getSessionModuleId(player);
+            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
+                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
         }
         if (screenType == ScreenType.STONECUTTER) {
-            StonecutterModuleUi.Session s = StonecutterModuleUi.session(player);
-            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+            UUID sessionBackpackId = screens.getStonecutterModule().getSessionBackpackId(player);
+            UUID sessionModuleId = screens.getStonecutterModule().getSessionModuleId(player);
+            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
+                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
         }
         if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING
                 || screenType == ScreenType.SMOKING) {
-            FurnaceModuleLogic.Session s = FurnaceModuleLogic.session(player);
-            return s != null && backpackId.equals(s.backpackId()) && moduleId.equals(s.moduleId());
+            UUID sessionBackpackId = screens.getFurnaceModule().getSessionBackpackId(player);
+            UUID sessionModuleId = screens.getFurnaceModule().getSessionModuleId(player);
+            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
+                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
         }
 
         // InventoryHolder-based screens.

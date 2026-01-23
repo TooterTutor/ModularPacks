@@ -10,13 +10,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import io.github.tootertutor.ModularPacks.api.ModularPacksAPI;
+import io.github.tootertutor.ModularPacks.api.modules.IModule;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.AnvilModuleLogic;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
@@ -190,10 +191,13 @@ public final class BackpackSessionManager {
             return backpackId.equals(msh.backpackId());
         }
 
-        // Anvil module uses a real vanilla anvil UI (no custom InventoryHolder).
-        UUID anvilBackpackId = AnvilModuleLogic.sessionBackpackId(p);
-        if (anvilBackpackId != null && anvilBackpackId.equals(backpackId))
-            return true;
+        // Check all registered modules for active sessions
+        for (IModule module : ModularPacksAPI.getInstance().getModuleRegistry().getAllModules()) {
+            UUID moduleBackpackId = module.getSessionBackpackId(p);
+            if (moduleBackpackId != null && moduleBackpackId.equals(backpackId)) {
+                return true;
+            }
+        }
 
         return false;
     }
