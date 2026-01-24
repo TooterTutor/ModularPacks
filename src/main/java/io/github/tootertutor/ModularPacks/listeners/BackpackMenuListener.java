@@ -381,10 +381,8 @@ public final class BackpackMenuListener implements Listener {
                             }
                         }
 
-                        // Force save current GUI state to DB (ignore timing checks)
-                        flushSaveNow(player, holder, true);
-
-                        // Change mode and save metadata
+                        // Change mode and save metadata (WITHOUT re-reading GUI, to preserve restored
+                        // backup)
                         holder.data().setShared(false);
                         holder.data().sharePassword("");
                         holder.data().shareHostId(null);
@@ -2637,8 +2635,8 @@ public final class BackpackMenuListener implements Listener {
 
                     // Join successful
                     // IMPORTANT: Save the joiner's current contents FIRST to preserve them in their
-                    // own row
-                    plugin.repo().saveBackpack(holder.data());
+                    // own row as a backup
+                    plugin.repo().saveJoinerBackup(holder.backpackId(), holder.data());
 
                     holder.data().setShared(true);
                     holder.data().shareHostId(hostId);
@@ -2647,8 +2645,7 @@ public final class BackpackMenuListener implements Listener {
                     // "[ModularPacks] Join: Set backpack " + holder.backpackId() + " to join host "
                     // + hostId);
                     player.sendMessage(Text.c("&aSet password to: &f'" + password + "'"));
-                    // Save ONLY the share metadata, not the contents (to avoid overwriting host's
-                    // data)
+                    // Save the share metadata to mark this backpack as joined
                     plugin.repo().saveShareMetadataOnly(holder.data());
                     player.sendMessage(Text.c("&aSuccessfully joined backpack"));
 

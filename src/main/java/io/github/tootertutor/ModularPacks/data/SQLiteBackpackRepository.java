@@ -387,15 +387,16 @@ public final class SQLiteBackpackRepository {
 
     public void saveBackpack(BackpackData data) {
         // If this is a joined backpack, we need to:
-        // 1. Save contents to the HOST's backpack
-        // 2. Save share metadata to the JOINER's backpack
+        // 1. Save contents to the HOST's backpack (so all joiners see changes)
+        // 2. Save share metadata to the JOINER's backpack (keep metadata separate)
+        // NOTE: Joiner's backup is saved separately in saveJoinerBackup() when joining
 
         if (data.shareHostId() != null) {
             // This is a joined backpack
             UUID hostId = data.shareHostId();
             UUID joinerId = data.backpackId();
 
-            // Save contents to host
+            // Save contents to host (modifications visible to all joiners)
             try (PreparedStatement ps = connection.prepareStatement(
                     "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ? WHERE backpack_id = ?")) {
                 ps.setString(1, data.backpackType());
@@ -420,7 +421,7 @@ public final class SQLiteBackpackRepository {
                 throw new RuntimeException("Failed to save joiner metadata " + joinerId, e);
             }
 
-            // Modules go to the host's backpack
+            // Modules go to the host's backpack (shared state)
             saveModules(hostId, data.installedModules(), data.installedSnapshots(), data.moduleStates());
         } else {
             // This is an own backpack (not joined)
@@ -455,6 +456,24 @@ public final class SQLiteBackpackRepository {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to save share metadata for " + data.backpackId(), e);
+        }
+    }
+
+    /**
+     * Save a joiner's backup contents when they first join a host.
+     * This preserves their original contents so they can be restored when leaving.
+     */
+    public void saveJoinerBackup(UUID joinerId, BackpackData data) {
+        // Save ONLY the contents to the joiner's row (metadata will be updated
+        // separately)
+        try (PreparedStatement ps = connection.prepareStatement(
+                "UPDATE backpacks SET contents = ?, updated_at = ? WHERE backpack_id = ?")) {
+            ps.setBytes(1, data.contentsBytes());
+            ps.setLong(2, System.currentTimeMillis());
+            ps.setString(3, joinerId.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to save joiner backup for " + joinerId, e);
         }
     }
 
