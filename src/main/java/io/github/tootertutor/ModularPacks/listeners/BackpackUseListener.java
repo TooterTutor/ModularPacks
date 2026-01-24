@@ -92,17 +92,18 @@ public final class BackpackUseListener implements Listener {
             }
         }
 
-        // Attempt normal lock first
-        boolean locked = plugin.sessions().tryLock(p, backpackId, false);
-
-        // If locked by someone else, allow share members to take over the lock
-        if (!locked) {
-            if (data != null && data.isShared()) {
-                locked = plugin.sessions().tryLock(p, backpackId, true);
-                if (locked) {
-                    p.sendMessage("You have taken over the shared backpack session.");
-                }
+        // Attempt lock with takeover for shared backpacks (always force if joined)
+        boolean locked;
+        if (data != null && data.isShared()) {
+            // Shared backpack: always allow takeover to ensure exclusive view
+            locked = plugin.sessions().tryLock(p, backpackId, true);
+            if (locked && !data.isShareHost()) {
+                // We're a joiner taking over
+                p.sendMessage("You have taken over the shared backpack session.");
             }
+        } else {
+            // Normal lock first
+            locked = plugin.sessions().tryLock(p, backpackId, false);
         }
 
         if (!locked) {

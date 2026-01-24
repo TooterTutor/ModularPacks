@@ -202,14 +202,33 @@ public final class FurnaceModule extends AbstractModule {
         if (session == null)
             return;
 
-        // Save state with progress preservation
-        byte[] stateBytes = serializeState(inventory);
-        saveState(plugin, session.backpackId(), session.backpackType(), session.moduleId(), stateBytes);
+        ItemStack input = inventory.getItem(INPUT_SLOT);
+        ItemStack fuel = inventory.getItem(FUEL_SLOT);
+        ItemStack output = inventory.getItem(OUTPUT_SLOT);
 
-        // Clear BEFORE vanilla tries to return items
+        // Prevent duplication: clear BEFORE vanilla tries to return items
         inventory.setItem(INPUT_SLOT, null);
         inventory.setItem(FUEL_SLOT, null);
         inventory.setItem(OUTPUT_SLOT, null);
+
+        BackpackData data = plugin.repo().loadOrCreate(session.backpackId(), session.backpackType());
+        byte[] existing = data.moduleStates().get(session.moduleId());
+        FurnaceStateCodec.State old = FurnaceStateCodec.decode(existing);
+
+        FurnaceStateCodec.State fs = new FurnaceStateCodec.State();
+        fs.input = input;
+        fs.fuel = fuel;
+        fs.output = output;
+
+        fs.burnTime = old.burnTime;
+        fs.burnTotal = old.burnTotal;
+        fs.cookTime = old.cookTime;
+        fs.cookTotal = old.cookTotal;
+        fs.xpStored = reconcileXpStoredOnClose(old, output);
+
+        data.moduleStates().put(session.moduleId(), FurnaceStateCodec.encode(fs));
+        plugin.repo().saveBackpack(data);
+        plugin.sessions().refreshLinkedBackpacksThrottled(session.backpackId(), data);
 
         // Notify session manager
         notifySessionClose(plugin, player, session.backpackId());

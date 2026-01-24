@@ -291,18 +291,27 @@ public final class BackpackMenuListener implements Listener {
             if (modeSlot >= 0 && rawSlot == modeSlot) {
                 e.setCancelled(true);
 
+                // Handle cursor item by giving it back to player before mode change
                 ItemStack cursor = player.getItemOnCursor();
-                if (ItemStacks.isNotAir(cursor))
-                    return;
+                if (ItemStacks.isNotAir(cursor)) {
+                    player.getInventory().addItem(cursor);
+                    player.setItemOnCursor(null);
+                }
 
                 if (!holder.data().isShared()) {
                     // Currently Private
                     if (e.getClick() == ClickType.LEFT) {
                         // Left: Become Host
+                        // Force save current GUI state to DB (ignore timing checks)
+                        flushSaveNow(player, holder, true);
+
+                        // Change mode and save metadata
                         holder.data().setShared(true);
                         holder.data().shareHostId(null);
                         holder.data().sharePassword("");
-                        scheduleSave(player, holder);
+                        plugin.repo().saveBackpack(holder.data());
+
+                        // Re-render to sync
                         renderer.render(holder);
                         return;
                     } else if (e.getClick() == ClickType.RIGHT) {
@@ -372,10 +381,16 @@ public final class BackpackMenuListener implements Listener {
                             }
                         }
 
+                        // Force save current GUI state to DB (ignore timing checks)
+                        flushSaveNow(player, holder, true);
+
+                        // Change mode and save metadata
                         holder.data().setShared(false);
                         holder.data().sharePassword("");
                         holder.data().shareHostId(null);
-                        scheduleSave(player, holder);
+                        plugin.repo().saveBackpack(holder.data());
+
+                        // Re-render to sync
                         renderer.render(holder);
                         return;
                     } else if (e.getClick() == ClickType.RIGHT) {
@@ -2235,6 +2250,10 @@ public final class BackpackMenuListener implements Listener {
     }
 
     private void flushSaveNow(Player player, BackpackMenuHolder holder) {
+        flushSaveNow(player, holder, false);
+    }
+
+    private void flushSaveNow(Player player, BackpackMenuHolder holder, boolean force) {
         SaveKey key = new SaveKey(player.getUniqueId(), holder.backpackId());
 
         BukkitTask existing = pendingSaves.remove(key);
@@ -2244,10 +2263,12 @@ public final class BackpackMenuListener implements Listener {
         Inventory top = player.getOpenInventory().getTopInventory();
         if (top.getHolder() instanceof BackpackMenuHolder current
                 && current.backpackId().equals(holder.backpackId())) {
-            int now = Bukkit.getCurrentTick();
-            if (!isSafeToPersist(player, now)) {
-                scheduleSave(player, holder);
-                return;
+            if (!force) {
+                int now = Bukkit.getCurrentTick();
+                if (!isSafeToPersist(player, now)) {
+                    scheduleSave(player, holder);
+                    return;
+                }
             }
             renderer.saveVisibleStorageToData(current);
             plugin.repo().saveBackpack(current.data());
