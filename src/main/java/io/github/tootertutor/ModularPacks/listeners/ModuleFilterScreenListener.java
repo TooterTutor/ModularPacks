@@ -56,7 +56,8 @@ public final class ModuleFilterScreenListener implements Listener {
             return;
         }
 
-        // Restock: HOPPER is threshold config (not a ghost filter); DROPPER is whitelist (ghost filter).
+        // Restock: HOPPER is threshold config (not a ghost filter); DROPPER is
+        // whitelist/blacklist (ghost filter).
         if (moduleType != null && moduleType.equalsIgnoreCase("Restock") && msh.screenType() == ScreenType.HOPPER) {
             return;
         }
@@ -76,6 +77,12 @@ public final class ModuleFilterScreenListener implements Listener {
             return;
 
         e.setCancelled(true);
+
+        // Right-click to toggle filter mode (WHITELIST <-> BLACKLIST)
+        if (e.isRightClick()) {
+            toggleFilterMode((Player) e.getWhoClicked(), msh);
+            return;
+        }
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             ItemStack cursor = player.getItemOnCursor();
@@ -141,7 +148,8 @@ public final class ModuleFilterScreenListener implements Listener {
             return;
         }
 
-        // Restock: HOPPER is threshold config (not a ghost filter); DROPPER is whitelist (ghost filter).
+        // Restock: HOPPER is threshold config (not a ghost filter); DROPPER is
+        // whitelist/blacklist (ghost filter).
         if (moduleType != null && moduleType.equalsIgnoreCase("Restock") && msh.screenType() == ScreenType.HOPPER) {
             return;
         }
@@ -341,5 +349,59 @@ public final class ModuleFilterScreenListener implements Listener {
 
         Keys keys = plugin.keys();
         return meta.getPersistentDataContainer().get(keys.MODULE_TYPE, PersistentDataType.STRING);
+    }
+
+    /**
+     * Toggle filter mode between WHITELIST and BLACKLIST for modules that support
+     * both modes (Feeding, Magnet).
+     */
+    private void toggleFilterMode(Player player, ModuleScreenHolder msh) {
+        String moduleType = resolveModuleType(msh);
+
+        // Only Feeding and Magnet support filter mode toggling (Void uses whitelist
+        // only for safety)
+        if (moduleType == null
+                || (!moduleType.equalsIgnoreCase("Feeding") && !moduleType.equalsIgnoreCase("Magnet"))) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            BackpackData data = plugin.repo().loadOrCreate(msh.backpackId(), msh.backpackType());
+            byte[] snap = data.installedSnapshots().get(msh.moduleId());
+            if (snap == null || snap.length == 0)
+                return;
+
+            ItemStack[] arr;
+            try {
+                arr = ItemStackCodec.fromBytes(snap);
+            } catch (Exception ex) {
+                return;
+            }
+
+            if (arr.length == 0 || arr[0] == null || !arr[0].hasItemMeta())
+                return;
+
+            ItemMeta meta = arr[0].getItemMeta();
+            if (meta == null)
+                return;
+
+            Keys keys = plugin.keys();
+            String currentMode = meta.getPersistentDataContainer().get(keys.MODULE_FILTER_MODE,
+                    PersistentDataType.STRING);
+            String newMode = "BLACKLIST".equalsIgnoreCase(currentMode) ? "WHITELIST" : "BLACKLIST";
+
+            // Update the module item with new filter mode
+            meta.getPersistentDataContainer().set(keys.MODULE_FILTER_MODE, PersistentDataType.STRING, newMode);
+            arr[0].setItemMeta(meta);
+
+            // Save updated snapshot
+            byte[] newSnap = ItemStackCodec.toBytes(arr);
+            data.installedSnapshots().put(msh.moduleId(), newSnap);
+            plugin.repo().saveModules(msh.backpackId(), data.installedModules(), data.installedSnapshots(),
+                    data.moduleStates());
+
+            player.sendMessage(net.kyori.adventure.text.Component.text("Filter mode changed to: " + newMode));
+            player.updateInventory();
+        });
     }
 }

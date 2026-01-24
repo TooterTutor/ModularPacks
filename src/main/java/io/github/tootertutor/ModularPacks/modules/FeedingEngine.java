@@ -63,9 +63,12 @@ final class FeedingEngine {
             return consumeFeeding(player, contents, chosen, minFood, foodLevel, settings, now);
         }
 
-        java.util.Set<Material> whitelistSet = ordered.isEmpty()
+        java.util.Set<Material> filterSet = ordered.isEmpty()
                 ? java.util.Collections.emptySet()
                 : new java.util.HashSet<>(ordered);
+
+        // Check if using blacklist mode
+        boolean isBlacklist = isBlacklistMode(moduleSnapshot);
 
         CandidatePick good = new CandidatePick();
         CandidatePick bad = new CandidatePick();
@@ -76,8 +79,17 @@ final class FeedingEngine {
                 continue;
             if (!it.getType().isEdible())
                 continue;
-            if (!whitelistSet.isEmpty() && !whitelistSet.contains(it.getType()))
-                continue;
+
+            // Apply whitelist/blacklist filter
+            Material mat = it.getType();
+            boolean inFilter = filterSet.contains(mat);
+            if (!filterSet.isEmpty()) {
+                if ((isBlacklist && inFilter) || (!isBlacklist && !inFilter)) {
+                    // Blacklist: skip if in filter set
+                    // Whitelist: skip if not in filter set
+                    continue;
+                }
+            }
 
             FoodValues v = FoodValues.lookup(it);
             int nutrition = v.nutrition();
@@ -507,5 +519,20 @@ final class FeedingEngine {
             this.mode = (mode == null ? FeedingSelectionMode.BEST_CANDIDATE : mode);
             this.preference = (preference == null ? FeedingPreference.NUTRITION : preference);
         }
+    }
+
+    /**
+     * Check if a module snapshot is in blacklist mode.
+     */
+    private boolean isBlacklistMode(ItemStack snapshot) {
+        if (snapshot == null || !snapshot.hasItemMeta())
+            return false;
+        ItemMeta meta = snapshot.getItemMeta();
+        if (meta == null)
+            return false;
+        String mode = meta.getPersistentDataContainer().get(
+                new org.bukkit.NamespacedKey(plugin, "module_filter_mode"),
+                org.bukkit.persistence.PersistentDataType.STRING);
+        return "BLACKLIST".equalsIgnoreCase(mode);
     }
 }

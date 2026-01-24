@@ -101,8 +101,8 @@ public final class ConfigManager {
                 if (s == null)
                     continue;
 
-                int rows = s.getInt("Rows", 2);
-                int upgradeSlots = s.getInt("UpgradeSlots", 0);
+                int rows = Math.max(1, Math.min(100, s.getInt("Rows", 2))); // Clamp 1-100
+                int upgradeSlots = Math.max(0, s.getInt("UpgradeSlots", 0)); // Clamp >= 0
                 String displayName = firstString(s, "DisplayName", key);
                 List<String> lore = firstStringList(s, "Lore");
                 int customModelData = firstInt(s, "CustomModelData", 0);

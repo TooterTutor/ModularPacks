@@ -30,6 +30,8 @@ import io.github.tootertutor.ModularPacks.util.Text;
 public final class BackpackSessionManager {
 
     private static final int LINKED_REFRESH_MIN_TICKS = 20; // 1s, throttled for engines
+    private static final int CLEANUP_INTERVAL_TICKS = 6000; // 5 minutes
+    private static final int CLEANUP_INACTIVE_TICKS = 72000; // 1 hour
 
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
@@ -39,6 +41,8 @@ public final class BackpackSessionManager {
 
     // backpackId -> last refresh tick
     private final Map<UUID, Integer> lastLinkedRefreshTick = new HashMap<>();
+
+    private int lastCleanupTick = 0;
 
     public BackpackSessionManager(ModularPacksPlugin plugin) {
         this.plugin = plugin;
@@ -143,6 +147,13 @@ public final class BackpackSessionManager {
             return;
 
         int now = Bukkit.getCurrentTick();
+
+        // Periodic cleanup to prevent memory leak
+        if (now - lastCleanupTick > CLEANUP_INTERVAL_TICKS) {
+            cleanupInactiveSessions(now);
+            lastCleanupTick = now;
+        }
+
         int last = lastLinkedRefreshTick.getOrDefault(backpackId, -999999);
         if (now - last < LINKED_REFRESH_MIN_TICKS)
             return;
@@ -266,5 +277,13 @@ public final class BackpackSessionManager {
         } catch (IllegalArgumentException ex) {
             return false;
         }
+    }
+
+    /**
+     * Remove entries from lastLinkedRefreshTick that haven't been accessed recently
+     * to prevent unbounded memory growth.
+     */
+    private void cleanupInactiveSessions(int currentTick) {
+        lastLinkedRefreshTick.entrySet().removeIf(entry -> (currentTick - entry.getValue()) > CLEANUP_INACTIVE_TICKS);
     }
 }

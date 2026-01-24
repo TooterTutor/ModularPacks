@@ -3,8 +3,8 @@ moduleActions:
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 moduleActionsFeeding:
-  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit whitelist."
-  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Cycle feeding mode."
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit Whitelist/Blacklist."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Cycle Feeding Mode."
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
@@ -15,13 +15,13 @@ moduleActionsTank:
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
 moduleActionsJukebox:
-  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit playlist."
-  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Cycle play mode."
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit Playlist."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Cycle Play Mode."
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
 moduleActionsRestock:
-  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit Whitelist."
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit Whitelist/Blacklist."
   - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Edit Threshold."
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."

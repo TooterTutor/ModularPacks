@@ -27,7 +27,20 @@ public final class SQLiteBackpackRepository {
         try {
             File dbFile = new File(plugin.getDataFolder(), "backpacks.db");
             String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
+
+            // Enable connection pooling optimizations for SQLite
+            url += "?journal_mode=WAL&synchronous=NORMAL&cache_size=10000&temp_store=MEMORY";
+
             connection = DriverManager.getConnection(url);
+
+            // Enable Write-Ahead Logging for better concurrency
+            try (Statement st = connection.createStatement()) {
+                st.execute("PRAGMA journal_mode=WAL;");
+                st.execute("PRAGMA synchronous=NORMAL;");
+                st.execute("PRAGMA cache_size=10000;");
+                st.execute("PRAGMA temp_store=MEMORY;");
+                st.execute("PRAGMA busy_timeout=5000;"); // 5 second timeout for locked databases
+            }
 
             try (Statement st = connection.createStatement()) {
                 st.executeUpdate("""
@@ -41,34 +54,14 @@ public final class SQLiteBackpackRepository {
                               updated_at INTEGER
                             );
                         """);
-                try {
-                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN owner_uuid TEXT");
-                } catch (SQLException ignored) {
-                }
-                try {
-                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN owner_name TEXT");
-                } catch (SQLException ignored) {
-                }
-                try {
-                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN created_at INTEGER");
-                } catch (SQLException ignored) {
-                }
-                try {
-                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN updated_at INTEGER");
-                } catch (SQLException ignored) {
-                }
-                try {
-                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN is_shared BOOLEAN DEFAULT 0");
-                } catch (SQLException ignored) {
-                }
-                try {
-                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN share_password TEXT");
-                } catch (SQLException ignored) {
-                }
-                try {
-                    st.executeUpdate("ALTER TABLE backpacks ADD COLUMN share_host_id TEXT");
-                } catch (SQLException ignored) {
-                }
+                // Schema migrations with logging
+                migrateColumn(st, "backpacks", "owner_uuid", "TEXT");
+                migrateColumn(st, "backpacks", "owner_name", "TEXT");
+                migrateColumn(st, "backpacks", "created_at", "INTEGER");
+                migrateColumn(st, "backpacks", "updated_at", "INTEGER");
+                migrateColumn(st, "backpacks", "is_shared", "BOOLEAN DEFAULT 0");
+                migrateColumn(st, "backpacks", "share_password", "TEXT");
+                migrateColumn(st, "backpacks", "share_host_id", "TEXT");
 
                 st.executeUpdate("""
                             CREATE TABLE IF NOT EXISTS backpack_modules (
@@ -80,11 +73,7 @@ public final class SQLiteBackpackRepository {
                               PRIMARY KEY (backpack_id, slot_index)
                             );
                         """);
-                try {
-                    st.executeUpdate("ALTER TABLE backpack_modules ADD COLUMN module_state BLOB");
-                } catch (SQLException ignored) {
-                    // already exists
-                }
+                migrateColumn(st, "backpack_modules", "module_state", "BLOB");
 
                 // Void module audit + recovery log (full item bytes preserved)
                 st.executeUpdate("""
@@ -129,19 +118,40 @@ public final class SQLiteBackpackRepository {
 
     public void close() {
         try {
-            if (connection != null)
+            if (connection != null && !connection.isClosed()) {
+                // Checkpoint WAL file before closing
+                try (Statement st = connection.createStatement()) {
+                    st.execute("PRAGMA wal_checkpoint(TRUNCATE);");
+                } catch (SQLException e) {
+                    plugin.getLogger().warning("Failed to checkpoint WAL: " + e.getMessage());
+                }
                 connection.close();
-        } catch (SQLException ignored) {
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Failed to close database connection: " + e.getMessage());
         }
+    }
+
+    /**
+     * Get the current connection, reconnecting if necessary.
+     * This helps recover from connection failures.
+     */
+    private Connection getConnection() throws SQLException {
+        if (connection == null || connection.isClosed()) {
+            plugin.getLogger().warning("Database connection lost, reconnecting...");
+            init();
+        }
+        return connection;
     }
 
     public BackpackData loadOrCreate(UUID backpackId, String backpackType) {
         BackpackData data = new BackpackData(backpackId, backpackType);
 
         try {
+            Connection conn = getConnection();
             // Load share metadata from the requesting backpackId
             UUID effectiveId = backpackId;
-            try (PreparedStatement ps = connection.prepareStatement(
+            try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT share_host_id, share_password, is_shared FROM backpacks WHERE backpack_id = ?")) {
                 ps.setString(1, backpackId.toString());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -164,7 +174,7 @@ public final class SQLiteBackpackRepository {
                     } else {
                         // Own backpack doesn't exist yet; ensure it will be created
                         // This is necessary to have the share columns initialized
-                        try (PreparedStatement ins = connection.prepareStatement(
+                        try (PreparedStatement ins = getConnection().prepareStatement(
                                 "INSERT INTO backpacks(backpack_id, backpack_type, contents, is_shared, share_password, share_host_id) VALUES(?,?,?,?,?,?)")) {
                             ins.setString(1, backpackId.toString());
                             ins.setString(2, backpackType);
@@ -179,7 +189,7 @@ public final class SQLiteBackpackRepository {
             }
 
             // Load contents from effective backpack ID
-            try (PreparedStatement ps = connection.prepareStatement(
+            try (PreparedStatement ps = getConnection().prepareStatement(
                     "SELECT backpack_type, contents FROM backpacks WHERE backpack_id = ?")) {
                 ps.setString(1, effectiveId.toString());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -188,7 +198,7 @@ public final class SQLiteBackpackRepository {
                         data.contentsBytes(rs.getBytes("contents"));
                     } else {
                         // insert new host backpack if it doesn't exist
-                        try (PreparedStatement ins = connection.prepareStatement(
+                        try (PreparedStatement ins = getConnection().prepareStatement(
                                 "INSERT INTO backpacks(backpack_id, backpack_type, contents, is_shared, share_password, share_host_id) VALUES(?,?,?,?,?,?)")) {
                             ins.setString(1, effectiveId.toString());
                             ins.setString(2, backpackType);
@@ -203,7 +213,7 @@ public final class SQLiteBackpackRepository {
             }
 
             // modules from effective backpack ID
-            try (PreparedStatement ps = connection.prepareStatement(
+            try (PreparedStatement ps = getConnection().prepareStatement(
                     "SELECT slot_index, module_id, module_snapshot, module_state FROM backpack_modules WHERE backpack_id = ?")) {
                 ps.setString(1, effectiveId.toString());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -231,7 +241,7 @@ public final class SQLiteBackpackRepository {
     public String findBackpackType(UUID backpackId) {
         if (backpackId == null)
             return null;
-        try (PreparedStatement ps = connection.prepareStatement(
+        try (PreparedStatement ps = getConnection().prepareStatement(
                 "SELECT backpack_type FROM backpacks WHERE backpack_id = ?")) {
             ps.setString(1, backpackId.toString());
             try (ResultSet rs = ps.executeQuery()) {
@@ -275,7 +285,7 @@ public final class SQLiteBackpackRepository {
         // Used when leaving a shared host to restore the joiner's items
         BackpackData data = new BackpackData(joinerId, null);
 
-        try (PreparedStatement ps = connection.prepareStatement(
+        try (PreparedStatement ps = getConnection().prepareStatement(
                 "SELECT backpack_type, contents FROM backpacks WHERE backpack_id = ?")) {
             ps.setString(1, joinerId.toString());
             try (ResultSet rs = ps.executeQuery()) {
@@ -296,7 +306,7 @@ public final class SQLiteBackpackRepository {
     public UUID findBackpackByUuidPrefix(String uuidPrefix) {
         if (uuidPrefix == null || uuidPrefix.isEmpty())
             return null;
-        try (PreparedStatement ps = connection.prepareStatement(
+        try (PreparedStatement ps = getConnection().prepareStatement(
                 "SELECT backpack_id FROM backpacks WHERE backpack_id LIKE ? LIMIT 1")) {
             ps.setString(1, uuidPrefix + "%");
             try (ResultSet rs = ps.executeQuery()) {
@@ -321,7 +331,7 @@ public final class SQLiteBackpackRepository {
 
         long now = System.currentTimeMillis();
 
-        try (PreparedStatement ins = connection.prepareStatement(
+        try (PreparedStatement ins = getConnection().prepareStatement(
                 """
                         INSERT OR IGNORE INTO backpacks(backpack_id, backpack_type, contents, owner_uuid, owner_name, created_at, updated_at)
                         VALUES(?,?,?,?,?,?,?)
@@ -338,7 +348,7 @@ public final class SQLiteBackpackRepository {
             throw new RuntimeException("Failed to ensure backpack exists " + backpackId, e);
         }
 
-        try (PreparedStatement upd = connection.prepareStatement("""
+        try (PreparedStatement upd = getConnection().prepareStatement("""
                 UPDATE backpacks
                    SET backpack_type = ?,
                        owner_uuid = COALESCE(?, owner_uuid),
@@ -360,7 +370,7 @@ public final class SQLiteBackpackRepository {
     public List<BackpackSummary> listBackpacksByOwner(UUID ownerUuid) {
         if (ownerUuid == null)
             return List.of();
-        try (PreparedStatement ps = connection.prepareStatement("""
+        try (PreparedStatement ps = getConnection().prepareStatement("""
                 SELECT backpack_id, backpack_type, owner_uuid, owner_name, created_at, updated_at
                   FROM backpacks
                  WHERE owner_uuid = ?
@@ -397,7 +407,7 @@ public final class SQLiteBackpackRepository {
             UUID joinerId = data.backpackId();
 
             // Save contents to host (modifications visible to all joiners)
-            try (PreparedStatement ps = connection.prepareStatement(
+            try (PreparedStatement ps = getConnection().prepareStatement(
                     "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ? WHERE backpack_id = ?")) {
                 ps.setString(1, data.backpackType());
                 ps.setBytes(2, data.contentsBytes());
@@ -409,7 +419,7 @@ public final class SQLiteBackpackRepository {
             }
 
             // Save share metadata to joiner's backpack (don't overwrite host's metadata)
-            try (PreparedStatement ps = connection.prepareStatement(
+            try (PreparedStatement ps = getConnection().prepareStatement(
                     "UPDATE backpacks SET is_shared = ?, share_password = ?, share_host_id = ?, updated_at = ? WHERE backpack_id = ?")) {
                 ps.setBoolean(1, data.isShared());
                 ps.setString(2, data.sharePassword());
@@ -425,7 +435,7 @@ public final class SQLiteBackpackRepository {
             saveModules(hostId, data.installedModules(), data.installedSnapshots(), data.moduleStates());
         } else {
             // This is an own backpack (not joined)
-            try (PreparedStatement ps = connection.prepareStatement(
+            try (PreparedStatement ps = getConnection().prepareStatement(
                     "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ?, is_shared = ?, share_password = ?, share_host_id = ? WHERE backpack_id = ?")) {
                 ps.setString(1, data.backpackType());
                 ps.setBytes(2, data.contentsBytes());
@@ -446,7 +456,7 @@ public final class SQLiteBackpackRepository {
     public void saveShareMetadataOnly(BackpackData data) {
         // Save ONLY the share metadata without touching contents
         // Used when joining/leaving to avoid overwriting backpack contents
-        try (PreparedStatement ps = connection.prepareStatement(
+        try (PreparedStatement ps = getConnection().prepareStatement(
                 "UPDATE backpacks SET is_shared = ?, share_password = ?, share_host_id = ?, updated_at = ? WHERE backpack_id = ?")) {
             ps.setBoolean(1, data.isShared());
             ps.setString(2, data.sharePassword());
@@ -466,7 +476,7 @@ public final class SQLiteBackpackRepository {
     public void saveJoinerBackup(UUID joinerId, BackpackData data) {
         // Save ONLY the contents to the joiner's row (metadata will be updated
         // separately)
-        try (PreparedStatement ps = connection.prepareStatement(
+        try (PreparedStatement ps = getConnection().prepareStatement(
                 "UPDATE backpacks SET contents = ?, updated_at = ? WHERE backpack_id = ?")) {
             ps.setBytes(1, data.contentsBytes());
             ps.setLong(2, System.currentTimeMillis());
@@ -506,7 +516,7 @@ public final class SQLiteBackpackRepository {
         }
 
         // Flip them back to private
-        try (PreparedStatement ps = connection.prepareStatement(
+        try (PreparedStatement ps = getConnection().prepareStatement(
                 "UPDATE backpacks SET is_shared = 0, share_host_id = NULL, share_password = '', updated_at = ? WHERE share_host_id = ?")) {
             ps.setLong(1, System.currentTimeMillis());
             ps.setString(2, hostId.toString());
@@ -548,18 +558,30 @@ public final class SQLiteBackpackRepository {
         return out;
     }
 
+    /**
+     * Helper method for schema migrations with logging.
+     */
+    private void migrateColumn(Statement st, String table, String column, String definition) {
+        try {
+            st.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+            plugin.getLogger().info("Added column " + column + " to table " + table);
+        } catch (SQLException e) {
+            // Column already exists, ignore
+        }
+    }
+
     public void saveModules(UUID backpackId, Map<Integer, UUID> slotToModule, Map<UUID, byte[]> snapshots,
             Map<UUID, byte[]> states) {
         try {
             connection.setAutoCommit(false);
 
-            try (PreparedStatement del = connection.prepareStatement(
+            try (PreparedStatement del = getConnection().prepareStatement(
                     "DELETE FROM backpack_modules WHERE backpack_id = ?")) {
                 del.setString(1, backpackId.toString());
                 del.executeUpdate();
             }
 
-            try (PreparedStatement ins = connection.prepareStatement(
+            try (PreparedStatement ins = getConnection().prepareStatement(
                     "INSERT INTO backpack_modules(backpack_id, slot_index, module_id, module_snapshot, module_state) VALUES(?,?,?,?,?)")) {
                 for (Map.Entry<Integer, UUID> e : slotToModule.entrySet()) {
                     UUID moduleId = e.getValue();
@@ -591,7 +613,7 @@ public final class SQLiteBackpackRepository {
 
     public List<BackpackSummary> listUnownedBackpacks(int limit) {
         limit = Math.max(1, Math.min(500, limit));
-        try (PreparedStatement ps = connection.prepareStatement("""
+        try (PreparedStatement ps = getConnection().prepareStatement("""
                 SELECT backpack_id, backpack_type, owner_uuid, owner_name, created_at, updated_at
                   FROM backpacks
                  WHERE owner_uuid IS NULL
@@ -630,7 +652,7 @@ public final class SQLiteBackpackRepository {
         if (rec == null || rec.itemBytes == null)
             return -1;
 
-        try (PreparedStatement ps = connection.prepareStatement("""
+        try (PreparedStatement ps = getConnection().prepareStatement("""
                 INSERT INTO voided_items(
                     created_at,
                     player_uuid,
@@ -702,7 +724,7 @@ public final class SQLiteBackpackRepository {
                          LIMIT ?
                         """;
 
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
             ps.setString(1, playerUuid.toString());
             ps.setInt(2, limit);
             try (ResultSet rs = ps.executeQuery()) {
@@ -720,7 +742,7 @@ public final class SQLiteBackpackRepository {
     public VoidedItemRecord getVoidedItem(long id) {
         if (id <= 0)
             return null;
-        try (PreparedStatement ps = connection.prepareStatement("""
+        try (PreparedStatement ps = getConnection().prepareStatement("""
                 SELECT id, created_at, player_uuid, player_name, backpack_id, backpack_type, void_module_id,
                        item_type, amount, item_bytes, world, x, y, z, recovered_at, recovered_by, recovered_by_name
                   FROM voided_items
@@ -742,7 +764,7 @@ public final class SQLiteBackpackRepository {
             return false;
         long now = System.currentTimeMillis();
 
-        try (PreparedStatement ps = connection.prepareStatement("""
+        try (PreparedStatement ps = getConnection().prepareStatement("""
                 UPDATE voided_items
                    SET recovered_at = ?,
                        recovered_by = ?,

@@ -6,7 +6,7 @@
 
     <groupId>io.github.tootertutor</groupId>
     <artifactId>modularpacks</artifactId>
-    <version>1.21.10-1.7.2</version>
+    <version>1.21.10-1.8</version>
     <packaging>jar</packaging>
 
     <name>modularpacks</name>
@@ -27,19 +27,6 @@
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.3</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

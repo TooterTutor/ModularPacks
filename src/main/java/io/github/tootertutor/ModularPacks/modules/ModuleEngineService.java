@@ -179,8 +179,10 @@ public final class ModuleEngineService {
 
             UUID magnetId = findInstalledModuleId(data, "Magnet");
             if (magnetId != null) {
+                ItemStack magnetSnapshot = resolveModuleSnapshotItem(data, magnetId);
+                ItemStack voidSnapshot = (voidId == null) ? null : resolveModuleSnapshotItem(data, voidId);
                 changedAny |= magnetVoidEngine.applyMagnet(player, logical, readWhitelistFromState(data, magnetId),
-                        backpackId, backpackType, voidId, voidWhitelist);
+                        magnetSnapshot, backpackId, backpackType, voidId, voidWhitelist, voidSnapshot);
             }
 
             UUID restockId = findInstalledModuleId(data, "Restock");

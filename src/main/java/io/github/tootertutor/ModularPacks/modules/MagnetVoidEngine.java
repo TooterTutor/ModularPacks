@@ -30,10 +30,12 @@ final class MagnetVoidEngine {
             Player player,
             ItemStack[] contents,
             Set<Material> whitelist,
+            ItemStack magnetSnapshot,
             UUID backpackId,
             String backpackType,
             UUID voidModuleId,
-            Set<Material> voidWhitelist) {
+            Set<Material> voidWhitelist,
+            ItemStack voidSnapshot) {
         if (player == null || contents == null || whitelist == null)
             return false;
 
@@ -48,6 +50,9 @@ final class MagnetVoidEngine {
 
         boolean voidActive = backpackId != null && voidModuleId != null && voidWhitelist != null
                 && !voidWhitelist.isEmpty();
+
+        // Check if magnet is in blacklist mode
+        boolean isBlacklist = isBlacklistMode(magnetSnapshot);
 
         for (Entity ent : player.getNearbyEntities(range, range, range)) {
             if (processed >= maxEntities)
@@ -66,19 +71,36 @@ final class MagnetVoidEngine {
             // Container rules + admin blacklist
             if (!plugin.cfg().isAllowedInBackpack(stack))
                 continue;
-            if (!whitelist.isEmpty() && !whitelist.contains(stack.getType()))
-                continue;
 
-            if (voidActive && voidWhitelist.contains(stack.getType()) && !isProtectedFromVoid(stack)) {
-                boolean logged = tryLogVoidedItem(player, backpackId, backpackType, voidModuleId, stack,
-                        itemEnt.getLocation());
-                if (logged) {
-                    itemEnt.remove();
-                    changed = true;
-                    processed++;
+            // Apply whitelist/blacklist filter for magnet
+            Material mat = stack.getType();
+            boolean inFilter = whitelist.contains(mat);
+            if (!whitelist.isEmpty()) {
+                if ((isBlacklist && inFilter) || (!isBlacklist && !inFilter)) {
+                    // Blacklist: skip if in filter set
+                    // Whitelist: skip if not in filter set
+                    continue;
                 }
-                // Only affects magnet pickups; do not fall through to insertion.
-                continue;
+            }
+
+            if (voidActive && voidWhitelist != null) {
+                boolean inVoidFilter = voidWhitelist.contains(mat);
+                // Void module only supports whitelist mode (for safety - don't void
+                // everything!)
+                // Only void items explicitly in the whitelist
+                boolean shouldVoid = !voidWhitelist.isEmpty() && inVoidFilter;
+
+                if (shouldVoid && !isProtectedFromVoid(stack)) {
+                    boolean logged = tryLogVoidedItem(player, backpackId, backpackType, voidModuleId, stack,
+                            itemEnt.getLocation());
+                    if (logged) {
+                        itemEnt.remove();
+                        changed = true;
+                        processed++;
+                    }
+                    // Only affects magnet pickups; do not fall through to insertion.
+                    continue;
+                }
             }
 
             ItemStack remainder = BackpackInventoryUtil.insertIntoContents(contents, stack.clone());
@@ -159,5 +181,20 @@ final class MagnetVoidEngine {
             plugin.getLogger().warning("Failed to log voided item to DB: " + ex.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Check if a module snapshot is in blacklist mode.
+     */
+    private boolean isBlacklistMode(ItemStack snapshot) {
+        if (snapshot == null || !snapshot.hasItemMeta())
+            return false;
+        ItemMeta meta = snapshot.getItemMeta();
+        if (meta == null)
+            return false;
+        String mode = meta.getPersistentDataContainer().get(
+                new org.bukkit.NamespacedKey(plugin, "module_filter_mode"),
+                org.bukkit.persistence.PersistentDataType.STRING);
+        return "BLACKLIST".equalsIgnoreCase(mode);
     }
 }
