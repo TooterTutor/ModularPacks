@@ -9,16 +9,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
-import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
-import net.kyori.adventure.text.Component;
 
-public final class SetTypeSubcommand implements Subcommand {
+/**
+ * Change a backpack's type/tier and update the database.
+ */
+public final class SetTypeSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
@@ -44,29 +46,34 @@ public final class SetTypeSubcommand implements Subcommand {
     }
 
     @Override
+    public String getUsage() {
+        return "backpack settype <typeId> [--force]";
+    }
+
+    @Override
+    public String getExtendedHelp() {
+        return "Hold a backpack in your main hand. Edits that backpack's type.\n"
+                + "Use --force to truncate items if the new size is smaller.";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
-        if (!ctx.sender().hasPermission("modularpacks.admin")) {
-            ctx.sender().sendMessage(Component.text("You do not have permission."));
+        if (!checkPermission(ctx))
             return;
-        }
 
-        if (!(ctx.sender() instanceof Player player)) {
-            ctx.sender().sendMessage(Component.text("This command must be run by a player."));
+        Player player = requirePlayer(ctx);
+        if (player == null)
             return;
-        }
 
-        if (ctx.size() < 1) {
-            ctx.sender().sendMessage(Component.text("Usage: /backpack settype <typeId> [--force]"));
-            ctx.sender().sendMessage(Component.text("Edits the backpack in your main hand."));
+        if (!requireArgs(ctx, 1))
             return;
-        }
 
         String newTypeId = ctx.arg(0);
         boolean force = ctx.args().stream().anyMatch(s -> "--force".equalsIgnoreCase(s));
 
         var newType = plugin.cfg().findType(newTypeId);
         if (newType == null) {
-            ctx.sender().sendMessage(Component.text("Unknown backpack type: " + newTypeId));
+            ctx.sendError("Unknown backpack type: " + newTypeId);
             return;
         }
 
@@ -75,7 +82,7 @@ public final class SetTypeSubcommand implements Subcommand {
         UUID backpackId = readBackpackId(keys, hand);
         String oldTypeId = readBackpackType(keys, hand);
         if (backpackId == null || oldTypeId == null) {
-            ctx.sender().sendMessage(Component.text("Hold a backpack item in your main hand."));
+            ctx.sendError("Hold a backpack item in your main hand.");
             return;
         }
 
@@ -93,8 +100,7 @@ public final class SetTypeSubcommand implements Subcommand {
             ItemStack[] logical = ItemStackCodec.fromBytes(data.contentsBytes());
             for (int i = newSize; i < logical.length; i++) {
                 if (ItemStacks.isNotAir(logical[i])) {
-                    ctx.sender().sendMessage(Component.text(
-                            "Backpack has items beyond the new size; use --force to truncate."));
+                    ctx.sendError("Backpack has items beyond the new size. Use --force to truncate.");
                     return;
                 }
             }
@@ -109,7 +115,7 @@ public final class SetTypeSubcommand implements Subcommand {
         updated.setAmount(Math.max(1, hand.getAmount()));
         player.getInventory().setItemInMainHand(updated);
 
-        ctx.sender().sendMessage(Component.text("Updated backpack " + backpackId + " to type " + newType.id()));
+        ctx.sendInfo("Updated backpack " + backpackId + " to type " + newType.id());
     }
 
     @Override

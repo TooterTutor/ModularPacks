@@ -13,14 +13,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
-import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.gui.RecipePreviewUi;
 import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
-public final class RecipeSubcommand implements Subcommand {
+public final class RecipeSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
 
@@ -44,39 +44,47 @@ public final class RecipeSubcommand implements Subcommand {
     }
 
     @Override
+    public String getUsage() {
+        return "backpack recipe <backpack|module> <typeId|upgradeId> [variantId]";
+    }
+
+    @Override
+    public String getExtendedHelp() {
+        return "Preview a crafting recipe for a backpack or module.\n"
+                + "  backpack <typeId> [variantId] - Show backpack recipe\n"
+                + "  module <upgradeId> - Show module recipe";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
-        if (!(ctx.sender() instanceof Player player)) {
-            ctx.sender().sendMessage(Component.text("This command must be run by a player."));
+        Player player = requirePlayer(ctx);
+        if (player == null)
             return;
-        }
 
-        if (!player.hasPermission("modularpacks.recipe")) {
-            player.sendMessage(Component.text("You do not have permission."));
+        if (!checkPermission(ctx))
             return;
-        }
 
-        if (ctx.size() < 2) {
-            ctx.sender().sendMessage(Component.text("Usage: /backpack recipe backpack <typeId> [variantId]"));
-            ctx.sender().sendMessage(Component.text("   or: /backpack recipe module <upgradeId>"));
+        if (!requireArgs(ctx, 2))
             return;
-        }
 
-        String category = ctx.arg(0);
+        String category = ctx.arg(0).toLowerCase(Locale.ROOT);
         String id = ctx.arg(1);
 
-        if ("module".equalsIgnoreCase(category) || "upgrade".equalsIgnoreCase(category)) {
-            openUpgradeRecipe(player, id);
-            return;
+        switch (category) {
+            case "module", "upgrade" -> {
+                openUpgradeRecipe(player, id);
+                return;
+            }
+            case "backpack", "type" -> {
+                String variant = ctx.arg(2);
+                openBackpackRecipe(player, id, variant);
+                return;
+            }
+            default -> {
+                ctx.sendError("Usage: /backpack recipe backpack <typeId> [variantId]");
+                ctx.sendError("       or: /backpack recipe module <upgradeId>");
+            }
         }
-
-        if ("backpack".equalsIgnoreCase(category) || "type".equalsIgnoreCase(category)) {
-            String variant = ctx.arg(2);
-            openBackpackRecipe(player, id, variant);
-            return;
-        }
-
-        ctx.sender().sendMessage(Component.text("Usage: /backpack recipe backpack <typeId> [variantId]"));
-        ctx.sender().sendMessage(Component.text("   or: /backpack recipe module <upgradeId>"));
     }
 
     @Override
@@ -128,25 +136,25 @@ public final class RecipeSubcommand implements Subcommand {
     private void openUpgradeRecipe(Player player, String upgradeIdInput) {
         var def = plugin.cfg().findUpgrade(upgradeIdInput);
         if (def == null) {
-            player.sendMessage(Component.text("Unknown module/upgrade id: " + upgradeIdInput));
+            player.sendMessage(Text.c("&cUnknown module/upgrade id: " + upgradeIdInput));
             return;
         }
 
         ConfigurationSection upgradeSec = plugin.getConfig().getConfigurationSection("Upgrades." + def.id());
         if (upgradeSec == null) {
-            player.sendMessage(Component.text("Missing config section: Upgrades." + def.id()));
+            player.sendMessage(Text.c("&cMissing config section: Upgrades." + def.id()));
             return;
         }
 
         ConfigurationSection recipeSec = upgradeSec.getConfigurationSection("CraftingRecipe");
         if (recipeSec == null) {
-            player.sendMessage(Component.text("No CraftingRecipe configured for module: " + def.id()));
+            player.sendMessage(Text.c("&cNo CraftingRecipe configured for module: " + def.id()));
             return;
         }
 
         String kind = recipeSec.getString("Type", "Crafting");
         if (!"Crafting".equalsIgnoreCase(kind)) {
-            player.sendMessage(Component.text("Unsupported recipe type for module: " + kind));
+            player.sendMessage(Text.c("&cUnsupported recipe type for module: " + kind));
             return;
         }
 
@@ -159,19 +167,19 @@ public final class RecipeSubcommand implements Subcommand {
     private void openBackpackRecipe(Player player, String typeIdInput, String variantIdOrNull) {
         var type = plugin.cfg().findType(typeIdInput);
         if (type == null) {
-            player.sendMessage(Component.text("Unknown backpack type: " + typeIdInput));
+            player.sendMessage(Text.c("&cUnknown backpack type: " + typeIdInput));
             return;
         }
 
         ConfigurationSection typeSec = plugin.getConfig().getConfigurationSection("BackpackTypes." + type.id());
         if (typeSec == null) {
-            player.sendMessage(Component.text("Missing config section: BackpackTypes." + type.id()));
+            player.sendMessage(Text.c("&cMissing config section: BackpackTypes." + type.id()));
             return;
         }
 
         List<RecipeVariant> variants = readRecipeVariants(typeSec);
         if (variants.isEmpty()) {
-            player.sendMessage(Component.text("No CraftingRecipe configured for backpack: " + type.id()));
+            player.sendMessage(Text.c("&cNo CraftingRecipe configured for backpack: " + type.id()));
             return;
         }
 
@@ -184,58 +192,56 @@ public final class RecipeSubcommand implements Subcommand {
                 }
             }
             if (chosen == null) {
-                player.sendMessage(Component.text("Unknown variant: " + variantIdOrNull));
-                player.sendMessage(Component.text(
-                        "Available variants: " + variants.stream().map(v -> v.id).sorted().toList()));
+                player.sendMessage(Text.c("&cUnknown variant: " + variantIdOrNull));
+                player.sendMessage(
+                        Text.c("&cAvailable variants: " + variants.stream().map(v -> v.id).sorted().toList()));
                 return;
             }
         } else {
             chosen = variants.get(0);
             if (variants.size() > 1) {
-                player.sendMessage(Component.text("Multiple variants available: "
+                player.sendMessage(Text.c("&eMultiple variants available: "
                         + variants.stream().map(v -> v.id).sorted().toList()
                         + " (use /backpack recipe backpack " + type.id() + " <variantId>)"));
             }
         }
 
         ConfigurationSection recipe = chosen.section;
-        String kind = recipe.getString("Type", "Crafting");
+        String kind = recipe.getString("Type", "Crafting").toLowerCase(Locale.ROOT);
 
-        if ("Crafting".equalsIgnoreCase(kind)) {
-            ItemStack[] grid = buildCraftingGrid(recipe, new UUIDResolver());
-            Component title = Component.text(type.id() + " (" + chosen.id + ")");
-            ItemStack out = createBackpackPreview(type.id());
-            RecipePreviewUi.openCrafting(plugin, player, title, grid, out);
-            return;
-        }
-
-        if ("Smithing".equalsIgnoreCase(kind)) {
-            String templateStr = recipe.getString("Template");
-            String baseStr = recipe.getString("Base");
-            String additionStr = recipe.getString("Addition");
-            if (templateStr == null || baseStr == null || additionStr == null) {
-                player.sendMessage(Component.text("Smithing recipe is missing Template/Base/Addition."));
-                return;
+        switch (kind) {
+            case "crafting" -> {
+                ItemStack[] grid = buildCraftingGrid(recipe, new UUIDResolver());
+                Component title = Component.text(type.id() + " (" + chosen.id + ")");
+                ItemStack out = createBackpackPreview(type.id());
+                RecipePreviewUi.openCrafting(plugin, player, title, grid, out);
             }
+            case "smithing" -> {
+                String templateStr = recipe.getString("Template");
+                String baseStr = recipe.getString("Base");
+                String additionStr = recipe.getString("Addition");
+                if (templateStr == null || baseStr == null || additionStr == null) {
+                    player.sendMessage(Text.c("&cSmithing recipe is missing Template/Base/Addition."));
+                    return;
+                }
 
-            Material templateMat = parseMaterial(templateStr);
-            Material additionMat = parseMaterial(additionStr);
-            String baseTypeId = resolveBackpackTypeId(baseStr);
-            if (templateMat == null || additionMat == null || baseTypeId == null) {
-                player.sendMessage(Component.text("Invalid smithing recipe config for backpack: " + type.id()));
-                return;
+                Material templateMat = parseMaterial(templateStr);
+                Material additionMat = parseMaterial(additionStr);
+                String baseTypeId = resolveBackpackTypeId(baseStr);
+                if (templateMat == null || additionMat == null || baseTypeId == null) {
+                    player.sendMessage(Text.c("&cInvalid smithing recipe config for backpack: " + type.id()));
+                    return;
+                }
+
+                ItemStack template = new ItemStack(templateMat);
+                ItemStack base = createBackpackPreview(baseTypeId);
+                ItemStack addition = new ItemStack(additionMat);
+                Component title = Component.text(type.id());
+                ItemStack out = createBackpackPreview(type.id());
+                RecipePreviewUi.openSmithing(plugin, player, title, template, base, addition, out);
             }
-
-            ItemStack template = new ItemStack(templateMat);
-            ItemStack base = createBackpackPreview(baseTypeId);
-            ItemStack addition = new ItemStack(additionMat);
-            Component title = Component.text(type.id());
-            ItemStack out = createBackpackPreview(type.id());
-            RecipePreviewUi.openSmithing(plugin, player, title, template, base, addition, out);
-            return;
+            default -> player.sendMessage(Text.c("&cUnsupported recipe type: " + kind));
         }
-
-        player.sendMessage(Component.text("Unsupported recipe type: " + kind));
     }
 
     private ItemStack[] buildCraftingGrid(ConfigurationSection recipeSec, UUIDResolver uuids) {

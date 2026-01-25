@@ -10,13 +10,15 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
-import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.BackpackSummary;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
-import net.kyori.adventure.text.Component;
 
-public final class OpenSubcommand implements Subcommand {
+/**
+ * Open a backpack as a player, by UUID or by player/type index.
+ */
+public final class OpenSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
     private final BackpackMenuRenderer renderer;
@@ -42,55 +44,61 @@ public final class OpenSubcommand implements Subcommand {
     }
 
     @Override
+    public String getUsage() {
+        return "backpack open <uuid> | backpack open <player> <Type#N>";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
-        if (!ctx.sender().hasPermission("modularpacks.admin")) {
-            ctx.sender().sendMessage(Component.text("You do not have permission."));
+        if (!checkPermission(ctx))
             return;
-        }
 
-        if (!(ctx.sender() instanceof Player viewer)) {
-            ctx.sender().sendMessage(Component.text("This command must be run by a player."));
+        Player viewer = requirePlayer(ctx);
+        if (viewer == null)
             return;
-        }
 
-        if (ctx.size() < 1) {
-            ctx.sender().sendMessage(Component.text("Usage: /backpack open <uuid>"));
-            ctx.sender().sendMessage(Component.text("   or: /backpack open <player> <Type#N>"));
+        if (!requireArgs(ctx, 1))
             return;
-        }
 
-        // Variant A: /backpack open <uuid>
+        // Single argument: UUID
         if (ctx.size() == 1) {
-            UUID id = parseUuid(ctx.arg(0));
-            if (id == null) {
-                ctx.sender().sendMessage(Component.text("Invalid UUID."));
-                return;
-            }
-
-            String type = plugin.repo().findBackpackType(id);
-            if (type == null) {
-                ctx.sender().sendMessage(Component.text("Backpack not found in DB: " + id));
-                return;
-            }
-
-            // Admin override: if another player has it open, close them and take over.
-            plugin.sessions().tryLock(viewer, id, true);
-            renderer.openMenu(viewer, id, type);
+            openByUuid(ctx, viewer, ctx.arg(0));
             return;
         }
 
-        // Variant B: /backpack open <player> <Type#N>
-        String targetName = ctx.arg(0);
-        OfflinePlayer target = Bukkit.getOfflinePlayer(targetName);
-        if (target != null && !target.isOnline() && !target.hasPlayedBefore()) {
-            ctx.sender().sendMessage(Component.text("Unknown player (no server cache): " + targetName));
+        // Two arguments: Player and Type#Index
+        openByPlayerAndType(ctx, viewer, ctx.arg(0), ctx.arg(1));
+    }
+
+    private void openByUuid(CommandContext ctx, Player viewer, String uuidStr) {
+        UUID id = parseUuid(uuidStr);
+        if (id == null) {
+            ctx.sendError("Invalid UUID: " + uuidStr);
             return;
         }
 
-        String token = ctx.arg(1);
-        BackpackPick pick = parseTypeIndexToken(token);
+        String type = plugin.repo().findBackpackType(id);
+        if (type == null) {
+            ctx.sendError("Backpack not found in DB: " + id);
+            return;
+        }
+
+        // Admin override: if another player has it open, close them and take over.
+        plugin.sessions().tryLock(viewer, id, true);
+        renderer.openMenu(viewer, id, type);
+        ctx.sendInfo("Opened backpack " + id);
+    }
+
+    private void openByPlayerAndType(CommandContext ctx, Player viewer, String playerName, String typeToken) {
+        OfflinePlayer target = Bukkit.getOfflinePlayer(playerName);
+        if (target == null || (!target.isOnline() && !target.hasPlayedBefore())) {
+            ctx.sendError("Unknown player (no server cache): " + playerName);
+            return;
+        }
+
+        BackpackPick pick = parseTypeIndexToken(typeToken);
         if (pick == null) {
-            ctx.sender().sendMessage(Component.text("Expected token like Netherite#1."));
+            ctx.sendError("Expected token like: Netherite#1");
             return;
         }
 
@@ -100,48 +108,46 @@ public final class OpenSubcommand implements Subcommand {
                 .toList();
 
         if (rows.isEmpty()) {
-            ctx.sender().sendMessage(Component
-                    .text("No backpacks of type " + pick.typeId + " found in DB for " + target.getName() + "."));
+            ctx.sendError("No backpacks of type " + pick.typeId + " found for " + target.getName() + ".");
             return;
         }
 
         int idx = pick.index1 - 1;
         if (idx < 0 || idx >= rows.size()) {
-            ctx.sender().sendMessage(
-                    Component.text("Index out of range. Max for " + pick.typeId + " is " + rows.size() + "."));
+            ctx.sendError("Index out of range. Max for " + pick.typeId + " is " + rows.size() + ".");
             return;
         }
 
         BackpackSummary chosen = rows.get(idx);
         plugin.sessions().tryLock(viewer, chosen.backpackId(), true);
         renderer.openMenu(viewer, chosen.backpackId(), chosen.backpackType());
+        ctx.sendInfo("Opened " + target.getName() + "'s " + pick.typeId + " backpack #" + pick.index1);
     }
 
     @Override
     public List<String> tabComplete(CommandContext ctx) {
         if (ctx.size() == 1) {
             String prefix = safeLower(ctx.arg(0));
-            List<String> out = new ArrayList<>();
-            out.addAll(Bukkit.getOnlinePlayers().stream()
+            return Bukkit.getOnlinePlayers().stream()
                     .map(Player::getName)
                     .filter(n -> n.toLowerCase().startsWith(prefix))
                     .sorted()
-                    .toList());
-            return out;
+                    .toList();
         }
+
         if (ctx.size() == 2) {
             String prefix = safeLower(ctx.arg(1));
-            // Suggest "<Type>#1" etc based on what the player actually has.
             Player target = Bukkit.getPlayerExact(ctx.arg(0));
             if (target == null)
                 return List.of();
 
-            java.util.Map<String, Integer> maxPerType = new java.util.HashMap<>();
+            Map<String, Integer> maxPerType = new java.util.HashMap<>();
             for (BackpackSummary row : plugin.repo().listBackpacksByOwner(target.getUniqueId())) {
                 if (row.backpackType() == null)
                     continue;
-                maxPerType.merge(row.backpackType(), 1, Integer::sum);
+                maxPerType.merge(row.backpackType(), 1, (a, b) -> a + b);
             }
+
             List<String> suggestions = new ArrayList<>();
             for (Map.Entry<String, Integer> e : maxPerType.entrySet()) {
                 for (int i = 1; i <= Math.min(9, e.getValue()); i++) {
@@ -154,6 +160,7 @@ public final class OpenSubcommand implements Subcommand {
                     .sorted()
                     .toList();
         }
+
         return List.of();
     }
 

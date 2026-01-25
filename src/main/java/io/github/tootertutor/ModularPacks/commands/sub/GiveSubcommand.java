@@ -1,6 +1,7 @@
 package io.github.tootertutor.ModularPacks.commands.sub;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -9,14 +10,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
-import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.item.UpgradeItems;
-import net.kyori.adventure.text.Component;
 
-public final class GiveSubcommand implements Subcommand {
+/**
+ * Give backpacks or modules/upgrades to players.
+ * Usage: /backpack give type <typeId> [player] [amount]
+ * /backpack give module <id> [player] [amount]
+ */
+public final class GiveSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
@@ -44,82 +49,70 @@ public final class GiveSubcommand implements Subcommand {
     }
 
     @Override
+    public String getUsage() {
+        return "backpack give type <typeId> [player] [amount] | backpack give module <id> [player] [amount]";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
-        if (!ctx.sender().hasPermission("modularpacks.admin")) {
-            ctx.sender().sendMessage(Component.text("You do not have permission."));
+        if (!checkPermission(ctx))
             return;
-        }
 
-        if (ctx.size() < 1) {
-            ctx.sender().sendMessage(Component.text("Usage: /backpack give type <typeId> [player] [amount]"));
-            ctx.sender().sendMessage(Component.text("   or: /backpack give module <id> [player] [amount]"));
+        if (!requireArgs(ctx, 1))
             return;
-        }
 
-        String category = ctx.arg(0); // "type" | "module"
+        String category = ctx.arg(0).toLowerCase(Locale.ROOT);
         String a1 = ctx.arg(1);
         String a2 = ctx.arg(2);
         String a3 = ctx.arg(3);
 
-        /*
-         * ---------------------------------------------------------
-         * /backpack give module <id> [player] [amount]
-         * ---------------------------------------------------------
-         */
-        if ("module".equalsIgnoreCase(category) || "upgrade".equalsIgnoreCase(category)) {
-            if (a1 == null) {
-                ctx.sender().sendMessage(Component.text("Usage: /backpack give module <id> [player] [amount]"));
-                return;
-            }
+        switch (category) {
+            case "module", "upgrade" -> executeGiveModule(ctx, a1, a2, a3);
+            case "type" -> executeGiveType(ctx, a1, a2, a3);
+            default -> ctx.sendUsage(getUsage());
+        }
+    }
 
-            String moduleId = a1;
-            Player target = resolvePlayer(ctx, a2);
-            if (target == null)
-                return;
-
-            int amount = parseAmount(a3, 1);
-
-            var def = plugin.cfg().findUpgrade(moduleId);
-            if (def == null) {
-                ctx.sender().sendMessage(Component.text("Unknown module/upgrade id: " + moduleId));
-                return;
-            }
-
-            for (int i = 0; i < amount; i++) {
-                target.getInventory().addItem(upgradeItems.create(def.id()));
-            }
-
-            ctx.sender().sendMessage(Component.text(
-                    "Gave " + target.getName() + " x" + amount + " module(s): " + def.id()));
+    private void executeGiveModule(CommandContext ctx, String moduleId, String playerName, String amountStr) {
+        if (moduleId == null) {
+            ctx.sendUsage("backpack give module <id> [player] [amount]");
             return;
         }
 
-        /*
-         * ---------------------------------------------------------
-         * /backpack give type <typeId> [player] [amount]
-         * ---------------------------------------------------------
-         */
-        if (!"type".equalsIgnoreCase(category)) {
-            ctx.sender().sendMessage(Component.text("Usage: /backpack give type <typeId> [player] [amount]"));
-            ctx.sender().sendMessage(Component.text("   or: /backpack give module <id> [player] [amount]"));
-            return;
-        }
-
-        String typeInput = a1;
-        if (typeInput == null) {
-            ctx.sender().sendMessage(Component.text("Usage: /backpack give type <typeId> [player] [amount]"));
-            return;
-        }
-
-        Player target = resolvePlayer(ctx, a2);
+        Player target = resolveTarget(ctx, playerName);
         if (target == null)
             return;
 
-        int amount = parseAmount(a3, 1);
+        int amount = parseAmount(amountStr, 1);
 
-        var type = plugin.cfg().findType(typeInput);
+        var def = plugin.cfg().findUpgrade(moduleId);
+        if (def == null) {
+            ctx.sendError("Unknown module/upgrade id: " + moduleId);
+            return;
+        }
+
+        for (int i = 0; i < amount; i++) {
+            target.getInventory().addItem(upgradeItems.create(def.id()));
+        }
+
+        ctx.sendInfo("Gave " + target.getName() + " x" + amount + " module(s): " + def.id());
+    }
+
+    private void executeGiveType(CommandContext ctx, String typeId, String playerName, String amountStr) {
+        if (typeId == null) {
+            ctx.sendUsage("backpack give type <typeId> [player] [amount]");
+            return;
+        }
+
+        Player target = resolveTarget(ctx, playerName);
+        if (target == null)
+            return;
+
+        int amount = parseAmount(amountStr, 1);
+
+        var type = plugin.cfg().findType(typeId);
         if (type == null) {
-            ctx.sender().sendMessage(Component.text("Unknown backpack type: " + typeInput));
+            ctx.sendError("Unknown backpack type: " + typeId);
             return;
         }
 
@@ -129,15 +122,67 @@ public final class GiveSubcommand implements Subcommand {
             ensureOwnedBackpackRow(target, item);
         }
 
-        ctx.sender().sendMessage(Component.text(
-                "Gave " + target.getName() + " x" + amount + " backpack(s): " + type.id()));
+        ctx.sendInfo("Gave " + target.getName() + " x" + amount + " backpack(s): " + type.id());
+    }
+
+    /**
+     * Resolve target player: use specified player or fall back to sender if they're
+     * a player.
+     */
+    private Player resolveTarget(CommandContext ctx, String playerName) {
+        if (playerName != null) {
+            Player player = ctx.resolvePlayer(playerName);
+            if (player == null) {
+                ctx.sendError("Player not found: " + playerName);
+            }
+            return player;
+        }
+
+        Player sender = ctx.requirePlayer();
+        if (sender == null) {
+            ctx.sendError("Console must specify a player name.");
+        }
+        return sender;
+    }
+
+    private int parseAmount(String raw, int def) {
+        if (raw == null)
+            return def;
+        try {
+            int n = parseInt(raw, def);
+            return Math.max(1, Math.min(64, n));
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    private void ensureOwnedBackpackRow(Player owner, ItemStack backpackItem) {
+        if (owner == null || backpackItem == null || !backpackItem.hasItemMeta())
+            return;
+        ItemMeta meta = backpackItem.getItemMeta();
+        if (meta == null)
+            return;
+        Keys keys = plugin.keys();
+        var pdc = meta.getPersistentDataContainer();
+        String idStr = pdc.get(keys.BACKPACK_ID, PersistentDataType.STRING);
+        String typeId = pdc.get(keys.BACKPACK_TYPE, PersistentDataType.STRING);
+        if (idStr == null || typeId == null)
+            return;
+        try {
+            java.util.UUID id = java.util.UUID.fromString(idStr);
+            plugin.repo().ensureBackpackExists(id, typeId, owner.getUniqueId(), owner.getName());
+        } catch (IllegalArgumentException ignored) {
+        }
     }
 
     @Override
     public List<String> tabComplete(CommandContext ctx) {
         if (ctx.size() == 1) {
             String prefix = safeLower(ctx.arg(0));
-            return concatAndFilter(List.of("type", "module"), List.of(), prefix);
+            return List.of("type", "module").stream()
+                    .filter(s -> s.startsWith(prefix))
+                    .sorted()
+                    .toList();
         }
 
         if ("module".equalsIgnoreCase(ctx.arg(0)) || "upgrade".equalsIgnoreCase(ctx.arg(0))) {
@@ -182,59 +227,7 @@ public final class GiveSubcommand implements Subcommand {
         return List.of();
     }
 
-    private Player resolvePlayer(CommandContext ctx, String nameOrNull) {
-        Player target = null;
-        if (nameOrNull != null)
-            target = Bukkit.getPlayerExact(nameOrNull);
-        if (target == null && ctx.sender() instanceof Player p)
-            target = p;
-
-        if (target == null) {
-            ctx.sender().sendMessage(Component.text("Console must specify a player."));
-            return null;
-        }
-        return target;
-    }
-
-    private int parseAmount(String raw, int def) {
-        if (raw == null)
-            return def;
-        try {
-            int n = Integer.parseInt(raw);
-            return Math.max(1, Math.min(64, n));
-        } catch (NumberFormatException e) {
-            return def;
-        }
-    }
-
     private static String safeLower(String s) {
         return s == null ? "" : s.toLowerCase();
-    }
-
-    private static List<String> concatAndFilter(List<String> a, List<String> b, String prefix) {
-        return java.util.stream.Stream.concat(a.stream(), b.stream())
-                .distinct()
-                .filter(s -> s.toLowerCase().startsWith(prefix))
-                .sorted()
-                .toList();
-    }
-
-    private void ensureOwnedBackpackRow(Player owner, ItemStack backpackItem) {
-        if (owner == null || backpackItem == null || !backpackItem.hasItemMeta())
-            return;
-        ItemMeta meta = backpackItem.getItemMeta();
-        if (meta == null)
-            return;
-        Keys keys = plugin.keys();
-        var pdc = meta.getPersistentDataContainer();
-        String idStr = pdc.get(keys.BACKPACK_ID, PersistentDataType.STRING);
-        String typeId = pdc.get(keys.BACKPACK_TYPE, PersistentDataType.STRING);
-        if (idStr == null || typeId == null)
-            return;
-        try {
-            java.util.UUID id = java.util.UUID.fromString(idStr);
-            plugin.repo().ensureBackpackExists(id, typeId, owner.getUniqueId(), owner.getName());
-        } catch (IllegalArgumentException ignored) {
-        }
     }
 }

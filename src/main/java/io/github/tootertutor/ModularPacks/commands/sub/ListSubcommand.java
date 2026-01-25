@@ -8,12 +8,14 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
-import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.BackpackSummary;
-import net.kyori.adventure.text.Component;
 
-public final class ListSubcommand implements Subcommand {
+/**
+ * List backpacks in the database by player or show unowned backpacks.
+ */
+public final class ListSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
 
@@ -37,66 +39,80 @@ public final class ListSubcommand implements Subcommand {
     }
 
     @Override
+    public String getUsage() {
+        return "backpack list [playerName | unowned]";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
-        if (!ctx.sender().hasPermission("modularpacks.admin")) {
-            ctx.sender().sendMessage(Component.text("You do not have permission."));
+        if (!checkPermission(ctx))
             return;
-        }
 
-        String arg0 = ctx.size() >= 1 ? ctx.arg(0) : null;
+        String arg0 = ctx.arg(0);
+
         if (arg0 != null && "unowned".equalsIgnoreCase(arg0)) {
-            List<BackpackSummary> rows = plugin.repo().listUnownedBackpacks(100);
-            if (rows.isEmpty()) {
-                ctx.sender().sendMessage(Component.text("No unowned backpacks found in DB."));
-                return;
-            }
-            ctx.sender().sendMessage(Component.text("Unowned backpacks in DB (first " + rows.size() + "):"));
-
-            java.util.Map<String, Integer> perTypeCount = new java.util.HashMap<>();
-            for (BackpackSummary row : rows) {
-                int idx = perTypeCount.merge(row.backpackType(), 1, Integer::sum);
-                String shortId = row.backpackId().toString().substring(0, 8);
-                ctx.sender()
-                        .sendMessage(Component
-                                .text(" - " + row.backpackType() + " #" + idx + " " + shortId + "… (" + row.backpackId()
-                                        + ")"));
-            }
+            listUnownedBackpacks(ctx);
             return;
         }
 
+        listPlayerBackpacks(ctx, arg0);
+    }
+
+    private void listUnownedBackpacks(CommandContext ctx) {
+        List<BackpackSummary> rows = plugin.repo().listUnownedBackpacks(100);
+        if (rows.isEmpty()) {
+            ctx.sendInfo("No unowned backpacks found in DB.");
+            return;
+        }
+
+        ctx.sendInfo("Unowned backpacks in DB (first " + rows.size() + "):");
+
+        java.util.Map<String, Integer> perTypeCount = new java.util.HashMap<>();
+        for (BackpackSummary row : rows) {
+            int idx = perTypeCount.merge(row.backpackType(), 1, (a, b) -> a + b);
+            String shortId = row.backpackId().toString().substring(0, 8);
+            ctx.sendInfo(" - " + row.backpackType() + " #" + idx + " " + shortId + "… (" + row.backpackId() + ")");
+        }
+    }
+
+    private void listPlayerBackpacks(CommandContext ctx, String playerName) {
         OfflinePlayer target = null;
-        String name = arg0;
-        if (name == null && ctx.sender() instanceof Player p) {
-            target = p;
-        } else if (name != null) {
-            target = Bukkit.getOfflinePlayer(name);
-            if (target != null && !target.isOnline() && !target.hasPlayedBefore()) {
-                ctx.sender().sendMessage(Component.text("Unknown player (no server cache): " + name));
+
+        if (playerName == null) {
+            Player sender = ctx.requirePlayer();
+            if (sender == null) {
+                ctx.sendUsage(getUsage());
                 return;
             }
+            target = sender;
         } else {
-            ctx.sender().sendMessage(Component.text("Usage: /backpack list <playerName>"));
-            ctx.sender().sendMessage(Component.text("   or: /backpack list unowned"));
+            target = Bukkit.getOfflinePlayer(playerName);
+            if (target != null && !target.isOnline() && !target.hasPlayedBefore()) {
+                ctx.sendError("Unknown player (no server cache): " + playerName);
+                return;
+            }
+        }
+
+        if (target == null) {
+            ctx.sendError("Could not resolve player: " + playerName);
             return;
         }
 
         UUID ownerUuid = target.getUniqueId();
         List<BackpackSummary> rows = plugin.repo().listBackpacksByOwner(ownerUuid);
+
         if (rows.isEmpty()) {
-            ctx.sender().sendMessage(
-                    Component.text("No backpacks found in DB for " + target.getName() + " (" + ownerUuid + ")."));
+            ctx.sendInfo("No backpacks found in DB for " + target.getName() + " (" + ownerUuid + ").");
             return;
         }
 
-        ctx.sender().sendMessage(Component.text("Backpacks in DB for " + target.getName() + " (" + ownerUuid + "):"));
+        ctx.sendInfo("Backpacks in DB for " + target.getName() + " (" + ownerUuid + "):");
 
         java.util.Map<String, Integer> perTypeCount = new java.util.HashMap<>();
         for (BackpackSummary row : rows) {
-            int idx = perTypeCount.merge(row.backpackType(), 1, Integer::sum);
+            int idx = perTypeCount.merge(row.backpackType(), 1, (a, b) -> a + b);
             String shortId = row.backpackId().toString().substring(0, 8);
-            ctx.sender().sendMessage(
-                    Component.text(" - " + row.backpackType() + " #" + idx + " " + shortId + "… (" + row.backpackId()
-                            + ")"));
+            ctx.sendInfo(" - " + row.backpackType() + " #" + idx + " " + shortId + "… (" + row.backpackId() + ")");
         }
     }
 
@@ -109,8 +125,9 @@ public final class ListSubcommand implements Subcommand {
                     .filter(n -> n.toLowerCase().startsWith(prefix))
                     .sorted()
                     .toList();
-            if ("unowned".startsWith(prefix))
+            if ("unowned".startsWith(prefix)) {
                 return java.util.stream.Stream.concat(players.stream(), java.util.stream.Stream.of("unowned")).toList();
+            }
             return players;
         }
         return List.of();

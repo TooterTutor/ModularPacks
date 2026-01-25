@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -14,16 +13,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
-import io.github.tootertutor.ModularPacks.commands.Subcommand;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
-import net.kyori.adventure.text.Component;
 
-public final class RefreshSkullsSubcommand implements Subcommand {
+/**
+ * Refresh backpack skull textures for all online players.
+ */
+public final class RefreshSkullsSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
@@ -49,20 +50,26 @@ public final class RefreshSkullsSubcommand implements Subcommand {
     }
 
     @Override
+    public String getUsage() {
+        return "backpack refreshskulls [player|all] [--ender] [--open]";
+    }
+
+    @Override
+    public String getExtendedHelp() {
+        return "Refresh skull texture rendering for backpack items in player inventories.\n"
+                + "  [player|all]  - Player name or 'all' for all online players (default: all)\n"
+                + "  --ender       - Also refresh items in player ender chests\n"
+                + "  --open        - Also refresh items in currently open inventories and cursor item";
+    }
+
+    @Override
     public void execute(CommandContext ctx) {
-        CommandSender sender = ctx.sender();
-        if (!sender.hasPermission("modularpacks.admin")) {
-            sender.sendMessage(Component.text("You do not have permission."));
+        if (!checkPermission(ctx))
             return;
-        }
 
-        boolean includeOpen = ctx.args().stream().anyMatch(s -> s.equalsIgnoreCase("--open"));
-        boolean includeEnder = !ctx.args().stream().anyMatch(s -> s.equalsIgnoreCase("--no-ender"));
-
-        String target = (ctx.size() >= 1) ? ctx.arg(0) : "all";
-        target = target == null ? "all" : target.trim();
-        if (target.isEmpty())
-            target = "all";
+        String target = ctx.args().isEmpty() ? "all" : ctx.arg(0);
+        boolean includeEnder = ctx.args().stream().anyMatch(s -> "--ender".equalsIgnoreCase(s));
+        boolean includeOpen = ctx.args().stream().anyMatch(s -> "--open".equalsIgnoreCase(s));
 
         Map<UUID, BackpackData> dataCache = new HashMap<>();
         Map<String, BackpackTypeDef> typeCache = new HashMap<>();
@@ -73,11 +80,11 @@ public final class RefreshSkullsSubcommand implements Subcommand {
         if (!target.equalsIgnoreCase("all")) {
             Player p = Bukkit.getPlayerExact(target);
             if (p == null) {
-                sender.sendMessage(Component.text("Player must be online: " + target));
+                ctx.sendError("Player must be online: " + target);
                 return;
             }
             refreshPlayer(p, includeEnder, includeOpen, dataCache, typeCache, typeIdCache, totals);
-            sender.sendMessage(Component.text(summary(totals, 1, includeEnder, includeOpen)));
+            ctx.sendInfo(summary(totals, 1, includeEnder, includeOpen));
             return;
         }
 
@@ -87,7 +94,7 @@ public final class RefreshSkullsSubcommand implements Subcommand {
             refreshPlayer(p, includeEnder, includeOpen, dataCache, typeCache, typeIdCache, totals);
         }
 
-        sender.sendMessage(Component.text(summary(totals, players, includeEnder, includeOpen)));
+        ctx.sendInfo(summary(totals, players, includeEnder, includeOpen));
     }
 
     private void refreshPlayer(
@@ -100,8 +107,6 @@ public final class RefreshSkullsSubcommand implements Subcommand {
             Totals totals) {
         if (player == null || !player.isOnline())
             return;
-
-        totals.playersTouched++;
 
         totals.updated += refreshInventory(player.getInventory(), dataCache, typeCache, typeIdCache, totals);
 
@@ -214,7 +219,8 @@ public final class RefreshSkullsSubcommand implements Subcommand {
             return false;
         var pdc = meta.getPersistentDataContainer();
         Keys keys = plugin.keys();
-        return pdc.has(keys.BACKPACK_ID, PersistentDataType.STRING) && pdc.has(keys.BACKPACK_TYPE, PersistentDataType.STRING);
+        return pdc.has(keys.BACKPACK_ID, PersistentDataType.STRING)
+                && pdc.has(keys.BACKPACK_TYPE, PersistentDataType.STRING);
     }
 
     private UUID readBackpackId(ItemStack item) {
@@ -246,12 +252,13 @@ public final class RefreshSkullsSubcommand implements Subcommand {
         String scope = includeEnder ? "inventories+enderchests" : "inventories";
         if (includeOpen)
             scope += "+open";
-        return "Refreshed skull textures for " + totals.updated + " backpack item(s) across " + players + " player(s) (" + scope
-                + "). Skipped: noId=" + totals.skippedNoId + ", unknownType=" + totals.skippedUnknownType;
+        return "Refreshed skull textures for " + totals.updated + " backpack item(s) across " + players + " player(s) ("
+                + scope
+                + "). Scanned: " + totals.scanned + ", Skipped: noId=" + totals.skippedNoId + ", unknownType="
+                + totals.skippedUnknownType;
     }
 
     private static final class Totals {
-        int playersTouched;
         int scanned;
         int updated;
         int skippedNoId;
