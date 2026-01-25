@@ -1,0 +1,98 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "*.*" # Trigger on any version tag (e.g., 1.9, 2.0, 1.9.1)
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for changelog generation
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build with Maven
+        run: mvn -B clean package --file pom.xml
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          # Generate changelog
+          if [ -z "$PREV_TAG" ]; then
+            echo "## Changes" > RELEASE_CHANGELOG.md
+            git log --pretty=format:"- %s (%h)" >> RELEASE_CHANGELOG.md
+          else
+            echo "## Changes since ${PREV_TAG}" > RELEASE_CHANGELOG.md
+            echo "" >> RELEASE_CHANGELOG.md
+            
+            # Group commits by type
+            echo "### Features & Improvements" >> RELEASE_CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"%s" --grep="^Add" --grep="^Improv" --grep="^Chang" -i | sed 's/^/- /' >> RELEASE_CHANGELOG.md || echo "- No major features" >> RELEASE_CHANGELOG.md
+            echo "" >> RELEASE_CHANGELOG.md
+            
+            echo "### Bug Fixes" >> RELEASE_CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"%s" --grep="^Fix" -i | sed 's/^/- /' >> RELEASE_CHANGELOG.md || echo "- No bug fixes" >> RELEASE_CHANGELOG.md
+            echo "" >> RELEASE_CHANGELOG.md
+            
+            echo "### Refactoring & Code Quality" >> RELEASE_CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"%s" --grep="^Refactor\|^Clean\|^Split\|^Moved" -i | sed 's/^/- /' >> RELEASE_CHANGELOG.md || echo "- No refactoring" >> RELEASE_CHANGELOG.md
+            echo "" >> RELEASE_CHANGELOG.md
+            
+            echo "### All Commits" >> RELEASE_CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" >> RELEASE_CHANGELOG.md
+          fi
+
+          # Show changelog for debugging
+          cat RELEASE_CHANGELOG.md
+
+      - name: Find JAR files
+        id: find_jars
+        run: |
+          MAIN_JAR=$(find target -name "modularpacks-*.jar" ! -name "*original*" -type f)
+          ORIGINAL_JAR=$(find target -name "original-modularpacks-*.jar" -type f)
+          echo "MAIN_JAR=${MAIN_JAR}" >> $GITHUB_OUTPUT
+          echo "ORIGINAL_JAR=${ORIGINAL_JAR}" >> $GITHUB_OUTPUT
+          echo "Found main JAR: ${MAIN_JAR}"
+          echo "Found original JAR: ${ORIGINAL_JAR}"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ModularPacks ${{ steps.get_version.outputs.VERSION }}
+          body_path: RELEASE_CHANGELOG.md
+          files: |
+            ${{ steps.find_jars.outputs.MAIN_JAR }}
+            ${{ steps.find_jars.outputs.ORIGINAL_JAR }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: modularpacks-${{ steps.get_version.outputs.VERSION }}
+          path: |
+            ${{ steps.find_jars.outputs.MAIN_JAR }}
+            ${{ steps.find_jars.outputs.ORIGINAL_JAR }}
