@@ -70,12 +70,12 @@ public final class SlotLayout {
         int prev = prevButtonSlot(invSize);
         int next = nextButtonSlot(invSize);
 
-        int preferred = bottomStart + 7; // second-from-right
+        int preferred = bottomStart + 1; // second-from-left
         if (!isBlocked(preferred, bottomStart, invSize, upgradeSlots, paginated, prev, next, sortSlot))
             return preferred;
 
-        // Fallback: scan from right to left for the first free slot (excluding sort)
-        for (int i = 8; i >= 0; i--) {
+        // Fallback: scan from left to right for the first free slot (excluding sort)
+        for (int i = 0; i < 9; i++) {
             int candidate = bottomStart + i;
             if (candidate == sortSlot)
                 continue;
@@ -110,12 +110,12 @@ public final class SlotLayout {
         int prev = prevButtonSlot(invSize);
         int next = nextButtonSlot(invSize);
 
-        int preferred = bottomStart + 1; // second-from-left
+        int preferred = bottomStart + 7; // second-from-right
         if (!isBlocked(preferred, bottomStart, invSize, upgradeSlots, paginated, prev, next, -1))
             return preferred;
 
-        // Fallback: scan from left to right for the first free slot
-        for (int i = 0; i < 9; i++) {
+        // Fallback: scan from right to left for the first free slot
+        for (int i = 8; i >= 0; i--) {
             int candidate = bottomStart + i;
             if (!isBlocked(candidate, bottomStart, invSize, upgradeSlots, paginated, prev, next, -1))
                 return candidate;
