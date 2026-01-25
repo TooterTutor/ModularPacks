@@ -33,15 +33,6 @@ public final class FurnaceModuleListener implements Listener {
         this.module = module;
     }
 
-    private boolean isFurnaceTop(Player player, InventoryType type) {
-        if (player == null)
-            return false;
-        var top = player.getOpenInventory().getTopInventory();
-        if (top == null)
-            return false;
-        return top.getType() == type;
-    }
-
     @EventHandler(ignoreCancelled = true)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))

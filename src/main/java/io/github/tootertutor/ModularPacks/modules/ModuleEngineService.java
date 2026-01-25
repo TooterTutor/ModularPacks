@@ -223,7 +223,6 @@ public final class ModuleEngineService {
 
         Keys keys = plugin.keys();
         int totalSlots = typeDef.rows() * 9;
-        boolean changed = false;
 
         for (int i = 0; i < contents.length; i++) {
             ItemStack it = contents[i];
@@ -233,7 +232,6 @@ public final class ModuleEngineService {
 
             if (backpackItems.refreshInPlace(it, typeDef, backpackId, data, totalSlots)) {
                 player.getInventory().setItem(i, it);
-                changed = true;
             }
         }
 

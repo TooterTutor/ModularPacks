@@ -210,10 +210,6 @@ public final class CraftingModuleLogic {
         }
     }
 
-    private static CraftMatch findMatch(ItemStack[] matrix) {
-        return findMatch(null, null, matrix);
-    }
-
     private static CraftMatch findMatch(RecipeManager recipes, Player player, ItemStack[] matrix) {
         if (matrix == null || matrix.length != MATRIX_SIZE)
             return null;

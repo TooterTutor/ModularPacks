@@ -54,6 +54,8 @@ public final class RestockModuleListener implements Listener {
 
         // Render threshold UI based on stored state; ignore whatever ScreenRouter
         // loaded.
+        if (top == null)
+            return;
         BackpackData data = plugin.repo().loadOrCreate(msh.backpackId(), msh.backpackType());
         int threshold = readStoredThreshold(data, msh.moduleId());
         top.clear();
@@ -80,7 +82,7 @@ public final class RestockModuleListener implements Listener {
         e.setCancelled(true);
 
         int raw = e.getRawSlot();
-        if (raw < 0 || raw >= top.getSize()) {
+        if (top == null || raw < 0 || raw >= top.getSize()) {
             Bukkit.getScheduler().runTask(plugin, player::updateInventory);
             return;
         }

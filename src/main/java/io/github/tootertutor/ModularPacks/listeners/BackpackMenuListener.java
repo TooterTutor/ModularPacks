@@ -1231,14 +1231,7 @@ public final class BackpackMenuListener implements Listener {
         REPEAT_ONE("Repeat One"),
         REPEAT_ALL("Repeat All");
 
-        private final String displayName;
-
         JukeboxMode(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String displayName() {
-            return displayName;
         }
 
         static JukeboxMode fromString(String raw, String fallbackRaw) {
@@ -1295,23 +1288,6 @@ public final class BackpackMenuListener implements Listener {
         return true;
     }
 
-    private String formatJukeboxMode(ItemStack moduleItem) {
-        if (moduleItem == null || !moduleItem.hasItemMeta())
-            return JukeboxMode.REPEAT_ALL.displayName();
-
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return JukeboxMode.REPEAT_ALL.displayName();
-
-        Keys keys = plugin.keys();
-        var pdc = meta.getPersistentDataContainer();
-
-        JukeboxMode current = JukeboxMode.fromString(
-                pdc.get(keys.MODULE_JUKEBOX_MODE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Jukebox.Mode", "RepeatAll"));
-        return current.displayName();
-    }
-
     private boolean cycleFeedingSettings(ItemStack moduleItem) {
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return false;
@@ -1339,39 +1315,11 @@ public final class BackpackMenuListener implements Listener {
         return true;
     }
 
-    private String formatFeedingSettings(ItemStack moduleItem) {
-        if (moduleItem == null || !moduleItem.hasItemMeta())
-            return "Best Candidate / Prefer Nutrition";
-
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return "Best Candidate / Prefer Nutrition";
-
-        Keys keys = plugin.keys();
-        var pdc = meta.getPersistentDataContainer();
-
-        FeedingSelectionMode mode = FeedingSelectionMode.fromString(
-                pdc.get(keys.MODULE_FEEDING_SELECTION_MODE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Feeding.SelectionMode", "BestCandidate"));
-        FeedingPreference pref = FeedingPreference.fromString(
-                pdc.get(keys.MODULE_FEEDING_PREFERENCE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Feeding.Preference", "Nutrition"));
-
-        return mode.displayName() + " / " + pref.displayName();
-    }
-
     private enum FeedingSelectionMode {
         BEST_CANDIDATE("Best Candidate"),
         WHITELIST_ORDER("Prefer First in Whitelist");
 
-        private final String displayName;
-
         FeedingSelectionMode(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String displayName() {
-            return displayName;
         }
 
         static FeedingSelectionMode fromString(String raw, String fallbackRaw) {
@@ -1402,14 +1350,7 @@ public final class BackpackMenuListener implements Listener {
         NUTRITION("Prefer Nutrition"),
         EFFECTS("Prefer Effects");
 
-        private final String displayName;
-
         FeedingPreference(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String displayName() {
-            return displayName;
         }
 
         static FeedingPreference fromString(String raw, String fallbackRaw) {
