@@ -1,5 +1,6 @@
 package io.github.tootertutor.ModularPacks.recipes;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -70,8 +71,8 @@ public final class RecipeManager implements Listener {
     }
 
     public void reload() {
-        unregisterAll();
-        registerAll();
+        unregisterBackpackRecipes();
+        registerBackpackRecipesFromConfig();
         try {
             Bukkit.updateRecipes();
         } catch (Throwable t) {
@@ -190,7 +191,42 @@ public final class RecipeManager implements Listener {
         smithingUpgrades.clear();
     }
 
-    private void registerAll() {
+    /**
+     * Unregister only backpack crafting and smithing recipes, preserving upgrade
+     * recipes.
+     * Used during reload to minimize disruption.
+     */
+    private void unregisterBackpackRecipes() {
+        Set<NamespacedKey> backpackKeys = new HashSet<>();
+        for (NamespacedKey key : registeredKeys) {
+            String keyStr = key.getKey();
+            if (keyStr.startsWith("backpack_") || keyStr.startsWith("backpack_smith_")) {
+                backpackKeys.add(key);
+            }
+        }
+        for (NamespacedKey key : backpackKeys) {
+            Bukkit.removeRecipe(key);
+            registeredKeys.remove(key);
+        }
+        // Clear dynamic recipes that are backpack-related
+        Set<NamespacedKey> backpackDynamicKeys = new HashSet<>();
+        for (Map.Entry<NamespacedKey, DynamicRecipe> entry : dynamic.entrySet()) {
+            if (entry.getValue().kind == DynamicKind.BACKPACK) {
+                backpackDynamicKeys.add(entry.getKey());
+            }
+        }
+        for (NamespacedKey key : backpackDynamicKeys) {
+            dynamic.remove(key);
+        }
+        // Clear smithing upgrades (will be re-registered)
+        smithingUpgrades.clear();
+    }
+
+    /**
+     * Register only backpack recipes from config.
+     * Used during reload to minimize disruption.
+     */
+    private void registerBackpackRecipesFromConfig() {
         var cfg = plugin.getConfig();
 
         ConfigurationSection backpackTypes = cfg.getConfigurationSection("BackpackTypes");
@@ -202,24 +238,6 @@ public final class RecipeManager implements Listener {
                 registerBackpackRecipes(typeId, typeSec);
             }
         }
-
-        ConfigurationSection upgrades = cfg.getConfigurationSection("Upgrades");
-        if (upgrades != null) {
-            for (String upgradeId : upgrades.getKeys(false)) {
-                ConfigurationSection uSec = upgrades.getConfigurationSection(upgradeId);
-                if (uSec == null)
-                    continue;
-                boolean enabled = uSec.getBoolean("Enabled", true);
-                if (!enabled)
-                    continue;
-                registerUpgradeCraftingRecipe(upgradeId, uSec);
-            }
-        }
-    }
-
-    private void registerBackpackCraftingRecipe(String typeId, ConfigurationSection typeSec) {
-        registerBackpackCraftingRecipeVariant(typeId, typeSec, "main",
-                typeSec == null ? null : typeSec.getConfigurationSection("CraftingRecipe"));
     }
 
     private void registerBackpackRecipes(String typeId, ConfigurationSection typeSec) {
@@ -270,7 +288,7 @@ public final class RecipeManager implements Listener {
         shaped.shape(pattern.toArray(new String[0]));
 
         Map<Character, Integer> symbolCounts = countSymbols(pattern);
-        List<SpecialRequirement> requirements = new java.util.ArrayList<>();
+        List<SpecialRequirement> requirements = new ArrayList<>();
 
         ConfigurationSection ing = recipe.getConfigurationSection("Ingredients");
         if (ing != null) {
@@ -404,81 +422,6 @@ public final class RecipeManager implements Listener {
                     "Failed to register smithing recipe " + key
                             + "; client may refuse to accept backpacks in smithing table base slot.",
                     t);
-        }
-    }
-
-    private void registerUpgradeCraftingRecipe(String upgradeId, ConfigurationSection upgradeSec) {
-        ConfigurationSection recipe = upgradeSec.getConfigurationSection("CraftingRecipe");
-        if (recipe == null)
-            return;
-
-        String kind = recipe.getString("Type", "Crafting");
-        if (!"Crafting".equalsIgnoreCase(kind)) {
-            return;
-        }
-
-        List<String> pattern = recipe.getStringList("Pattern");
-        if (pattern == null || pattern.isEmpty())
-            return;
-
-        var def = plugin.cfg().findUpgrade(upgradeId);
-        if (def == null)
-            return;
-
-        NamespacedKey key = new NamespacedKey(plugin, "upgrade_" + sanitize(upgradeId));
-
-        ItemStack preview = new ItemStack(def.material());
-        ItemMeta meta = preview.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Text.c(Placeholders.expandText(plugin, def, preview, def.displayName())));
-            if (def.customModelData() > 0) {
-                CustomModelDataUtil.setCustomModelData(meta, def.customModelData());
-            }
-            if (def.glint()) {
-                meta.setEnchantmentGlintOverride(true);
-            }
-            preview.setItemMeta(meta);
-        }
-
-        ShapedRecipe shaped = new ShapedRecipe(key, preview);
-        shaped.shape(pattern.toArray(new String[0]));
-
-        Map<Character, Integer> symbolCounts = countSymbols(pattern);
-        List<SpecialRequirement> requirements = new java.util.ArrayList<>();
-
-        ConfigurationSection ing = recipe.getConfigurationSection("Ingredients");
-        if (ing != null) {
-            for (String k : ing.getKeys(false)) {
-                if (k == null || k.length() != 1)
-                    continue;
-                char symbol = k.charAt(0);
-                String raw = ing.getString(k);
-                ParsedIngredient parsed = parseIngredient(raw);
-
-                if (parsed.kind == IngredientKind.MATERIAL) {
-                    if (parsed.material != null)
-                        shaped.setIngredient(symbol, parsed.material);
-                    continue;
-                }
-
-                int requiredCount = symbolCounts.getOrDefault(symbol, 0);
-                if (requiredCount <= 0)
-                    continue;
-
-                if (parsed.kind == IngredientKind.BACKPACK_TYPE) {
-                    shaped.setIngredient(symbol, Material.PLAYER_HEAD);
-                    requirements.add(new SpecialRequirement(SpecialKind.BACKPACK_TYPE, parsed.id, requiredCount));
-                } else if (parsed.kind == IngredientKind.MODULE_TYPE) {
-                    Material m = parsed.material != null ? parsed.material : Material.PAPER;
-                    shaped.setIngredient(symbol, m);
-                    requirements.add(new SpecialRequirement(SpecialKind.MODULE_TYPE, parsed.id, requiredCount));
-                }
-            }
-        }
-
-        if (Bukkit.addRecipe(shaped)) {
-            registeredKeys.add(key);
-            dynamic.put(key, new DynamicRecipe(DynamicKind.UPGRADE, upgradeId, requirements));
         }
     }
 
@@ -882,7 +825,7 @@ public final class RecipeManager implements Listener {
                 char c = row.charAt(i);
                 if (c == ' ')
                     continue;
-                out.merge(c, 1, Integer::sum);
+                out.merge(c, 1, (a, b) -> a + b);
             }
         }
         return out;
@@ -915,7 +858,7 @@ public final class RecipeManager implements Listener {
             }
 
             // New format: CraftingRecipe has child sections "1", "2", ...
-            java.util.ArrayList<RecipeVariant> out = new java.util.ArrayList<>();
+            ArrayList<RecipeVariant> out = new ArrayList<>();
             for (String k : sec.getKeys(false)) {
                 ConfigurationSection child = sec.getConfigurationSection(k);
                 if (child != null) {
@@ -938,7 +881,7 @@ public final class RecipeManager implements Listener {
         if (rawList == null || rawList.isEmpty())
             return List.of();
 
-        java.util.ArrayList<RecipeVariant> out = new java.util.ArrayList<>();
+        ArrayList<RecipeVariant> out = new ArrayList<>();
         int idx = 0;
         for (Object elem : rawList) {
             String fallbackId = Integer.toString(idx + 1);
@@ -1031,13 +974,13 @@ public final class RecipeManager implements Listener {
             if (s == null || s.isBlank())
                 return null;
             try {
-                return new Parsed(java.util.UUID.fromString(s));
+                return new Parsed(UUID.fromString(s));
             } catch (IllegalArgumentException ex) {
                 return null;
             }
         }
 
-        private record Parsed(java.util.UUID uuid) {
+        private record Parsed(UUID uuid) {
         }
     }
 }
