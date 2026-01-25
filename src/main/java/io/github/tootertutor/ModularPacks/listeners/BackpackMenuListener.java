@@ -1,19 +1,13 @@
 package io.github.tootertutor.ModularPacks.listeners;
 
-import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -25,59 +19,44 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitTask;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
-import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
-import io.github.tootertutor.ModularPacks.gui.BackpackSortMode;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
-import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
-import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
-import net.wesjd.anvilgui.AnvilGUI;
 
+/**
+ * Main event listener for backpack inventory interactions.
+ * Delegates complex logic to specialized service classes:
+ * - BackpackSaveManager: Save debouncing
+ * - SortingModGuard: Sorting mod detection
+ * - BackpackInventoryService: Inventory operations
+ * - ModuleSocketHandler: Module interactions
+ */
 public final class BackpackMenuListener implements Listener {
 
     private final ModularPacksPlugin plugin;
     private final BackpackMenuRenderer renderer;
-    private final BackpackItems backpackItems;
-    private final ScreenRouter screens;
 
-    private final Map<UUID, Integer> lastStorageInteractionTick = new HashMap<>();
-    private final Map<UUID, Integer> dirtySinceTick = new HashMap<>();
+    // Service instances
+    private final BackpackSaveManager saveManager;
+    private final SortingModGuard sortGuard;
+    private final BackpackInventoryService inventoryService;
+    private final ModuleSocketHandler moduleHandler;
+    private final BackpackSharingHost sharingHost;
+    private final BackpackSharingJoiner sharingJoiner;
+
+    // UI-specific state (page navigation)
     private final Map<UUID, Integer> ignoreCloseUntilTick = new HashMap<>();
-
-    // Best-effort guard against client-side sorting mods that spam inventory clicks
-    // within the same tick/frame.
-    private static final int SORT_MOD_CANCEL_WINDOW_TICKS = 8; // "frame" window
-    private static final int SORT_MOD_PER_TICK_THRESHOLD = 4;
-    private static final int SORT_MOD_WINDOW_TICKS = 8;
-    private static final int SORT_MOD_WINDOW_THRESHOLD = 14;
-    private static final int SAVE_QUIET_TICKS = 8;
-    private final Map<UUID, Integer> sortBurstTick = new HashMap<>();
-    private final Map<UUID, Integer> sortBurstCount = new HashMap<>();
-    private final Map<UUID, Integer> cancelClicksUntilTick = new HashMap<>();
-    private final Map<UUID, ArrayDeque<Integer>> sortWindowTicks = new HashMap<>();
-    private final Map<UUID, Integer> sortBurstNotifiedAtTick = new HashMap<>();
-
-    // tune this: 8–15 ticks is a good start
-    private static final long SAVE_DEBOUNCE_TICKS = 10;
-    private final Map<SaveKey, BukkitTask> pendingSaves = new HashMap<>();
-
-    private record SaveKey(UUID playerId, UUID backpackId) {
-    }
 
     public BackpackMenuListener(ModularPacksPlugin plugin) {
         this(plugin, new BackpackMenuRenderer(plugin), new ScreenRouter(plugin));
@@ -86,8 +65,14 @@ public final class BackpackMenuListener implements Listener {
     public BackpackMenuListener(ModularPacksPlugin plugin, BackpackMenuRenderer renderer, ScreenRouter screens) {
         this.plugin = plugin;
         this.renderer = renderer;
-        this.backpackItems = new BackpackItems(plugin);
-        this.screens = screens;
+
+        // Initialize service classes
+        this.saveManager = new BackpackSaveManager(plugin, renderer);
+        this.sortGuard = new SortingModGuard(plugin);
+        this.inventoryService = new BackpackInventoryService(plugin);
+        this.moduleHandler = new ModuleSocketHandler(plugin, renderer, screens, saveManager);
+        this.sharingHost = new BackpackSharingHost(plugin, renderer, saveManager);
+        this.sharingJoiner = new BackpackSharingJoiner(plugin, renderer, saveManager);
     }
 
     @EventHandler
@@ -114,17 +99,14 @@ public final class BackpackMenuListener implements Listener {
         boolean hasNavRow = holder.paginated() || holder.type().upgradeSlots() > 0;
         int visibleStorage = SlotLayout.storageAreaSize(topSize, hasNavRow);
 
-        // Hard block: never allow swapping a backpack item into an open backpack via
-        // number keys / hotbar swap actions.
+        // Hard block: never allow swapping a backpack item into an open backpack
         if (isBackpackHotbarSwap(player, e) || isBackpack(e.getCursor()) || isBackpack(e.getCurrentItem())) {
             e.setCancelled(true);
             Bukkit.getScheduler().runTask(plugin, player::updateInventory);
             return;
         }
 
-        // Respect container rules (AllowShulkerBoxes / AllowBundles).
-        // Only block inserting disallowed items into the backpack; allow removing them
-        // (in case config changed after items were stored previously).
+        // Respect container rules (AllowShulkerBoxes / AllowBundles)
         if (clickedTop && rawSlot >= 0 && rawSlot < visibleStorage) {
             InventoryAction action = e.getAction();
             if (action == InventoryAction.PLACE_ALL
@@ -152,38 +134,33 @@ public final class BackpackMenuListener implements Listener {
             }
         }
 
-        // Sorting mods (ex: Inventory Profiles Next) can spam many click packets in a
-        // tiny window (including nav-row spam). If we let any of these through, it can
-        // leave items "in-flight" on the cursor and effectively delete them from the
-        // persisted snapshot. Only count events that target the backpack inventory (or
-        // transfers into it) so normal fast clicks in the player's own inventory don't
-        // get punished.
+        // Detect sorting mod bursts
         boolean relevantToBackpack = clickedTop || e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY
                 || e.getAction() == InventoryAction.COLLECT_TO_CURSOR
                 || e.getAction() == InventoryAction.HOTBAR_SWAP;
 
-        if (relevantToBackpack && isSortingModBurst(player, now)) {
+        if (relevantToBackpack && sortGuard.isSortingModBurst(player, now)) {
             e.setCancelled(true);
-            stabilizeAfterBurst(player, holder);
+            sortGuard.stabilizeAfterBurst(player, holder);
             return;
         }
 
         if (clickedTop && rawSlot >= 0 && rawSlot < visibleStorage && e.getAction() != InventoryAction.NOTHING) {
-            lastStorageInteractionTick.put(player.getUniqueId(), now);
+            saveManager.markInteraction(player, holder);
         }
 
         if (!clickedTop && e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
-            lastStorageInteractionTick.put(player.getUniqueId(), now);
+            saveManager.markInteraction(player, holder);
         }
 
+        // Protect invalid slots on the last page
         if (clickedTop && holder.paginated()) {
             int raw = e.getRawSlot();
 
-            // Only protect the STORAGE area (0 .. visibleStorage-1), never the nav row
             if (raw >= 0 && raw < visibleStorage) {
                 int remaining = holder.logicalSlots() - holder.page() * 45;
-                int valid = Math.max(0, Math.min(45, remaining)); // logical slots remaining on this page
-                valid = Math.min(valid, visibleStorage); // can't exceed this inventory's storage area
+                int valid = Math.max(0, Math.min(45, remaining));
+                valid = Math.min(valid, visibleStorage);
 
                 if (raw >= valid) {
                     e.setCancelled(true);
@@ -192,17 +169,14 @@ public final class BackpackMenuListener implements Listener {
             }
         }
 
-        // ------------------------------------------------------------
         // Shift-click handling
-        // ------------------------------------------------------------
         if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
 
-            // Shift-click from top -> player is okay, except nav row
+            // Shift-click from top -> player
             if (clickedTop) {
-                // Upgrade sockets live in the nav row; route shift-clicks to the socket
-                // handler so SHIFT_RIGHT (remove) / SHIFT_LEFT (toggle) works.
+                // Route socket clicks to module handler
                 if (holder.upgradeSlots().contains(rawSlot)) {
-                    handleUpgradeSocketClick(e, player, holder, rawSlot);
+                    moduleHandler.handleUpgradeSocketClick(e, player, holder, rawSlot);
                     return;
                 }
                 if (rawSlot >= visibleStorage) {
@@ -211,8 +185,7 @@ public final class BackpackMenuListener implements Listener {
                 return;
             }
 
-            // Shift-click from player -> top: insert into logical storage (never into nav
-            // row)
+            // Shift-click from player -> top: insert into logical storage
             e.setCancelled(true);
 
             ItemStack moving = e.getCurrentItem();
@@ -227,11 +200,10 @@ public final class BackpackMenuListener implements Listener {
                 return;
             }
 
-            // sync current page -> data (no DB save now)
             Bukkit.getScheduler().runTask(plugin, player::updateInventory);
             renderer.saveVisibleStorageToData(holder);
 
-            ItemStack remainder = insertIntoBackpackLogical(holder, moving.clone());
+            ItemStack remainder = inventoryService.insertIntoBackpackLogical(holder, moving.clone());
 
             if (remainder == null || remainder.getAmount() <= 0) {
                 e.setCurrentItem(null);
@@ -240,49 +212,30 @@ public final class BackpackMenuListener implements Listener {
             }
 
             renderer.render(holder);
-
-            // mark + debounce-save
-            markInteraction(player, holder);
+            saveManager.markInteraction(player, holder);
             return;
-
         }
 
-        // ------------------------------------------------------------
-        // Protect nav row (filler/buttons), but allow upgrade sockets
-        // ------------------------------------------------------------
+        // Protect nav row (except upgrade sockets)
         if (clickedTop && hasNavRow && rawSlot >= visibleStorage) {
 
             if (holder.upgradeSlots().contains(rawSlot)) {
-                handleUpgradeSocketClick(e, player, holder, rawSlot);
+                moduleHandler.handleUpgradeSocketClick(e, player, holder, rawSlot);
                 return;
             }
 
             int sortSlot = SlotLayout.sortButtonSlot(topSize, holder.upgradeSlots(), holder.paginated());
             if (sortSlot >= 0 && rawSlot == sortSlot) {
                 e.setCancelled(true);
-
                 ItemStack cursor = player.getItemOnCursor();
-                if (ItemStacks.isNotAir(cursor))
-                    return;
-
-                // Block sort-mode changes while inventory is actively being mutated.
-                int last = lastStorageInteractionTick.getOrDefault(player.getUniqueId(), -9999);
-                if (now - last <= 5)
-                    return;
-
-                if (e.getClick() == ClickType.RIGHT) {
-                    holder.sortMode(holder.sortMode().next());
-                    renderer.render(holder);
+                if (ItemStacks.isNotAir(cursor)) {
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
                 }
 
-                if (e.getClick() == ClickType.LEFT) {
-                    sortBackpack(holder);
-                    scheduleSave(player, holder);
-                    renderer.render(holder);
-                    return;
-                }
-
+                inventoryService.sortBackpack(holder, renderer);
+                renderer.render(holder);
+                saveManager.scheduleSave(player, holder);
                 return;
             }
 
@@ -290,119 +243,48 @@ public final class BackpackMenuListener implements Listener {
             int modeSlot = SlotLayout.modeButtonSlot(topSize, holder.upgradeSlots(), holder.paginated(), sortSlot);
             if (modeSlot >= 0 && rawSlot == modeSlot) {
                 e.setCancelled(true);
-
-                // Handle cursor item by giving it back to player before mode change
                 ItemStack cursor = player.getItemOnCursor();
                 if (ItemStacks.isNotAir(cursor)) {
-                    player.getInventory().addItem(cursor);
+                    var leftover = player.getInventory().addItem(cursor);
                     player.setItemOnCursor(null);
+                    if (!leftover.isEmpty()) {
+                        leftover.values().forEach(it -> player.getWorld().dropItemNaturally(player.getLocation(), it));
+                    }
                 }
+
+                boolean isLeftClick = e.getClick().isLeftClick();
+                boolean isRightClick = e.getClick().isRightClick();
 
                 if (!holder.data().isShared()) {
-                    // Currently Private
-                    if (e.getClick() == ClickType.LEFT) {
-                        // Left: Become Host
-                        // Force save current GUI state to DB (ignore timing checks)
-                        flushSaveNow(player, holder, true);
-
-                        // Change mode and save metadata
-                        holder.data().setShared(true);
-                        holder.data().shareHostId(null);
-                        holder.data().sharePassword("");
-                        plugin.repo().saveBackpack(holder.data());
-
-                        // Re-render to sync
-                        renderer.render(holder);
-                        return;
-                    } else if (e.getClick() == ClickType.RIGHT) {
-                        // Right: Become Join mode
-                        openJoinDialog(player, holder);
-                        return;
+                    // Private mode: Left-click → Host Mode (no password required), Right-click →
+                    // Join Mode
+                    if (isLeftClick) {
+                        sharingHost.hostBackpack(player, holder);
+                    } else if (isRightClick) {
+                        // Open join dialog
+                        sharingJoiner.openJoinDialog(player, holder);
                     }
                 } else {
-                    // Currently Shared
-                    if (e.getClick() == ClickType.LEFT) {
-                        // Left: Become Private
-
-                        // If this is a HOST backpack, disconnect all joined backpacks first
+                    // Shared mode: Left-click → Private, Right-click → Set Password (host) or
+                    // Change Join (joiner)
+                    if (isLeftClick) {
+                        // Try to leave (if joiner) or disable share (if host)
                         if (holder.data().isShareHost()) {
-                            var joinedIds = plugin.repo().disconnectAllJoinedBackpacks(holder.backpackId());
-                            // Force-close any joined sessions to avoid ghost locks/UIs
-                            for (UUID joinedId : joinedIds) {
-                                // Close any open inventories that are for this joined backpack
-                                for (Player online : Bukkit.getOnlinePlayers()) {
-                                    var openInv = online.getOpenInventory().getTopInventory();
-                                    if (openInv != null) {
-                                        var h = openInv.getHolder();
-                                        boolean matches = (h instanceof BackpackMenuHolder bmh
-                                                && joinedId.equals(bmh.backpackId()))
-                                                || (h instanceof ModuleScreenHolder msh
-                                                        && joinedId.equals(msh.backpackId()));
-                                        if (matches) {
-                                            online.sendMessage(Text.c(
-                                                    "&cThe host closed sharing; your backpack is now private."));
-                                            online.closeInventory();
-                                        }
-                                    }
-                                }
-
-                                // Release any lock held for this joined backpack
-                                UUID viewerId = plugin.sessions().lockedTo(joinedId);
-                                if (viewerId != null) {
-                                    plugin.sessions().releaseAllFor(viewerId);
-                                }
-                                plugin.sessions().releaseLock(joinedId);
-                            }
-                        }
-
-                        // If this is a JOINED backpack, restore its original contents
-                        if (holder.data().shareHostId() != null) {
-                            // System.out.println("[ModularPacks] Leave: Restoring joined backpack " +
-                            // holder.backpackId()
-                            // + " from host " + holder.data().shareHostId());
-                            // Load the joiner's original contents from the database
-                            BackpackData restored = plugin.repo().loadJoinerContents(holder.backpackId());
-                            if (restored != null && restored.contentsBytes() != null) {
-                                holder.data().contentsBytes(restored.contentsBytes());
-                                holder.data().installedModules().clear();
-                                holder.data().installedSnapshots().clear();
-                                holder.data().moduleStates().clear();
-                                // Copy back the modules if they exist
-                                if (restored.installedModules() != null) {
-                                    holder.data().installedModules().putAll(restored.installedModules());
-                                }
-                                if (restored.installedSnapshots() != null) {
-                                    holder.data().installedSnapshots().putAll(restored.installedSnapshots());
-                                }
-                                if (restored.moduleStates() != null) {
-                                    holder.data().moduleStates().putAll(restored.moduleStates());
-                                }
-                                // System.out.println("[ModularPacks] Leave: Restored joiner's contents");
-                            }
-                        }
-
-                        // Change mode and save metadata (WITHOUT re-reading GUI, to preserve restored
-                        // backup)
-                        holder.data().setShared(false);
-                        holder.data().sharePassword("");
-                        holder.data().shareHostId(null);
-                        plugin.repo().saveBackpack(holder.data());
-
-                        // Re-render to sync
-                        renderer.render(holder);
-                        return;
-                    } else if (e.getClick() == ClickType.RIGHT) {
-                        if (holder.data().isShareHost()) {
-                            // Right on Host: Set password
-                            openPasswordDialog(player, holder);
+                            sharingHost.stopHosting(player, holder);
                         } else {
-                            // Right on Join: Change join settings
-                            openJoinDialog(player, holder);
+                            sharingJoiner.leaveJoinedBackpack(player, holder);
+                            player.sendMessage(Text.c("&aLeft shared backpack."));
                         }
-                        return;
+                    } else if (isRightClick) {
+                        if (holder.data().isShareHost()) {
+                            // Host mode: Set/change password
+                            sharingHost.openPasswordDialog(player, holder);
+                        } else {
+                            // Join mode: Change join (re-open join dialog)
+                            sharingJoiner.openJoinDialog(player, holder);
+                        }
                     }
                 }
-
                 return;
             }
 
@@ -412,87 +294,28 @@ public final class BackpackMenuListener implements Listener {
 
                 if (rawSlot == prevSlot || rawSlot == nextSlot) {
                     e.setCancelled(true);
-
-                    // must not hold item
                     ItemStack cursor = player.getItemOnCursor();
-                    if (ItemStacks.isNotAir(cursor))
-                        return;
-
-                    // Block page changes while inventory is actively being mutated.
-                    // Allow it again after a short quiet period.
-                    int last = lastStorageInteractionTick.getOrDefault(player.getUniqueId(), -9999);
-                    if (now - last <= 5) { // quiet window (2..5 ticks)
+                    if (ItemStacks.isNotAir(cursor)) {
+                        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
                     }
 
-                    // recent activity guard
-                    if (now - last <= 5)
-                        return;
-
-                    // Reject transfer-like actions (sorting mods) on nav buttons
-                    switch (e.getAction()) {
-                        case MOVE_TO_OTHER_INVENTORY,
-                                COLLECT_TO_CURSOR,
-                                HOTBAR_SWAP,
-                                SWAP_WITH_CURSOR -> {
-                            return;
-                        }
-                        default -> {
-                        }
-                    }
-
-                    int targetPage = holder.page();
-                    if (rawSlot == prevSlot && holder.page() > 0) {
-                        targetPage = holder.page() - 1;
-                    } else if (rawSlot == nextSlot) {
-                        int pageCount = pageCount(holder);
-                        if (holder.page() < pageCount - 1) {
-                            targetPage = holder.page() + 1;
-                        } else {
-                            return;
-                        }
-                    } else {
-                        return;
-                    }
-
-                    // Delay 1 tick so we can reject automated click spam (IPN) that hits
-                    // nav buttons as part of its sort routine.
-                    int clickTick = now;
-                    UUID playerId = player.getUniqueId();
-                    UUID backpackId = holder.backpackId();
-                    int finalTargetPage = targetPage;
-
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        Integer burstTick = sortBurstTick.get(playerId);
-                        int burstCount = sortBurstCount.getOrDefault(playerId, 0);
-                        if (burstTick == null || burstTick != clickTick || burstCount != 1)
-                            return;
-
-                        Inventory top2 = player.getOpenInventory().getTopInventory();
-                        if (!(top2.getHolder() instanceof BackpackMenuHolder current))
-                            return;
-                        if (!current.backpackId().equals(backpackId))
-                            return;
-
-                        changePage(player, current, finalTargetPage);
-                    });
-
+                    int direction = (rawSlot == prevSlot) ? -1 : 1;
+                    changePage(player, holder, holder.page() + direction);
                     return;
                 }
-
             }
 
             e.setCancelled(true);
             return;
         }
 
-        // For normal storage moves (pickup/place/etc), schedule a debounced save
+        // Schedule debounced save for normal storage moves
         if (clickedTop && rawSlot >= 0 && rawSlot < visibleStorage) {
             if (e.getAction() != InventoryAction.NOTHING) {
-                markInteraction(player, holder);
+                saveManager.markInteraction(player, holder);
             }
         }
-
     }
 
     @EventHandler
@@ -531,9 +354,9 @@ public final class BackpackMenuListener implements Listener {
                 break;
             }
         }
-        if (targetsTop && isSortingModBurst(player, now)) {
+        if (targetsTop && sortGuard.isSortingModBurst(player, now)) {
             e.setCancelled(true);
-            stabilizeAfterBurst(player, holder);
+            sortGuard.stabilizeAfterBurst(player, holder);
             return;
         }
 
@@ -542,13 +365,12 @@ public final class BackpackMenuListener implements Listener {
                 e.setCancelled(true);
                 return;
             } else if (rawSlot >= 0 && rawSlot < topSize) {
-                // any drag into top inventory counts
-                markInteraction(player, holder);
+                saveManager.markInteraction(player, holder);
                 break;
             }
         }
 
-        // Cancel any drag that targets invalid storage slots on the last page
+        // Cancel drags that target invalid slots on the last page
         if (holder.paginated()) {
             int remaining = holder.logicalSlots() - holder.page() * 45;
             int valid = Math.max(0, Math.min(45, remaining));
@@ -561,7 +383,6 @@ public final class BackpackMenuListener implements Listener {
                 }
             }
         }
-
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -580,13 +401,7 @@ public final class BackpackMenuListener implements Listener {
             }
         }
 
-        // If a backpack somehow ended up inside a backpack (hotbar swap, automation,
-        // etc), the generic nesting guard will prevent removing it, so proactively
-        // eject it now to avoid permanent loss.
-        //
-        // Also eject config-blocked items (BackpackInsertBlacklist / AllowShulkerBoxes
-        // /
-        // AllowBundles) so admin policy changes apply even to previously-stored items.
+        // Eject disallowed items on open
         Bukkit.getScheduler().runTask(plugin, () -> {
             Inventory top = player.getOpenInventory().getTopInventory();
             if (!(top.getHolder() instanceof BackpackMenuHolder openHolder))
@@ -597,7 +412,7 @@ public final class BackpackMenuListener implements Listener {
             EjectResult moved = ejectProhibitedFromData(player, openHolder);
             if (moved.backpacks > 0 || moved.blocked > 0) {
                 renderer.render(openHolder);
-                scheduleSave(player, openHolder);
+                saveManager.scheduleSave(player, openHolder);
                 if (moved.backpacks > 0) {
                     player.sendMessage(Text.c("&cBackpacks can't be stored inside backpacks. Moved " + moved.backpacks
                             + " backpack(s) back to you."));
@@ -611,77 +426,6 @@ public final class BackpackMenuListener implements Listener {
         });
     }
 
-    private boolean isBackpackHotbarSwap(Player player, InventoryClickEvent e) {
-        if (player == null || e == null)
-            return false;
-        int btn = e.getHotbarButton();
-        if (btn < 0)
-            return false;
-        if (btn > 8)
-            return false;
-        // Covers ClickType.NUMBER_KEY and actions like
-        // HOTBAR_SWAP/HOTBAR_MOVE_AND_READD
-        ItemStack hotbar = player.getInventory().getItem(btn);
-        return isBackpack(hotbar);
-    }
-
-    private boolean isBackpack(ItemStack item) {
-        if (ItemStacks.isAir(item) || !item.hasItemMeta())
-            return false;
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null)
-            return false;
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        Keys keys = plugin.keys();
-        return pdc.has(keys.BACKPACK_ID, PersistentDataType.STRING)
-                && pdc.has(keys.BACKPACK_TYPE, PersistentDataType.STRING);
-    }
-
-    private UUID readBackpackId(ItemStack item) {
-        if (ItemStacks.isAir(item) || !item.hasItemMeta())
-            return null;
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null)
-            return null;
-        String idStr = meta.getPersistentDataContainer().get(plugin.keys().BACKPACK_ID, PersistentDataType.STRING);
-        if (idStr == null || idStr.isBlank())
-            return null;
-        try {
-            return UUID.fromString(idStr);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
-    private void refreshBackpackItemsFor(Player player, BackpackMenuHolder holder) {
-        if (player == null || holder == null)
-            return;
-        var inv = player.getInventory();
-        ItemStack[] contents = inv.getContents();
-        if (contents == null || contents.length == 0)
-            return;
-
-        boolean changed = false;
-        UUID target = holder.backpackId();
-        for (int i = 0; i < contents.length; i++) {
-            ItemStack it = contents[i];
-            if (!isBackpack(it))
-                continue;
-            UUID id = readBackpackId(it);
-            if (id == null || !id.equals(target))
-                continue;
-
-            if (backpackItems.refreshInPlace(it, holder.type(), target, holder.data(), holder.logicalSlots())) {
-                inv.setItem(i, it);
-                changed = true;
-            }
-        }
-
-        if (changed) {
-            Bukkit.getScheduler().runTask(plugin, player::updateInventory);
-        }
-    }
-
     @EventHandler
     public void onClose(InventoryCloseEvent e) {
         if (!(e.getPlayer() instanceof Player player))
@@ -692,7 +436,7 @@ public final class BackpackMenuListener implements Listener {
             BackpackData data = plugin.repo().loadOrCreate(msh.backpackId(), msh.backpackType());
             Inventory inv = e.getInventory();
 
-            // Furnace-like: save as FurnaceStateCodec (preserve progress)
+            // Furnace-like: save as FurnaceStateCodec
             if (msh.screenType() == ScreenType.SMELTING
                     || msh.screenType() == ScreenType.BLASTING
                     || msh.screenType() == ScreenType.SMOKING) {
@@ -720,57 +464,54 @@ public final class BackpackMenuListener implements Listener {
                 return;
             }
 
-            // Everything else: save as ItemStackCodec, but do NOT persist derived outputs
+            // Everything else: save as ItemStackCodec
             ItemStack[] items = new ItemStack[inv.getSize()];
             for (int i = 0; i < items.length; i++) {
                 items[i] = inv.getItem(i);
             }
 
-            // Clear derived output slots before saving (prevents stale/dupe)
+            // Clear derived output slots
             switch (msh.screenType()) {
                 case CRAFTING -> {
                     if (items.length > 0)
                         items[0] = null;
-                } // result slot
+                }
                 case STONECUTTER -> {
                     if (items.length > 1)
                         items[1] = null;
-                } // output slot
+                }
                 case SMITHING -> {
                     if (items.length > 3)
                         items[3] = null;
-                } // output slot
+                }
                 case ANVIL -> {
                     if (items.length > 2)
                         items[2] = null;
                 }
-
                 default -> {
                 }
             }
 
-            // Restock module uses:
-            // - DROPPER as whitelist (ghost filter)
-            // - HOPPER as threshold config
-            // Both must persist together, so we merge them into a single stored state.
+            // Restock module state merging
             if ((msh.screenType() == ScreenType.HOPPER || msh.screenType() == ScreenType.DROPPER)
                     && isRestockModule(msh, data)) {
                 byte[] merged = mergeRestockState(data, msh.moduleId(), msh.screenType(), items);
                 items = ItemStackCodec.fromBytes(merged);
 
-                // Also write the merged state back into the stored module snapshot so lore
-                // placeholders (e.g. {restockThreshold}) can reflect the current value while
-                // installed.
                 byte[] snap = data.installedSnapshots().get(msh.moduleId());
                 if (snap != null && snap.length > 0) {
                     try {
                         ItemStack[] snapArr = ItemStackCodec.fromBytes(snap);
                         if (snapArr.length > 0 && snapArr[0] != null) {
-                            ItemStack moduleItem = snapArr[0].clone();
-                            writeModuleStateToItem(moduleItem, merged);
-                            applyModuleLore(moduleItem);
-                            data.installedSnapshots().put(msh.moduleId(),
-                                    ItemStackCodec.toBytes(new ItemStack[] { moduleItem.clone() }));
+                            ItemMeta meta = snapArr[0].getItemMeta();
+                            if (meta != null) {
+                                String b64 = java.util.Base64.getEncoder().encodeToString(merged);
+                                meta.getPersistentDataContainer().set(plugin.keys().MODULE_STATE_B64,
+                                        PersistentDataType.STRING, b64);
+                                snapArr[0].setItemMeta(meta);
+                                data.installedSnapshots().put(msh.moduleId(),
+                                        ItemStackCodec.toBytes(snapArr));
+                            }
                         }
                     } catch (Exception ignored) {
                     }
@@ -789,26 +530,14 @@ public final class BackpackMenuListener implements Listener {
             int now = Bukkit.getCurrentTick();
             int ignoreUntil = ignoreCloseUntilTick.getOrDefault(player.getUniqueId(), -1);
 
-            // If this close was caused by a page switch (resizeGui reopen), don't flush
-            // here.
             if (now <= ignoreUntil) {
                 return;
             }
 
-            // Cancel any pending debounced save
-            SaveKey key = new SaveKey(player.getUniqueId(), holder.backpackId());
-            BukkitTask existing = pendingSaves.remove(key);
-            if (existing != null) {
-                existing.cancel();
-            }
+            saveManager.cancelPendingSave(player, holder.backpackId());
 
-            // Save the current state directly from the inventory (still accessible during
-            // close event)
             renderer.saveVisibleStorageToData(holder);
 
-            // If a blocked item (shulker, bundle, admin blacklist, etc) somehow made it
-            // into the backpack (version changes, exploits, etc), eject it immediately on
-            // close so it can't remain stuck/hidden in the DB.
             EjectResult moved = ejectProhibitedFromData(player, holder);
             if (moved.backpacks > 0) {
                 player.sendMessage(Text.c("&cBackpacks can't be stored inside backpacks. Moved " + moved.backpacks
@@ -820,132 +549,60 @@ public final class BackpackMenuListener implements Listener {
             }
 
             plugin.repo().saveBackpack(holder.data());
-            refreshBackpackItemsFor(player, holder);
+            moduleHandler.refreshBackpackItemsFor(player, holder);
             plugin.sessions().refreshLinkedBackpacksThrottled(holder.backpackId(), holder.data());
             plugin.sessions().onRelatedInventoryClose(player, holder.backpackId());
-
-            dirtySinceTick.remove(player.getUniqueId());
 
             try {
                 player.playSound(player.getLocation(), plugin.cfg().backpackCloseSound(), 1.0f, 1.0f);
             } catch (Exception ignored) {
             }
 
-            // cleanup burst guard tracking for this player
-            UUID playerId = player.getUniqueId();
-            sortBurstTick.remove(playerId);
-            sortBurstCount.remove(playerId);
-            cancelClicksUntilTick.remove(playerId);
-            sortWindowTicks.remove(playerId);
-            sortBurstNotifiedAtTick.remove(playerId);
+            sortGuard.clearPlayerData(player.getUniqueId());
         }
-
     }
 
-    private boolean isRestockModule(ModuleScreenHolder msh, BackpackData data) {
-        if (msh == null || data == null)
-            return false;
-        byte[] snap = data.installedSnapshots().get(msh.moduleId());
-        if (snap == null || snap.length == 0)
-            return false;
-        ItemStack[] arr;
-        try {
-            arr = ItemStackCodec.fromBytes(snap);
-        } catch (Exception ex) {
-            return false;
-        }
-        if (arr.length == 0 || arr[0] == null || !arr[0].hasItemMeta())
-            return false;
-        ItemMeta meta = arr[0].getItemMeta();
-        if (meta == null)
-            return false;
-        String type = meta.getPersistentDataContainer().get(plugin.keys().MODULE_TYPE, PersistentDataType.STRING);
-        return type != null && type.equalsIgnoreCase("Restock");
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        Player player = e.getPlayer();
+        if (player == null)
+            return;
+        UUID playerId = player.getUniqueId();
+        plugin.sessions().releaseAllFor(playerId);
+        saveManager.clearPlayerData(playerId);
+        sortGuard.clearPlayerData(playerId);
     }
 
-    private byte[] mergeRestockState(BackpackData data, UUID moduleId, ScreenType screenType, ItemStack[] viewItems) {
-        // Stored state format:
-        // - indices 0..8: whitelist (ghost filter entries)
-        // - index 9: threshold marker item (CHEST amount=threshold)
-        ItemStack[] stored = readRestockStoredState(data, moduleId);
+    private void changePage(Player player, BackpackMenuHolder holder, int newPage) {
+        renderer.saveVisibleStorageToData(holder);
 
-        if (screenType == ScreenType.DROPPER) {
-            // Update whitelist from the 9-slot dropper inventory.
-            for (int i = 0; i < 9; i++) {
-                stored[i] = (viewItems != null && i < viewItems.length) ? sanitizeGhost(viewItems[i]) : null;
-            }
-        } else if (screenType == ScreenType.HOPPER) {
-            int threshold = 16;
-            if (viewItems != null && viewItems.length > 2 && ItemStacks.isNotAir(viewItems[2])) {
-                int amt = viewItems[2].getAmount();
-                if (amt > 0)
-                    threshold = Math.max(1, Math.min(64, amt));
-            }
-            stored[9] = makeRestockThresholdMarker(threshold);
+        int clamped = Math.max(0, Math.min(newPage, pageCount(holder) - 1));
+        if (clamped == holder.page())
+            return;
+
+        holder.page(clamped);
+
+        saveManager.scheduleSave(player, holder);
+
+        if (!plugin.cfg().resizeGui()) {
+            renderer.render(holder);
+            return;
         }
 
-        return ItemStackCodec.toBytes(stored);
+        // Reopen next tick (resize GUI mode)
+        int now = Bukkit.getCurrentTick();
+        ignoreCloseUntilTick.put(player.getUniqueId(), now + 1);
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            renderer.openMenu(player, holder.data(), holder.type(), holder.page());
+        });
     }
 
-    private ItemStack[] readRestockStoredState(BackpackData data, UUID moduleId) {
-        ItemStack[] out = new ItemStack[10];
-
-        // default threshold from config (if present)
-        int threshold = plugin.getConfig().getInt("Upgrades.Restock.RestockThreshold", 16);
-        threshold = Math.max(1, Math.min(64, threshold));
-        out[9] = makeRestockThresholdMarker(threshold);
-
-        if (data == null || moduleId == null)
-            return out;
-        byte[] existing = data.moduleStates().get(moduleId);
-        if (existing == null || existing.length == 0)
-            return out;
-
-        ItemStack[] arr;
-        try {
-            arr = ItemStackCodec.fromBytes(existing);
-        } catch (Exception ex) {
-            return out;
-        }
-
-        // Copy whitelist (first 9)
-        int limit = Math.min(9, arr.length);
-        for (int i = 0; i < limit; i++) {
-            out[i] = sanitizeGhost(arr[i]);
-        }
-
-        // Threshold marker: prefer index 9 (new), fallback to slot 2 (old hopper-only)
-        if (arr.length > 9 && ItemStacks.isNotAir(arr[9])) {
-            int amt = arr[9].getAmount();
-            if (amt > 0)
-                out[9] = makeRestockThresholdMarker(amt);
-        } else if (arr.length > 2 && ItemStacks.isNotAir(arr[2])) {
-            int amt = arr[2].getAmount();
-            if (amt > 0)
-                out[9] = makeRestockThresholdMarker(amt);
-        }
-
-        return out;
-    }
-
-    private ItemStack sanitizeGhost(ItemStack it) {
-        if (ItemStacks.isAir(it))
-            return null;
-        ItemStack s = it.clone();
-        s.setAmount(1);
-        return s;
-    }
-
-    private ItemStack makeRestockThresholdMarker(int threshold) {
-        int t = Math.max(1, Math.min(64, threshold));
-        ItemStack marker = new ItemStack(Material.CHEST);
-        marker.setAmount(t);
-        ItemMeta meta = marker.getItemMeta();
-        if (meta != null) {
-            meta.displayName(net.kyori.adventure.text.Component.text("Restock Threshold"));
-            marker.setItemMeta(meta);
-        }
-        return marker;
+    private int pageCount(BackpackMenuHolder holder) {
+        if (!holder.paginated())
+            return 1;
+        int logical = holder.logicalSlots();
+        return Math.max(1, (int) Math.ceil(logical / 45.0));
     }
 
     private EjectResult ejectProhibitedFromData(Player player, BackpackMenuHolder holder) {
@@ -955,7 +612,6 @@ public final class BackpackMenuListener implements Listener {
         int movedBackpacks = 0;
         int movedBlocked = 0;
 
-        // Scan logical storage (all pages), not just currently-visible slots.
         ItemStack[] logical = ItemStackCodec.fromBytes(holder.data().contentsBytes());
         int logicalSize = holder.logicalSlots();
         if (logical.length != logicalSize) {
@@ -991,603 +647,6 @@ public final class BackpackMenuListener implements Listener {
         return new EjectResult(movedBackpacks, movedBlocked);
     }
 
-    private record EjectResult(int backpacks, int blocked) {
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        Player player = e.getPlayer();
-        if (player == null)
-            return;
-        plugin.sessions().releaseAllFor(player.getUniqueId());
-    }
-
-    // ------------------------------------------------------------
-    // Upgrade socket click behavior (Map<Integer, UUID> installedModules)
-    // ------------------------------------------------------------
-    private void handleUpgradeSocketClick(
-            InventoryClickEvent e,
-            Player player,
-            BackpackMenuHolder holder,
-            int invSlot) {
-        e.setCancelled(true);
-
-        ItemStack clicked = e.getCurrentItem();
-        ItemStack cursor = e.getCursor();
-        ClickType click = e.getClick();
-
-        // -----------------------------------------
-        // Cursor has an item
-        // -----------------------------------------
-        if (ItemStacks.isNotAir(cursor)) {
-            // INSTALL: cursor has module, socket empty
-            if (isModuleItem(cursor) && isEmptySocket(clicked)) {
-                installModuleFromCursor(player, holder, invSlot, cursor);
-                renderer.render(holder);
-                return;
-            }
-
-            // TANK: bucket interactions on the installed tank module
-            if (isTankModule(clicked)) {
-                // If the storage area was modified, ensure we sync it into holder.data()
-                // before re-rendering, otherwise a render can overwrite "unsaved" changes.
-                renderer.saveVisibleStorageToData(holder);
-                ItemStack updated = handleTankCursorClick(player, holder, clicked, cursor);
-                if (updated != null) {
-                    e.setCurrentItem(updated);
-                    updateModuleSnapshot(holder, updated);
-                    scheduleSave(player, holder);
-                    renderer.render(holder);
-                }
-                return;
-            }
-            return;
-        }
-
-        // -----------------------------------------
-        // From here on: cursor is empty
-        // -----------------------------------------
-        if (ItemStacks.isAir(clicked))
-            return;
-
-        if (!isModuleItem(clicked))
-            return;
-
-        // -----------------------------------------
-        // REMOVE (Shift+Right)
-        // -----------------------------------------
-        if (click == ClickType.SHIFT_RIGHT) {
-            removeModuleToPlayer(player, holder, invSlot);
-            renderer.saveVisibleStorageToData(holder);
-            renderer.render(holder);
-            return;
-        }
-
-        // -----------------------------------------
-        // TOGGLE (Shift+Left)
-        // -----------------------------------------
-        if (click == ClickType.SHIFT_LEFT) {
-            ItemStack updated = toggleModule(holder, clicked);
-            if (updated != null) {
-                e.setCurrentItem(updated);
-                updateModuleSnapshot(holder, updated);
-            }
-            scheduleSave(player, holder);
-            renderer.saveVisibleStorageToData(holder);
-            renderer.render(holder);
-            return;
-        }
-
-        // -----------------------------------------
-        // MODULE ACTIONS (Tank: +1/-1 levels)
-        // -----------------------------------------
-        if (isTankModule(clicked)) {
-            // Only allow the secondary action (right-click) if the module opts in.
-            if (click == ClickType.RIGHT) {
-                String type = getModuleType(clicked);
-                var def = plugin.cfg().findUpgrade(type);
-                if (def == null || !def.secondaryAction())
-                    return;
-            }
-
-            renderer.saveVisibleStorageToData(holder);
-            ItemStack updated = handleTankEmptyCursorClick(player, holder, clicked, click);
-            if (updated != null) {
-                e.setCurrentItem(updated);
-                updateModuleSnapshot(holder, updated);
-                scheduleSave(player, holder);
-                renderer.render(holder);
-            }
-            return;
-        }
-
-        // -----------------------------------------
-        // SECONDARY ACTION (Feeding: cycle behavior settings)
-        // -----------------------------------------
-        if (click == ClickType.RIGHT && isFeedingModule(clicked)) {
-            String type = getModuleType(clicked);
-            var def = plugin.cfg().findUpgrade(type);
-            if (def == null || !def.secondaryAction())
-                return;
-
-            if (cycleFeedingSettings(clicked)) {
-                refreshModuleVisuals(holder, clicked);
-                updateModuleSnapshot(holder, clicked);
-                scheduleSave(player, holder);
-                renderer.saveVisibleStorageToData(holder);
-                renderer.render(holder);
-                // player.sendMessage(Text.c("&7Feeding: &f" + formatFeedingSettings(clicked)));
-            }
-            return;
-        }
-
-        // -----------------------------------------
-        // SECONDARY ACTION (Jukebox: cycle playback mode)
-        // -----------------------------------------
-        if (click == ClickType.RIGHT && isJukeboxModule(clicked)) {
-            String type = getModuleType(clicked);
-            var def = plugin.cfg().findUpgrade(type);
-            if (def == null || !def.secondaryAction())
-                return;
-
-            if (cycleJukeboxMode(clicked)) {
-                refreshModuleVisuals(holder, clicked);
-                updateModuleSnapshot(holder, clicked);
-                scheduleSave(player, holder);
-                renderer.saveVisibleStorageToData(holder);
-                renderer.render(holder);
-                // player.sendMessage(Text.c("&7Jukebox: &f" + formatJukeboxMode(clicked)));
-            }
-            return;
-        }
-
-        // -----------------------------------------
-        // Restock: Primary=Whitelist (Dropper), Secondary=Threshold (Hopper)
-        // -----------------------------------------
-        if (isRestockModule(clicked)) {
-            // Primary action (left-click): whitelist
-            if (click == ClickType.LEFT) {
-                openRestockScreen(player, holder, clicked, ScreenType.DROPPER);
-                return;
-            }
-
-            // Secondary action (right-click): threshold
-            if (click == ClickType.RIGHT) {
-                String type = getModuleType(clicked);
-                var def = plugin.cfg().findUpgrade(type);
-                if (def == null || !def.secondaryAction())
-                    return;
-                openRestockScreen(player, holder, clicked, ScreenType.HOPPER);
-                return;
-            }
-        }
-
-        // -----------------------------------------
-        // OPEN MODULE UI
-        // -----------------------------------------
-        if (click == ClickType.LEFT) {
-            openModuleScreen(player, holder, clicked);
-            return;
-        }
-
-        // Only open on right-click if this module opts into a secondary action.
-        if (click == ClickType.RIGHT) {
-            String type = getModuleType(clicked);
-            var def = plugin.cfg().findUpgrade(type);
-            if (def != null && def.secondaryAction()) {
-                openModuleScreen(player, holder, clicked);
-            }
-            return;
-        }
-
-    }
-
-    private boolean isTankModule(ItemStack moduleItem) {
-        String type = getModuleType(moduleItem);
-        return type != null && type.equalsIgnoreCase("Tank");
-    }
-
-    private boolean isFeedingModule(ItemStack moduleItem) {
-        String type = getModuleType(moduleItem);
-        return type != null && type.equalsIgnoreCase("Feeding");
-    }
-
-    private boolean isJukeboxModule(ItemStack moduleItem) {
-        String type = getModuleType(moduleItem);
-        return type != null && type.equalsIgnoreCase("Jukebox");
-    }
-
-    private boolean isRestockModule(ItemStack moduleItem) {
-        String type = getModuleType(moduleItem);
-        return type != null && type.equalsIgnoreCase("Restock");
-    }
-
-    private void openRestockScreen(Player player, BackpackMenuHolder holder, ItemStack moduleItem, ScreenType screen) {
-        if (player == null || holder == null || moduleItem == null || screen == null)
-            return;
-
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return;
-
-        Keys keys = plugin.keys();
-        String idStr = meta.getPersistentDataContainer().get(keys.MODULE_ID, PersistentDataType.STRING);
-        if (idStr == null)
-            return;
-
-        UUID moduleId;
-        try {
-            moduleId = UUID.fromString(idStr);
-        } catch (IllegalArgumentException ex) {
-            return;
-        }
-
-        flushSaveNow(player, holder);
-        screens.open(player, holder.backpackId(), holder.type().id(), moduleId, screen);
-    }
-
-    private enum JukeboxMode {
-        SHUFFLE("Shuffle"),
-        REPEAT_ONE("Repeat One"),
-        REPEAT_ALL("Repeat All");
-
-        JukeboxMode(String displayName) {
-        }
-
-        static JukeboxMode fromString(String raw, String fallbackRaw) {
-            JukeboxMode parsed = parse(raw);
-            if (parsed != null)
-                return parsed;
-            parsed = parse(fallbackRaw);
-            if (parsed != null)
-                return parsed;
-            return REPEAT_ALL;
-        }
-
-        private static JukeboxMode parse(String raw) {
-            if (raw == null)
-                return null;
-            String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
-            if (s.isEmpty())
-                return null;
-            return switch (s) {
-                case "SHUFFLE", "RANDOM" -> SHUFFLE;
-                case "REPEAT_ONE", "REPEAT1", "ONE" -> REPEAT_ONE;
-                case "REPEAT_ALL", "REPEATALL", "ALL" -> REPEAT_ALL;
-                default -> null;
-            };
-        }
-
-        public JukeboxMode next() {
-            return switch (this) {
-                case SHUFFLE -> REPEAT_ONE;
-                case REPEAT_ONE -> REPEAT_ALL;
-                case REPEAT_ALL -> SHUFFLE;
-            };
-        }
-    }
-
-    private boolean cycleJukeboxMode(ItemStack moduleItem) {
-        if (moduleItem == null || !moduleItem.hasItemMeta())
-            return false;
-
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return false;
-
-        Keys keys = plugin.keys();
-        var pdc = meta.getPersistentDataContainer();
-
-        JukeboxMode current = JukeboxMode.fromString(
-                pdc.get(keys.MODULE_JUKEBOX_MODE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Jukebox.Mode", "RepeatAll"));
-        JukeboxMode next = current.next();
-
-        pdc.set(keys.MODULE_JUKEBOX_MODE, PersistentDataType.STRING, next.name());
-        moduleItem.setItemMeta(meta);
-        return true;
-    }
-
-    private boolean cycleFeedingSettings(ItemStack moduleItem) {
-        if (moduleItem == null || !moduleItem.hasItemMeta())
-            return false;
-
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return false;
-
-        Keys keys = plugin.keys();
-        var pdc = meta.getPersistentDataContainer();
-
-        FeedingSelectionMode mode = FeedingSelectionMode.fromString(
-                pdc.get(keys.MODULE_FEEDING_SELECTION_MODE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Feeding.SelectionMode", "BestCandidate"));
-        FeedingPreference pref = FeedingPreference.fromString(
-                pdc.get(keys.MODULE_FEEDING_PREFERENCE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Feeding.Preference", "Nutrition"));
-
-        FeedingSettings next = FeedingSettings.next(mode, pref);
-
-        pdc.set(keys.MODULE_FEEDING_SELECTION_MODE, PersistentDataType.STRING, next.mode().name());
-        pdc.set(keys.MODULE_FEEDING_PREFERENCE, PersistentDataType.STRING, next.preference().name());
-
-        moduleItem.setItemMeta(meta);
-        return true;
-    }
-
-    private enum FeedingSelectionMode {
-        BEST_CANDIDATE("Best Candidate"),
-        WHITELIST_ORDER("Prefer First in Whitelist");
-
-        FeedingSelectionMode(String displayName) {
-        }
-
-        static FeedingSelectionMode fromString(String raw, String fallbackRaw) {
-            FeedingSelectionMode parsed = parse(raw);
-            if (parsed != null)
-                return parsed;
-            parsed = parse(fallbackRaw);
-            if (parsed != null)
-                return parsed;
-            return BEST_CANDIDATE;
-        }
-
-        private static FeedingSelectionMode parse(String raw) {
-            if (raw == null)
-                return null;
-            String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
-            if (s.isEmpty())
-                return null;
-            return switch (s) {
-                case "BEST", "BESTCANDIDATE", "BEST_CANDIDATE" -> BEST_CANDIDATE;
-                case "WHITELIST", "WHITELISTORDER", "WHITELIST_ORDER", "PREFER_FIRST_IN_WHITELIST" -> WHITELIST_ORDER;
-                default -> null;
-            };
-        }
-    }
-
-    private enum FeedingPreference {
-        NUTRITION("Prefer Nutrition"),
-        EFFECTS("Prefer Effects");
-
-        FeedingPreference(String displayName) {
-        }
-
-        static FeedingPreference fromString(String raw, String fallbackRaw) {
-            FeedingPreference parsed = parse(raw);
-            if (parsed != null)
-                return parsed;
-            parsed = parse(fallbackRaw);
-            if (parsed != null)
-                return parsed;
-            return NUTRITION;
-        }
-
-        private static FeedingPreference parse(String raw) {
-            if (raw == null)
-                return null;
-            String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
-            if (s.isEmpty())
-                return null;
-            return switch (s) {
-                case "NUTRITION" -> NUTRITION;
-                case "EFFECT", "EFFECTS" -> EFFECTS;
-                default -> null;
-            };
-        }
-    }
-
-    private record FeedingSettings(FeedingSelectionMode mode, FeedingPreference preference) {
-        static FeedingSettings next(FeedingSelectionMode mode, FeedingPreference pref) {
-            if (mode == null)
-                mode = FeedingSelectionMode.BEST_CANDIDATE;
-            if (pref == null)
-                pref = FeedingPreference.NUTRITION;
-
-            // Cycle order:
-            // BestCandidate+Nutrition -> BestCandidate+Effects -> WhitelistOrder+Nutrition
-            // -> WhitelistOrder+Effects -> ...
-            if (mode == FeedingSelectionMode.BEST_CANDIDATE && pref == FeedingPreference.NUTRITION) {
-                return new FeedingSettings(FeedingSelectionMode.BEST_CANDIDATE, FeedingPreference.EFFECTS);
-            }
-            if (mode == FeedingSelectionMode.BEST_CANDIDATE && pref == FeedingPreference.EFFECTS) {
-                return new FeedingSettings(FeedingSelectionMode.WHITELIST_ORDER, FeedingPreference.NUTRITION);
-            }
-            if (mode == FeedingSelectionMode.WHITELIST_ORDER && pref == FeedingPreference.NUTRITION) {
-                return new FeedingSettings(FeedingSelectionMode.WHITELIST_ORDER, FeedingPreference.EFFECTS);
-            }
-            return new FeedingSettings(FeedingSelectionMode.BEST_CANDIDATE, FeedingPreference.NUTRITION);
-        }
-    }
-
-    private ItemStack handleTankCursorClick(Player player, BackpackMenuHolder holder, ItemStack moduleItem,
-            ItemStack cursor) {
-        if (player == null || holder == null || moduleItem == null || cursor == null)
-            return null;
-
-        UUID moduleId = readModuleId(moduleItem);
-        if (moduleId == null)
-            return null;
-
-        TankStateCodec.State state = TankStateCodec.decode(readModuleState(holder, moduleId, moduleItem));
-
-        Material cursorMat = cursor.getType();
-        if (TankModuleLogic.isSupportedFluidBucket(cursorMat)) {
-            return tankDepositFluid(player, holder, moduleId, moduleItem, cursor, state, cursorMat);
-        }
-        if (cursorMat == Material.BUCKET) {
-            return tankWithdrawFluid(player, holder, moduleId, moduleItem, cursor, state);
-        }
-        return null;
-    }
-
-    private ItemStack handleTankEmptyCursorClick(Player player, BackpackMenuHolder holder, ItemStack moduleItem,
-            ClickType click) {
-        if (player == null || holder == null || moduleItem == null || click == null)
-            return null;
-
-        UUID moduleId = readModuleId(moduleItem);
-        if (moduleId == null)
-            return null;
-
-        TankStateCodec.State state = TankStateCodec.decode(readModuleState(holder, moduleId, moduleItem));
-
-        if (click == ClickType.RIGHT) {
-            // Toggle EXP mode only if tank is truly empty; otherwise withdraw 1 exp level
-            // if in exp mode.
-            if (state.fluidBuckets <= 0 && state.expLevels <= 0) {
-                state.expMode = !state.expMode;
-                return persistTankState(holder, moduleId, moduleItem, state);
-            }
-
-            if (state.expMode && state.expLevels > 0) {
-                state.expLevels--;
-                player.giveExpLevels(1);
-                return persistTankState(holder, moduleId, moduleItem, state);
-            }
-
-            return null;
-        }
-
-        if (click == ClickType.LEFT) {
-            if (!state.expMode)
-                return null;
-            if (state.expLevels >= TankModuleLogic.MAX_EXP_LEVELS)
-                return null;
-            if (player.getLevel() <= 0)
-                return null;
-
-            state.expLevels++;
-            player.giveExpLevels(-1);
-            return persistTankState(holder, moduleId, moduleItem, state);
-        }
-
-        return null;
-    }
-
-    private ItemStack tankDepositFluid(
-            Player player,
-            BackpackMenuHolder holder,
-            UUID moduleId,
-            ItemStack moduleItem,
-            ItemStack cursor,
-            TankStateCodec.State state,
-            Material fluidBucket) {
-        if (state.expMode || state.expLevels > 0)
-            return null;
-        if (state.fluidBuckets >= TankModuleLogic.MAX_FLUID_BUCKETS)
-            return null;
-
-        String curFluid = state.fluidBucketMaterial;
-        if (state.fluidBuckets > 0 && curFluid != null && !curFluid.equalsIgnoreCase(fluidBucket.name()))
-            return null;
-
-        state.fluidBucketMaterial = fluidBucket.name();
-        state.fluidBuckets++;
-
-        // Convert 1 fluid bucket -> 1 empty bucket.
-        ItemStack newCursor = cursor.clone();
-        if (newCursor.getAmount() <= 1) {
-            player.setItemOnCursor(new ItemStack(Material.BUCKET, 1));
-        } else {
-            newCursor.setAmount(newCursor.getAmount() - 1);
-            player.setItemOnCursor(newCursor);
-            giveOrDrop(player, new ItemStack(Material.BUCKET, 1));
-        }
-
-        ItemStack updated = persistTankState(holder, moduleId, moduleItem, state);
-        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
-        return updated;
-    }
-
-    private ItemStack tankWithdrawFluid(
-            Player player,
-            BackpackMenuHolder holder,
-            UUID moduleId,
-            ItemStack moduleItem,
-            ItemStack cursor,
-            TankStateCodec.State state) {
-        if (state.expMode || state.expLevels > 0)
-            return null;
-        if (state.fluidBuckets <= 0)
-            return null;
-
-        Material fluidBucket = state.fluidBucketMaterial == null ? null
-                : Material.matchMaterial(state.fluidBucketMaterial);
-        if (fluidBucket == null || !TankModuleLogic.isSupportedFluidBucket(fluidBucket))
-            return null;
-
-        // Convert 1 empty bucket -> 1 filled bucket.
-        ItemStack newCursor = cursor.clone();
-        if (newCursor.getAmount() <= 1) {
-            player.setItemOnCursor(new ItemStack(fluidBucket, 1));
-        } else {
-            newCursor.setAmount(newCursor.getAmount() - 1);
-            player.setItemOnCursor(newCursor);
-            giveOrDrop(player, new ItemStack(fluidBucket, 1));
-        }
-
-        state.fluidBuckets--;
-        if (state.fluidBuckets <= 0) {
-            state.fluidBuckets = 0;
-            state.fluidBucketMaterial = null;
-        }
-
-        ItemStack updated = persistTankState(holder, moduleId, moduleItem, state);
-        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
-        return updated;
-    }
-
-    private byte[] readModuleState(BackpackMenuHolder holder, UUID moduleId, ItemStack moduleItem) {
-        byte[] fromHolder = holder.data().moduleStates().get(moduleId);
-        if (fromHolder != null)
-            return fromHolder;
-        return readModuleStateFromItem(moduleItem);
-    }
-
-    private UUID readModuleId(ItemStack moduleItem) {
-        if (moduleItem == null || !moduleItem.hasItemMeta())
-            return null;
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return null;
-        String idStr = meta.getPersistentDataContainer().get(plugin.keys().MODULE_ID, PersistentDataType.STRING);
-        if (idStr == null)
-            return null;
-        try {
-            return UUID.fromString(idStr);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
-    private ItemStack persistTankState(BackpackMenuHolder holder, UUID moduleId, ItemStack moduleItem,
-            TankStateCodec.State state) {
-        // Enforce mutual exclusivity
-        if (state.expLevels > 0) {
-            state.expMode = true;
-            state.fluidBuckets = 0;
-            state.fluidBucketMaterial = null;
-        }
-        if (state.fluidBuckets > 0) {
-            state.expMode = false;
-            state.expLevels = 0;
-        }
-
-        // clamp
-        state.fluidBuckets = Math.max(0, Math.min(TankModuleLogic.MAX_FLUID_BUCKETS, state.fluidBuckets));
-        state.expLevels = Math.max(0, Math.min(TankModuleLogic.MAX_EXP_LEVELS, state.expLevels));
-
-        byte[] bytes = TankStateCodec.encode(state);
-        holder.data().moduleStates().put(moduleId, bytes);
-
-        // Store state on the physical module item too, so it carries across backpacks
-        writeModuleStateToItem(moduleItem, bytes);
-
-        // Visuals (material + lore)
-        return TankModuleLogic.applyVisuals(plugin, moduleItem, state);
-    }
-
     private void giveOrDrop(Player player, ItemStack item) {
         if (player == null || ItemStacks.isAir(item))
             return;
@@ -1597,1023 +656,127 @@ public final class BackpackMenuListener implements Listener {
         }
     }
 
-    private boolean isModuleItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta())
+    private boolean isBackpackHotbarSwap(Player player, InventoryClickEvent e) {
+        if (player == null || e == null)
             return false;
-        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
-        Keys keys = plugin.keys();
-        return pdc.has(keys.MODULE_ID, PersistentDataType.STRING)
-                && pdc.has(keys.MODULE_TYPE, PersistentDataType.STRING);
-    }
-
-    private void installModuleFromCursor(Player player, BackpackMenuHolder holder, int invSlot, ItemStack cursor) {
-        Keys keys = plugin.keys();
-
-        ItemMeta meta = cursor.getItemMeta();
-        if (meta == null)
-            return;
-
-        String moduleType = meta.getPersistentDataContainer().get(keys.MODULE_TYPE, PersistentDataType.STRING);
-        if (moduleType == null)
-            return;
-
-        // prevent duplicate module types
-        if (isModuleTypeInstalled(holder, moduleType)) {
-            playSocketFail(player);
-            return;
-        }
-
-        String idStr = meta.getPersistentDataContainer().get(keys.MODULE_ID, PersistentDataType.STRING);
-        if (idStr == null)
-            return;
-
-        UUID moduleId = UUID.fromString(idStr);
-
-        int socketIndex = holder.upgradeSlots().indexOf(invSlot);
-        if (socketIndex < 0)
-            return;
-
-        renderer.saveVisibleStorageToData(holder);
-
-        // link module to socket
-        holder.data().installedModules().put(socketIndex, moduleId);
-
-        // IMPORT module persistent state from the module item (so it carries across
-        // backpacks)
-        byte[] importedState = readModuleStateFromItem(cursor);
-        if (moduleType.equalsIgnoreCase("Tank") && importedState == null) {
-            importedState = TankStateCodec.encode(new TankStateCodec.State());
-        }
-        if (importedState != null) {
-            holder.data().moduleStates().put(moduleId, importedState);
-            if (moduleType.equalsIgnoreCase("Tank")) {
-                writeModuleStateToItem(cursor, importedState);
-                cursor = TankModuleLogic.applyVisuals(plugin, cursor, importedState);
-            }
-        }
-
-        if (!moduleType.equalsIgnoreCase("Tank")) {
-            applyModuleLore(cursor);
-        }
-
-        // snapshot (module item itself)
-        holder.data().installedSnapshots().put(moduleId, ItemStackCodec.toBytes(new ItemStack[] { cursor.clone() }));
-
-        // clear cursor
-        player.setItemOnCursor(null);
-
-        scheduleSave(player, holder);
-        refreshBackpackItemsFor(player, holder);
-        playSocketSuccess(player);
-    }
-
-    private void removeModuleToPlayer(Player player, BackpackMenuHolder holder, int invSlot) {
-        int socketIndex = holder.upgradeSlots().indexOf(invSlot);
-        if (socketIndex < 0)
-            return;
-
-        UUID moduleId = holder.data().installedModules().get(socketIndex);
-        if (moduleId == null)
-            return;
-
-        ItemStack item = null;
-        byte[] snap = holder.data().installedSnapshots().get(moduleId);
-        if (snap != null) {
-            ItemStack[] arr = ItemStackCodec.fromBytes(snap);
-            if (arr.length > 0)
-                item = arr[0];
-        }
-
-        // EXPORT module persistent state into the physical module item
-        byte[] state = holder.data().moduleStates().get(moduleId);
-        if (item != null) {
-            writeModuleStateToItem(item, state);
-            if (isTankModule(item)) {
-                item = TankModuleLogic.applyVisuals(plugin, item, state);
-            } else {
-                applyModuleLore(item);
-            }
-        }
-
-        // clear mappings
-        holder.data().installedModules().remove(socketIndex);
-        holder.data().installedSnapshots().remove(moduleId);
-        holder.data().moduleStates().remove(moduleId);
-
-        if (item != null)
-            player.getInventory().addItem(item);
-
-        scheduleSave(player, holder);
-        refreshBackpackItemsFor(player, holder);
-    }
-
-    private ItemStack toggleModule(BackpackMenuHolder holder, ItemStack moduleItem) {
-        if (holder == null || moduleItem == null)
-            return moduleItem;
-        Keys keys = plugin.keys();
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return moduleItem;
-
-        Byte enabled = meta.getPersistentDataContainer().get(keys.MODULE_ENABLED, PersistentDataType.BYTE);
-        byte newVal = (enabled != null && enabled == 1) ? (byte) 0 : (byte) 1;
-
-        meta.getPersistentDataContainer().set(keys.MODULE_ENABLED, PersistentDataType.BYTE, newVal);
-        moduleItem.setItemMeta(meta);
-
-        return refreshModuleVisuals(holder, moduleItem);
-    }
-
-    private ItemStack refreshModuleVisuals(BackpackMenuHolder holder, ItemStack moduleItem) {
-        if (ItemStacks.isAir(moduleItem) || !moduleItem.hasItemMeta())
-            return moduleItem;
-
-        String type = getModuleType(moduleItem);
-        if (type == null)
-            return moduleItem;
-
-        if (type.equalsIgnoreCase("Tank")) {
-            UUID moduleId = readModuleId(moduleItem);
-            byte[] state = moduleId != null
-                    ? readModuleState(holder, moduleId, moduleItem)
-                    : readModuleStateFromItem(moduleItem);
-            return TankModuleLogic.applyVisuals(plugin, moduleItem, state);
-        }
-
-        applyModuleLore(moduleItem);
-        return moduleItem;
-    }
-
-    private void applyModuleLore(ItemStack moduleItem) {
-        if (ItemStacks.isAir(moduleItem) || !moduleItem.hasItemMeta())
-            return;
-
-        String type = getModuleType(moduleItem);
-        if (type == null)
-            return;
-
-        var def = plugin.cfg().findUpgrade(type);
-        if (def == null)
-            return;
-
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return;
-
-        meta.displayName(Text.c(Placeholders.expandText(plugin, def, moduleItem, def.displayName())));
-        List<String> expanded = Placeholders.expandLore(plugin, def, moduleItem, def.lore());
-        meta.lore(Text.lore(expanded));
-        moduleItem.setItemMeta(meta);
-    }
-
-    private void updateModuleSnapshot(BackpackMenuHolder holder, ItemStack moduleItem) {
-        Keys keys = plugin.keys();
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return;
-
-        String idStr = meta.getPersistentDataContainer().get(keys.MODULE_ID, PersistentDataType.STRING);
-        if (idStr == null)
-            return;
-
-        UUID moduleId = UUID.fromString(idStr);
-        holder.data().installedSnapshots().put(moduleId,
-                ItemStackCodec.toBytes(new ItemStack[] { moduleItem.clone() }));
-    }
-
-    private void openModuleScreen(Player player, BackpackMenuHolder holder, ItemStack moduleItem) {
-        ItemMeta meta = moduleItem.getItemMeta();
-        if (meta == null)
-            return;
-
-        Keys keys = plugin.keys();
-        String moduleType = meta.getPersistentDataContainer().get(keys.MODULE_TYPE, PersistentDataType.STRING);
-        if (moduleType == null)
-            return;
-
-        var def = plugin.cfg().findUpgrade(moduleType);
-        if (def == null)
-            return;
-
-        String idStr = meta.getPersistentDataContainer().get(keys.MODULE_ID, PersistentDataType.STRING);
-        if (idStr == null)
-            return;
-
-        UUID moduleId = UUID.fromString(idStr);
-
-        ScreenType screenType = def.screenType();
-        if (screenType == ScreenType.NONE) {
-            String t = moduleType.toLowerCase(Locale.ROOT);
-            // Defensive defaults so modules still open even if config is missing
-            // ScreenType.
-            switch (t) {
-                case "crafting" -> screenType = ScreenType.CRAFTING;
-                case "smithing" -> screenType = ScreenType.SMITHING;
-                case "stonecutter" -> screenType = ScreenType.STONECUTTER;
-                case "anvil" -> screenType = ScreenType.ANVIL;
-                case "smelting" -> screenType = ScreenType.SMELTING;
-                case "blasting" -> screenType = ScreenType.BLASTING;
-                case "smoking" -> screenType = ScreenType.SMOKING;
-                case "restock" -> screenType = ScreenType.DROPPER; // primary UI (whitelist)
-                case "feeding", "void", "magnet", "jukebox", "tank" -> screenType = ScreenType.DROPPER;
-                default -> screenType = ScreenType.NONE;
-            }
-        }
-
-        // Ensure the module install + current backpack state is persisted before we
-        // open a module UI that loads/saves via the repository.
-        flushSaveNow(player, holder);
-
-        screens.open(player, holder.backpackId(), holder.type().id(), moduleId, screenType);
-
-        // If a region/claim plugin cancels opening the target GUI, vanilla can close
-        // the backpack but refuse to open the module screen. In that case, we must
-        // re-open the backpack menu so our persistence hooks remain active.
-        scheduleModuleOpenVerification(player, holder, moduleId, def.screenType());
-    }
-
-    private void scheduleModuleOpenVerification(
-            Player player,
-            BackpackMenuHolder holder,
-            UUID moduleId,
-            ScreenType screenType) {
-        if (player == null || holder == null || moduleId == null || screenType == null)
-            return;
-
-        UUID playerId = player.getUniqueId();
-        UUID backpackId = holder.backpackId();
-        String typeId = holder.type().id();
-        int page = holder.page();
-
-        long delay = opensNextTick(screenType) ? 1L : 1L;
-
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            Player p = Bukkit.getPlayer(playerId);
-            if (p == null || !p.isOnline())
-                return;
-
-            // Already back in the backpack (open was cancelled but previous UI stayed).
-            var top = p.getOpenInventory() != null ? p.getOpenInventory().getTopInventory() : null;
-            if (top != null) {
-                var h = top.getHolder();
-                if (h instanceof BackpackMenuHolder bmh && backpackId.equals(bmh.backpackId())) {
-                    return;
-                }
-            }
-
-            // Module UI opened successfully.
-            if (isModuleSessionOpen(p, backpackId, moduleId, screenType)) {
-                return;
-            }
-
-            // Don't yank the player out of another container they opened manually.
-            if (top != null && top.getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
-                return;
-            }
-
-            renderer.openMenu(p, backpackId, typeId, page);
-        }, delay);
-    }
-
-    private static boolean opensNextTick(ScreenType screenType) {
-        // These screens are opened via MenuType builders and are scheduled to the next
-        // tick by ScreenRouter.
-        return screenType == ScreenType.ANVIL
-                || screenType == ScreenType.CRAFTING
-                || screenType == ScreenType.SMITHING
-                || screenType == ScreenType.STONECUTTER
-                || screenType == ScreenType.SMELTING
-                || screenType == ScreenType.BLASTING
-                || screenType == ScreenType.SMOKING;
-    }
-
-    private boolean isModuleSessionOpen(Player player, UUID backpackId, UUID moduleId, ScreenType screenType) {
-        if (player == null || backpackId == null || moduleId == null || screenType == null)
+        int btn = e.getHotbarButton();
+        if (btn < 0 || btn > 8)
             return false;
-
-        // MenuType-based module UIs are tracked with explicit per-player sessions.
-        if (screenType == ScreenType.ANVIL) {
-            UUID sessionBackpackId = screens.getAnvilModule().getSessionBackpackId(player);
-            return sessionBackpackId != null && backpackId.equals(sessionBackpackId);
-        }
-        if (screenType == ScreenType.CRAFTING) {
-            UUID sessionBackpackId = screens.getCraftingModule().getSessionBackpackId(player);
-            UUID sessionModuleId = screens.getCraftingModule().getSessionModuleId(player);
-            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
-                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
-        }
-        if (screenType == ScreenType.SMITHING) {
-            UUID sessionBackpackId = screens.getSmithingModule().getSessionBackpackId(player);
-            UUID sessionModuleId = screens.getSmithingModule().getSessionModuleId(player);
-            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
-                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
-        }
-        if (screenType == ScreenType.STONECUTTER) {
-            UUID sessionBackpackId = screens.getStonecutterModule().getSessionBackpackId(player);
-            UUID sessionModuleId = screens.getStonecutterModule().getSessionModuleId(player);
-            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
-                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
-        }
-        if (screenType == ScreenType.SMELTING || screenType == ScreenType.BLASTING
-                || screenType == ScreenType.SMOKING) {
-            UUID sessionBackpackId = screens.getFurnaceModule().getSessionBackpackId(player);
-            UUID sessionModuleId = screens.getFurnaceModule().getSessionModuleId(player);
-            return sessionBackpackId != null && backpackId.equals(sessionBackpackId)
-                    && sessionModuleId != null && moduleId.equals(sessionModuleId);
-        }
-
-        // InventoryHolder-based screens.
-        var top = player.getOpenInventory() != null ? player.getOpenInventory().getTopInventory() : null;
-        if (top != null && top.getHolder() instanceof ModuleScreenHolder msh) {
-            return backpackId.equals(msh.backpackId()) && moduleId.equals(msh.moduleId())
-                    && screenType == msh.screenType();
-        }
-
-        return false;
+        ItemStack hotbar = player.getInventory().getItem(btn);
+        return isBackpack(hotbar);
     }
 
-    private int pageCount(BackpackMenuHolder holder) {
-        if (!holder.paginated())
-            return 1;
-        int logical = holder.logicalSlots();
-        return Math.max(1, (int) Math.ceil(logical / 45.0));
-    }
-
-    private ItemStack insertIntoBackpackLogical(BackpackMenuHolder holder, ItemStack stack) {
-        if (ItemStacks.isAir(stack))
-            return stack;
-        if (!plugin.cfg().isAllowedInBackpack(stack))
-            return stack;
-
-        ItemStack[] logical = ItemStackCodec.fromBytes(holder.data().contentsBytes());
-        int logicalSize = holder.logicalSlots();
-
-        if (logical.length != logicalSize) {
-            ItemStack[] resized = new ItemStack[logicalSize];
-            System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, logicalSize));
-            logical = resized;
-        }
-
-        // Prefer inserting into the CURRENT page range first (prevents client-side
-        // sorting mods from using shift-click to accidentally rewrite earlier pages).
-        if (holder.paginated()) {
-            int start = holder.page() * 45;
-            int end = Math.min(start + 45, logical.length);
-            stack = insertIntoLogicalRange(logical, start, end, stack);
-            if (stack == null || stack.getAmount() <= 0) {
-                holder.data().contentsBytes(ItemStackCodec.toBytes(logical));
-                return null;
-            }
-        }
-
-        // Fallback: insert anywhere (vanilla-ish behavior if current page is full)
-        stack = insertIntoLogicalRange(logical, 0, logical.length, stack);
-
-        holder.data().contentsBytes(ItemStackCodec.toBytes(logical));
-        return stack;
-    }
-
-    private ItemStack insertIntoLogicalRange(ItemStack[] logical, int start, int end, ItemStack stack) {
-        if (ItemStacks.isAir(stack))
-            return stack;
-        start = Math.max(0, start);
-        end = Math.max(start, Math.min(end, logical.length));
-
-        // merge
-        for (int i = start; i < end; i++) {
-            ItemStack cur = logical[i];
-            if (ItemStacks.isAir(cur))
-                continue;
-            if (!cur.isSimilar(stack))
-                continue;
-
-            int max = cur.getMaxStackSize();
-            int space = max - cur.getAmount();
-            if (space <= 0)
-                continue;
-
-            int toMove = Math.min(space, stack.getAmount());
-            cur.setAmount(cur.getAmount() + toMove);
-            stack.setAmount(stack.getAmount() - toMove);
-
-            if (stack.getAmount() <= 0) {
-                return null;
-            }
-        }
-
-        // empty slots
-        for (int i = start; i < end; i++) {
-            ItemStack cur = logical[i];
-            if (ItemStacks.isNotAir(cur))
-                continue;
-
-            int toPlace = Math.min(stack.getMaxStackSize(), stack.getAmount());
-            ItemStack placed = stack.clone();
-            placed.setAmount(toPlace);
-            logical[i] = placed;
-
-            stack.setAmount(stack.getAmount() - toPlace);
-            if (stack.getAmount() <= 0) {
-                return null;
-            }
-        }
-
-        return stack;
-    }
-
-    private void changePage(Player player, BackpackMenuHolder holder, int newPage) {
-        // Sync current page -> data (no DB write)
-        renderer.saveVisibleStorageToData(holder);
-
-        int clamped = Math.max(0, Math.min(newPage, pageCount(holder) - 1));
-        if (clamped == holder.page())
-            return;
-
-        holder.page(clamped);
-
-        // Debounce-save after mutation
-        scheduleSave(player, holder);
-
-        if (!plugin.cfg().resizeGui()) {
-            renderer.render(holder);
-            return;
-        }
-
-        // Reopen next tick (resize GUI mode)
-        int now = Bukkit.getCurrentTick();
-        ignoreCloseUntilTick.put(player.getUniqueId(), now + 1);
-
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            renderer.openMenu(player, holder.data(), holder.type(), holder.page());
-        });
-
-    }
-
-    private String getModuleType(ItemStack item) {
-        if (item == null || !item.hasItemMeta())
-            return null;
+    private boolean isBackpack(ItemStack item) {
+        if (ItemStacks.isAir(item) || !item.hasItemMeta())
+            return false;
         ItemMeta meta = item.getItemMeta();
-        String type = meta.getPersistentDataContainer().get(plugin.keys().MODULE_TYPE, PersistentDataType.STRING);
-        return type;
-    }
-
-    private boolean isModuleTypeInstalled(BackpackMenuHolder holder, String moduleType) {
-        if (moduleType == null)
+        if (meta == null)
             return false;
-
-        // installedModules(): Map<Integer, UUID>
-        for (UUID moduleId : holder.data().installedModules().values()) {
-            if (moduleId == null)
-                continue;
-
-            byte[] snap = holder.data().installedSnapshots().get(moduleId);
-            if (snap == null)
-                continue;
-
-            ItemStack[] arr = ItemStackCodec.fromBytes(snap);
-            if (arr.length == 0 || arr[0] == null)
-                continue;
-
-            String t = getModuleType(arr[0]);
-            if (t != null && t.equalsIgnoreCase(moduleType))
-                return true;
-        }
-        return false;
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        Keys keys = plugin.keys();
+        return pdc.has(keys.BACKPACK_ID, PersistentDataType.STRING)
+                && pdc.has(keys.BACKPACK_TYPE, PersistentDataType.STRING);
     }
 
-    private boolean isEmptySocket(ItemStack item) {
-        if (ItemStacks.isAir(item))
-            return true;
-
-        // If it is a socket placeholder, not a module
-        return !isModuleItem(item);
-    }
-
-    private byte[] readModuleStateFromItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta())
-            return null;
-
-        ItemMeta meta = item.getItemMeta();
-        String b64 = meta.getPersistentDataContainer().get(plugin.keys().MODULE_STATE_B64, PersistentDataType.STRING);
-        if (b64 == null || b64.isBlank())
-            return null;
-
+    private boolean isRestockModule(ModuleScreenHolder msh, BackpackData data) {
+        if (msh == null || data == null)
+            return false;
+        byte[] snap = data.installedSnapshots().get(msh.moduleId());
+        if (snap == null || snap.length == 0)
+            return false;
+        ItemStack[] arr;
         try {
-            return java.util.Base64.getDecoder().decode(b64);
-        } catch (IllegalArgumentException ex) {
-            return null;
+            arr = ItemStackCodec.fromBytes(snap);
+        } catch (Exception ex) {
+            return false;
         }
-    }
-
-    private void writeModuleStateToItem(ItemStack item, byte[] state) {
-        if (item == null)
-            return;
-
-        ItemMeta meta = item.getItemMeta();
+        if (arr.length == 0 || arr[0] == null || !arr[0].hasItemMeta())
+            return false;
+        ItemMeta meta = arr[0].getItemMeta();
         if (meta == null)
-            return;
-
-        var pdc = meta.getPersistentDataContainer();
-
-        if (state == null || state.length == 0) {
-            pdc.remove(plugin.keys().MODULE_STATE_B64);
-        } else {
-            String b64 = java.util.Base64.getEncoder().encodeToString(state);
-            pdc.set(plugin.keys().MODULE_STATE_B64, PersistentDataType.STRING, b64);
-        }
-
-        item.setItemMeta(meta);
-    }
-
-    private void markInteraction(Player player, BackpackMenuHolder holder) {
-        int now = Bukkit.getCurrentTick();
-
-        lastStorageInteractionTick.put(player.getUniqueId(), now);
-        dirtySinceTick.put(player.getUniqueId(), now);
-
-        scheduleSave(player, holder);
-    }
-
-    private void scheduleSave(Player player, BackpackMenuHolder holder) {
-        SaveKey key = new SaveKey(player.getUniqueId(), holder.backpackId());
-
-        BukkitTask existing = pendingSaves.remove(key);
-        if (existing != null)
-            existing.cancel();
-
-        UUID backpackId = holder.backpackId();
-
-        pendingSaves.put(key, Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            // Remove our own task record up front so any reschedule doesn't get removed by
-            // this runnable.
-            pendingSaves.remove(key);
-
-            int now = Bukkit.getCurrentTick();
-            if (player == null || !player.isOnline()) {
-                dirtySinceTick.remove(key.playerId());
-                return;
-            }
-            if (!isSafeToPersist(player, now)) {
-                // IPN-style sorting does many click packets over multiple ticks. If we save
-                // mid-sort, we can persist a transient "in-flight" state and effectively
-                // delete items from the DB snapshot. Keep deferring until stable.
-                scheduleSave(player, holder);
-                return;
-            }
-
-            Inventory top = player.getOpenInventory().getTopInventory();
-            if (top.getHolder() instanceof BackpackMenuHolder current
-                    && current.backpackId().equals(backpackId)) {
-
-                renderer.saveVisibleStorageToData(current);
-                plugin.repo().saveBackpack(current.data());
-                // Re-render to ensure client view matches persisted state (prevents ghost/dupe
-                // views)
-                renderer.render(current);
-                refreshBackpackItemsFor(player, current);
-
-                // Refresh linked backpack items for host and all joiners (so joiners see host
-                // changes)
-                if (current.data().isShareHost()) {
-                    var joined = plugin.repo().listJoinedBackpacks(current.backpackId());
-                    for (UUID j : joined) {
-                        plugin.sessions().refreshLinkedBackpacksThrottled(j, current.data());
-                    }
-                }
-                // Always refresh the host/backpack itself
-                plugin.sessions().refreshLinkedBackpacksThrottled(current.backpackId(), current.data());
-                dirtySinceTick.remove(player.getUniqueId());
-            }
-
-        }, SAVE_DEBOUNCE_TICKS));
-    }
-
-    private void flushSaveNow(Player player, BackpackMenuHolder holder) {
-        flushSaveNow(player, holder, false);
-    }
-
-    private void flushSaveNow(Player player, BackpackMenuHolder holder, boolean force) {
-        SaveKey key = new SaveKey(player.getUniqueId(), holder.backpackId());
-
-        BukkitTask existing = pendingSaves.remove(key);
-        if (existing != null)
-            existing.cancel();
-
-        Inventory top = player.getOpenInventory().getTopInventory();
-        if (top.getHolder() instanceof BackpackMenuHolder current
-                && current.backpackId().equals(holder.backpackId())) {
-            if (!force) {
-                int now = Bukkit.getCurrentTick();
-                if (!isSafeToPersist(player, now)) {
-                    scheduleSave(player, holder);
-                    return;
-                }
-            }
-            renderer.saveVisibleStorageToData(current);
-            plugin.repo().saveBackpack(current.data());
-            refreshBackpackItemsFor(player, current);
-            plugin.sessions().refreshLinkedBackpacksThrottled(current.backpackId(), current.data());
-        } else {
-            renderer.saveVisibleStorageToData(holder);
-            plugin.repo().saveBackpack(holder.data());
-            refreshBackpackItemsFor(player, holder);
-            plugin.sessions().refreshLinkedBackpacksThrottled(holder.backpackId(), holder.data());
-        }
-
-        dirtySinceTick.remove(player.getUniqueId());
-    }
-
-    private void playSocketSuccess(Player player) {
-        player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 1.0f, 1.0f);
-    }
-
-    private void playSocketFail(Player player) {
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.6f);
-    }
-
-    private boolean isSortingModBurst(Player player, int now) {
-        UUID playerId = player.getUniqueId();
-
-        int until = cancelClicksUntilTick.getOrDefault(playerId, -1);
-        if (now <= until) {
-            // Keep extending the block window while spam continues.
-            cancelClicksUntilTick.put(playerId, now + SORT_MOD_CANCEL_WINDOW_TICKS);
-            return true;
-        }
-
-        int lastTick = sortBurstTick.getOrDefault(playerId, Integer.MIN_VALUE);
-        int count = (lastTick == now) ? (sortBurstCount.getOrDefault(playerId, 0) + 1) : 1;
-
-        sortBurstTick.put(playerId, now);
-        sortBurstCount.put(playerId, count);
-
-        java.util.ArrayDeque<Integer> window = sortWindowTicks.computeIfAbsent(playerId,
-                _k -> new java.util.ArrayDeque<>());
-        window.addLast(now);
-        while (!window.isEmpty() && (now - window.peekFirst()) > SORT_MOD_WINDOW_TICKS) {
-            window.removeFirst();
-        }
-
-        if (count >= SORT_MOD_PER_TICK_THRESHOLD || window.size() >= SORT_MOD_WINDOW_THRESHOLD) {
-            cancelClicksUntilTick.put(playerId, now + SORT_MOD_CANCEL_WINDOW_TICKS);
-
-            int lastNotified = sortBurstNotifiedAtTick.getOrDefault(playerId, Integer.MIN_VALUE);
-            if ((now - lastNotified) > 40) {
-                sortBurstNotifiedAtTick.put(playerId, now);
-                player.sendMessage(Text.c("&cClient-side sorting is blocked in backpacks. Use the &eSort &cbutton."));
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private boolean isSafeToPersist(Player player, int now) {
-        if (player == null || !player.isOnline())
             return false;
-
-        UUID playerId = player.getUniqueId();
-
-        int until = cancelClicksUntilTick.getOrDefault(playerId, -1);
-        if (now <= until)
-            return false;
-
-        int last = lastStorageInteractionTick.getOrDefault(playerId, Integer.MIN_VALUE);
-        if (last != Integer.MIN_VALUE && (now - last) <= SAVE_QUIET_TICKS)
-            return false;
-
-        ItemStack cursor = player.getItemOnCursor();
-        if (ItemStacks.isNotAir(cursor))
-            return false;
-
-        return true;
+        String type = meta.getPersistentDataContainer().get(plugin.keys().MODULE_TYPE, PersistentDataType.STRING);
+        return type != null && type.equalsIgnoreCase("Restock");
     }
 
-    private void stabilizeAfterBurst(Player player, BackpackMenuHolder holder) {
-        if (player == null || holder == null)
-            return;
+    private byte[] mergeRestockState(BackpackData data, UUID moduleId, ScreenType screenType, ItemStack[] viewItems) {
+        ItemStack[] stored = readRestockStoredState(data, moduleId);
 
-        boolean changed = stashCursorIntoBackpackOrPlayer(player, holder);
-        if (changed) {
-            markInteraction(player, holder);
-        }
-
-        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
-    }
-
-    private boolean stashCursorIntoBackpackOrPlayer(Player player, BackpackMenuHolder holder) {
-        ItemStack cursor = player.getItemOnCursor();
-        if (ItemStacks.isAir(cursor))
-            return false;
-
-        Inventory inv = holder.getInventory();
-        if (inv == null) {
-            return stashCursorIntoPlayer(player);
-        }
-
-        boolean hasNavRow = holder.paginated() || holder.type().upgradeSlots() > 0;
-        int invSize = inv.getSize();
-        int storageSize = SlotLayout.storageAreaSize(invSize, hasNavRow);
-
-        int valid = storageSize;
-        if (holder.paginated()) {
-            int remaining = holder.logicalSlots() - holder.page() * 45;
-            int pageValid = Math.max(0, Math.min(45, remaining));
-            valid = Math.min(pageValid, storageSize);
-        }
-
-        ItemStack remaining = cursor.clone();
-
-        // Merge into similar stacks first.
-        for (int i = 0; i < valid; i++) {
-            ItemStack cur = inv.getItem(i);
-            if (ItemStacks.isAir(cur))
-                continue;
-            if (!cur.isSimilar(remaining))
-                continue;
-
-            int max = cur.getMaxStackSize();
-            int space = max - cur.getAmount();
-            if (space <= 0)
-                continue;
-
-            int toMove = Math.min(space, remaining.getAmount());
-            cur.setAmount(cur.getAmount() + toMove);
-            remaining.setAmount(remaining.getAmount() - toMove);
-            inv.setItem(i, cur);
-
-            if (remaining.getAmount() <= 0) {
-                player.setItemOnCursor(null);
-                return true;
+        if (screenType == ScreenType.DROPPER) {
+            for (int i = 0; i < 9; i++) {
+                stored[i] = (viewItems != null && i < viewItems.length) ? sanitizeGhost(viewItems[i]) : null;
             }
-        }
-
-        // Put remaining into an empty slot.
-        for (int i = 0; i < valid; i++) {
-            ItemStack cur = inv.getItem(i);
-            if (ItemStacks.isNotAir(cur))
-                continue;
-
-            inv.setItem(i, remaining);
-            player.setItemOnCursor(null);
-            return true;
-        }
-
-        // No room: move to player inventory (and drop overflow).
-        player.setItemOnCursor(null);
-        var leftovers = player.getInventory().addItem(remaining);
-        for (ItemStack left : leftovers.values()) {
-            if (ItemStacks.isAir(left))
-                continue;
-            player.getWorld().dropItemNaturally(player.getLocation(), left);
-        }
-        return true;
-    }
-
-    private boolean stashCursorIntoPlayer(Player player) {
-        ItemStack cursor = player.getItemOnCursor();
-        if (ItemStacks.isAir(cursor))
-            return false;
-
-        player.setItemOnCursor(null);
-        var leftovers = player.getInventory().addItem(cursor);
-        for (ItemStack left : leftovers.values()) {
-            if (ItemStacks.isAir(left))
-                continue;
-            player.getWorld().dropItemNaturally(player.getLocation(), left);
-        }
-        return true;
-    }
-
-    private void sortBackpack(BackpackMenuHolder holder) {
-        // Ensure the current visible page is merged into the logical contents first.
-        renderer.saveVisibleStorageToData(holder);
-
-        int logicalSize = holder.logicalSlots();
-        ItemStack[] logical = ItemStackCodec.fromBytes(holder.data().contentsBytes());
-
-        if (logical.length != logicalSize) {
-            ItemStack[] resized = new ItemStack[logicalSize];
-            System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, logicalSize));
-            logical = resized;
-        }
-
-        List<ItemStack> items = new java.util.ArrayList<>(logical.length);
-        for (ItemStack it : logical) {
-            if (ItemStacks.isAir(it))
-                continue;
-            items.add(it.clone());
-        }
-
-        // Merge partial stacks BEFORE sorting (so COUNT sort and other comparators
-        // behave predictably and we don't leave unnecessary partials).
-        items = mergePartialStacks(items);
-
-        items.sort(BackpackSortMode.comparator(plugin, holder.sortMode()));
-
-        ItemStack[] out = new ItemStack[logicalSize];
-        for (int i = 0; i < Math.min(out.length, items.size()); i++) {
-            out[i] = items.get(i).clone();
-        }
-
-        holder.data().contentsBytes(ItemStackCodec.toBytes(out));
-    }
-
-    private static List<ItemStack> mergePartialStacks(List<ItemStack> input) {
-        if (input == null || input.isEmpty())
-            return java.util.Collections.emptyList();
-
-        java.util.ArrayList<ItemStack> merged = new java.util.ArrayList<>(input.size());
-
-        for (ItemStack stack : input) {
-            if (ItemStacks.isAir(stack))
-                continue;
-
-            ItemStack remaining = stack.clone();
-
-            int maxStack = remaining.getMaxStackSize();
-            if (maxStack <= 1) {
-                merged.add(remaining);
-                continue;
+        } else if (screenType == ScreenType.HOPPER) {
+            int threshold = 16;
+            if (viewItems != null && viewItems.length > 2 && ItemStacks.isNotAir(viewItems[2])) {
+                int amt = viewItems[2].getAmount();
+                if (amt > 0)
+                    threshold = Math.max(1, Math.min(64, amt));
             }
-
-            // First, try to top up existing partial stacks.
-            for (int i = 0; i < merged.size() && remaining.getAmount() > 0; i++) {
-                ItemStack existing = merged.get(i);
-                if (ItemStacks.isAir(existing))
-                    continue;
-                if (existing.getMaxStackSize() <= 1)
-                    continue;
-                if (!existing.isSimilar(remaining))
-                    continue;
-
-                int space = existing.getMaxStackSize() - existing.getAmount();
-                if (space <= 0)
-                    continue;
-
-                int move = Math.min(space, remaining.getAmount());
-                if (move <= 0)
-                    continue;
-
-                ItemStack topped = existing.clone();
-                topped.setAmount(existing.getAmount() + move);
-                merged.set(i, topped);
-
-                remaining.setAmount(remaining.getAmount() - move);
-            }
-
-            // Then, split any leftover into full stacks.
-            while (remaining.getAmount() > 0) {
-                int toPlace = Math.min(remaining.getMaxStackSize(), remaining.getAmount());
-                ItemStack placed = remaining.clone();
-                placed.setAmount(toPlace);
-                merged.add(placed);
-                remaining.setAmount(remaining.getAmount() - toPlace);
-            }
+            stored[9] = makeRestockThresholdMarker(threshold);
         }
 
-        return merged;
+        return ItemStackCodec.toBytes(stored);
     }
 
-    private void openPasswordDialog(Player player, BackpackMenuHolder holder) {
-        String currentPassword = holder.data().sharePassword();
+    private ItemStack[] readRestockStoredState(BackpackData data, UUID moduleId) {
+        ItemStack[] out = new ItemStack[10];
 
-        new AnvilGUI.Builder()
-                .onClick((slot, stateSnapshot) -> {
-                    if (slot != AnvilGUI.Slot.OUTPUT) {
-                        return java.util.Collections.emptyList();
-                    }
+        int threshold = plugin.getConfig().getInt("Upgrades.Restock.RestockThreshold", 16);
+        threshold = Math.max(1, Math.min(64, threshold));
+        out[9] = makeRestockThresholdMarker(threshold);
 
-                    String password = stateSnapshot.getText();
-                    if (password == null) {
-                        password = "";
-                    }
-                    holder.data().sharePassword(password);
-                    flushSaveNow(player, holder);
+        if (data == null || moduleId == null)
+            return out;
+        byte[] existing = data.moduleStates().get(moduleId);
+        if (existing == null || existing.length == 0)
+            return out;
 
-                    return java.util.Arrays.asList(
-                            AnvilGUI.ResponseAction.close(),
-                            AnvilGUI.ResponseAction.run(() -> {
-                                Bukkit.getScheduler().runTask(plugin, () -> {
-                                    renderer.openMenu(player, holder.backpackId(), holder.type().id(), holder.page());
-                                });
-                            }));
-                })
-                .text(currentPassword.isEmpty() ? "Enter password" : currentPassword)
-                .title("Set Share Password")
-                .plugin(plugin)
-                .open(player);
+        ItemStack[] arr;
+        try {
+            arr = ItemStackCodec.fromBytes(existing);
+        } catch (Exception ex) {
+            return out;
+        }
+
+        int limit = Math.min(9, arr.length);
+        for (int i = 0; i < limit; i++) {
+            out[i] = sanitizeGhost(arr[i]);
+        }
+
+        if (arr.length > 9 && ItemStacks.isNotAir(arr[9])) {
+            int amt = arr[9].getAmount();
+            if (amt > 0)
+                out[9] = makeRestockThresholdMarker(amt);
+        } else if (arr.length > 2 && ItemStacks.isNotAir(arr[2])) {
+            int amt = arr[2].getAmount();
+            if (amt > 0)
+                out[9] = makeRestockThresholdMarker(amt);
+        }
+
+        return out;
     }
 
-    private void openJoinDialog(Player player, BackpackMenuHolder holder) {
-        new AnvilGUI.Builder()
-                .onClick((slot, stateSnapshot) -> {
-                    if (slot != AnvilGUI.Slot.OUTPUT) {
-                        return java.util.Collections.emptyList();
-                    }
-
-                    String input = stateSnapshot.getText();
-                    if (input == null || input.trim().isEmpty()) {
-                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                    }
-
-                    // Parse format: "UUID" or "UUID password"
-                    String[] parts = input.trim().split("\\s+", 2);
-                    String hostIdStr = parts[0];
-                    String password = parts.length > 1 ? parts[1] : "";
-
-                    UUID hostId;
-                    try {
-                        hostId = UUID.fromString(hostIdStr);
-                    } catch (IllegalArgumentException ex) {
-                        // If full UUID fails, try searching by UUID prefix
-                        if (hostIdStr.length() > 0 && hostIdStr.length() <= 8) {
-                            hostId = plugin.repo().findBackpackByUuidPrefix(hostIdStr);
-                            if (hostId == null) {
-                                player.sendMessage(Text.c("&cNo backpack found with ID starting with: " + hostIdStr));
-                                return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                            }
-                        } else {
-                            player.sendMessage(
-                                    Text.c("&cInvalid backpack ID format. Use full UUID or first 8 characters."));
-                            return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                        }
-                    }
-
-                    // Verify host backpack exists and is shared
-                    String hostType = plugin.repo().findBackpackType(hostId);
-                    if (hostType == null) {
-                        player.sendMessage(Text.c("&cHost backpack not found"));
-                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                    }
-
-                    BackpackData hostData = plugin.repo().loadOrCreate(hostId, hostType);
-                    if (!hostData.isShared() || !hostData.isShareHost()) {
-                        player.sendMessage(Text.c("&cThat backpack is not shared or is not a host"));
-                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                    }
-
-                    BackpackTypeDef hostDef = plugin.cfg().findType(hostType);
-                    BackpackTypeDef joinerDef = holder.type();
-
-                    if (hostDef == null || joinerDef == null) {
-                        player.sendMessage(Text.c("&cUnable to determine backpack tiers; cannot join."));
-                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                    }
-
-                    if (!hasMatchingTier(joinerDef, hostDef)) {
-                        player.sendMessage(Text.c("&cYour backpack tier (" + joinerDef.displayName()
-                                + "&c) must match the host tier (" + hostDef.displayName() + "&c)."));
-                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                    }
-
-                    // Check password
-                    if (!hostData.sharePassword().isEmpty() && !hostData.sharePassword().equals(password)) {
-                        player.sendMessage(Text.c("&cIncorrect password"));
-                        return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
-                    }
-
-                    // Join successful
-                    // IMPORTANT: Save the joiner's current contents FIRST to preserve them in their
-                    // own row as a backup
-                    plugin.repo().saveJoinerBackup(holder.backpackId(), holder.data());
-
-                    holder.data().setShared(true);
-                    holder.data().shareHostId(hostId);
-                    holder.data().sharePassword(password);
-                    // System.out.println(
-                    // "[ModularPacks] Join: Set backpack " + holder.backpackId() + " to join host "
-                    // + hostId);
-                    player.sendMessage(Text.c("&aSet password to: &f'" + password + "'"));
-                    // Save the share metadata to mark this backpack as joined
-                    plugin.repo().saveShareMetadataOnly(holder.data());
-                    player.sendMessage(Text.c("&aSuccessfully joined backpack"));
-
-                    return java.util.Arrays.asList(
-                            AnvilGUI.ResponseAction.close(),
-                            AnvilGUI.ResponseAction.run(() -> {
-                                Bukkit.getScheduler().runTask(plugin, () -> {
-                                    // System.out.println(
-                                    // "[ModularPacks] Join: Reopening menu for backpack " + holder.backpackId());
-                                    renderer.openMenu(player, holder.backpackId(), holder.type().id(), holder.page());
-                                });
-                            }));
-                })
-                .text("Backpack-ID password")
-                .title("Join Shared Backpack")
-                .plugin(plugin)
-                .open(player);
+    private ItemStack sanitizeGhost(ItemStack it) {
+        if (ItemStacks.isAir(it))
+            return null;
+        ItemStack s = it.clone();
+        s.setAmount(1);
+        return s;
     }
 
-    private static boolean hasMatchingTier(BackpackTypeDef joiner, BackpackTypeDef host) {
-        if (joiner == null || host == null)
-            return false;
-        String a = joiner.id();
-        String b = host.id();
-        if (a == null || b == null)
-            return false;
-        return a.equalsIgnoreCase(b);
+    private ItemStack makeRestockThresholdMarker(int threshold) {
+        int t = Math.max(1, Math.min(64, threshold));
+        ItemStack marker = new ItemStack(org.bukkit.Material.CHEST);
+        marker.setAmount(t);
+        ItemMeta meta = marker.getItemMeta();
+        if (meta != null) {
+            meta.displayName(net.kyori.adventure.text.Component.text("Restock Threshold"));
+            marker.setItemMeta(meta);
+        }
+        return marker;
     }
 
+    private record EjectResult(int backpacks, int blocked) {
+    }
 }
