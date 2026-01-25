@@ -341,8 +341,8 @@ public final class BackpackMenuRenderer {
                 lore.add("&7ID: &f" + shortId);
                 lore.add("&7Password: &f" + (data.sharePassword().isEmpty() ? "(none)" : data.sharePassword()));
                 lore.add("&7");
-                lore.add("&8[&6\u029f-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Private");
-                lore.add("&8[&6\u0280-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 Set Password");
+                lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 → Private");
+                lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Set Password");
                 inv.setItem(slot, namedItem(Material.ENDER_EYE, "&bShared", lore));
             } else {
                 // Join mode
@@ -351,16 +351,16 @@ public final class BackpackMenuRenderer {
                 lore.add("&7Host ID: &f" + shortId);
                 lore.add("&7Password: &f" + (data.sharePassword().isEmpty() ? "(none)" : data.sharePassword()));
                 lore.add("&7");
-                lore.add("&8[&6\u029f-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Private");
-                lore.add("&8[&6\u0280-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 Change Join");
+                lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 → Private");
+                lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Change Join");
                 inv.setItem(slot, namedItem(Material.ENDER_PEARL, "&dJoined", lore));
             }
         } else {
             // Private mode
             lore.add("&7Your backpack is private.");
             lore.add("&7");
-            lore.add("&8[&6\u029f-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Host Mode");
-            lore.add("&8[&6\u0280-\u1d04\u029f\u026a\u1d04\u1d0b&8]&7 → Join Mode");
+            lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 → Host Mode");
+            lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 → Join Mode");
             inv.setItem(slot, namedItem(Material.BARRIER, "&cPrivate", lore));
         }
     }
@@ -379,7 +379,12 @@ public final class BackpackMenuRenderer {
 
             UUID moduleId = holder.data().installedModules().get(socketSlotIndex);
             if (moduleId == null) {
-                inv.setItem(invSlot, namedItem(plugin.cfg().unlockedUpgradeSlotMaterial(), "&f"));
+                List<String> emptyLore = new ArrayList<>();
+                emptyLore.add("&7This is an empty module socket.");
+                emptyLore.add("&7Place a module here to activate");
+                emptyLore.add("&7special backpack abilities.");
+                inv.setItem(invSlot,
+                        namedItem(plugin.cfg().unlockedUpgradeSlotMaterial(), "&eEmpty Module Slot", emptyLore));
                 continue;
             }
 
