@@ -24,12 +24,15 @@ import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.listeners.AnvilModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.BackpackEverlastingListener;
 import io.github.tootertutor.ModularPacks.listeners.BackpackMenuListener;
+import io.github.tootertutor.ModularPacks.listeners.BackpackPlacementListener;
 import io.github.tootertutor.ModularPacks.listeners.BackpackUseListener;
 import io.github.tootertutor.ModularPacks.listeners.ClickDebugListener;
 import io.github.tootertutor.ModularPacks.listeners.CraftingModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.FurnaceModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.ModuleFilterScreenListener;
 import io.github.tootertutor.ModularPacks.listeners.ModuleRecipeListener;
+import io.github.tootertutor.ModularPacks.listeners.PlacedBackpackBreakListener;
+import io.github.tootertutor.ModularPacks.listeners.PlacedBackpackInteractListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventModulePlacementListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventModuleUseListener;
 import io.github.tootertutor.ModularPacks.listeners.PreventNestingListener;
@@ -51,6 +54,8 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private RecipeManager recipes;
     private BackpackSessionManager sessions;
     private ModuleFactory moduleFactory;
+    private PlacedBackpackManager placedBackpacks;
+    private BackpackMenuRenderer backpackMenuRenderer;
 
     @Override
     public void onEnable() {
@@ -75,6 +80,8 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.sessions = new BackpackSessionManager(this);
 
+        this.placedBackpacks = new PlacedBackpackManager(this);
+
         // Create module instances
         ScreenRouter screenRouter = new ScreenRouter(
                 this);
@@ -86,10 +93,11 @@ public final class ModularPacksPlugin extends JavaPlugin {
         this.recipes.reload();
         Bukkit.getPluginManager().registerEvents(this.recipes, this);
 
-        BackpackMenuRenderer renderer = new BackpackMenuRenderer(this);
+        this.backpackMenuRenderer = new BackpackMenuRenderer(this);
 
         Bukkit.getPluginManager().registerEvents(new BackpackUseListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, renderer, screenRouter), this);
+        Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, backpackMenuRenderer, screenRouter),
+                this);
         Bukkit.getPluginManager().registerEvents(new ModuleRecipeListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ModuleFilterScreenListener(this), this);
         Bukkit.getPluginManager().registerEvents(new RestockModuleListener(this), this);
@@ -97,6 +105,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PreventModulePlacementListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventModuleUseListener(this), this);
         Bukkit.getPluginManager().registerEvents(new BackpackEverlastingListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new BackpackPlacementListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PlacedBackpackInteractListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PlacedBackpackBreakListener(this), this);
         Bukkit.getPluginManager().registerEvents(new AnvilModuleListener(this, screenRouter.getAnvilModule()), this);
         Bukkit.getPluginManager().registerEvents(new FurnaceModuleListener(this, screenRouter.getFurnaceModule()),
                 this);
@@ -146,6 +157,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
         if (engines != null)
             engines.stop();
 
+        if (placedBackpacks != null)
+            placedBackpacks.shutdown();
+
         getLogger().info("modularpacks disabled.");
     }
 
@@ -175,6 +189,14 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
     public ModuleFactory moduleFactory() {
         return moduleFactory;
+    }
+
+    public PlacedBackpackManager placedBackpacks() {
+        return placedBackpacks;
+    }
+
+    public BackpackMenuRenderer getBackpackMenuRenderer() {
+        return backpackMenuRenderer;
     }
 
     public void reloadAll() {

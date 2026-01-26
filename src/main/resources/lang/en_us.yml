@@ -70,3 +70,35 @@ restockThreshold:
 
 errors:
   modulePlaceBlocked: "&cYou can't place modules in the world."
+
+# Placeable Backpacks Messages
+backpack:
+  placement:
+    disabled: "&cPlaceable backpacks are disabled."
+    no_permission: "&cYou don't have permission to place backpacks."
+    invalid: "&cInvalid backpack data."
+    in_use: "&cThis backpack is currently in use."
+    already_placed: "&cThis backpack is already placed somewhere in the world."
+    blocked: "&cCannot place backpack there - space is occupied."
+    occupied: "&cA backpack is already placed at this location."
+    failed: "&cFailed to place backpack."
+    error: "&cAn error occurred while placing the backpack."
+
+  open:
+    no_permission: "&cYou don't have permission to open backpacks."
+    error: "&cFailed to load backpack data."
+    locked: "&cThis backpack is currently open by {player}."
+    failed: "&cCannot open backpack."
+    invalid_type: "&cInvalid backpack type."
+
+  pickup:
+    no_permission: "&cYou don't have permission to pick up backpacks."
+    in_use: "&cCannot pick up - backpack is being used by {player}."
+    error: "&cFailed to load backpack data."
+    invalid_type: "&cInvalid backpack type."
+    inventory_full: "&eYour inventory is full! Backpack dropped on the ground."
+
+  break:
+    in_use: "&cCannot break - backpack is being used by {player}."
+    error: "&cFailed to load backpack data."
+    invalid_type: "&cInvalid backpack type."

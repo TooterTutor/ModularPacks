@@ -111,6 +111,7 @@ public final class ModuleEngineService {
         }
 
         tickCarriedBackpacks(openModuleIds, openBackpackIds);
+        tickPlacedBackpacks(openModuleIds, openBackpackIds);
     }
 
     private void tickCarriedBackpacks(Set<UUID> openModuleIds, Set<UUID> openBackpackIds) {
@@ -145,6 +146,20 @@ public final class ModuleEngineService {
         jukeboxEngine.cleanupOfflinePlayers();
     }
 
+    private void tickPlacedBackpacks(Set<UUID> openModuleIds, Set<UUID> openBackpackIds) {
+        // Tick placed backpacks with special module logic for block-form backpacks
+        var placedBackpacks = plugin.placedBackpacks().getAllPlaced();
+
+        for (var placed : placedBackpacks.values()) {
+            if (!placed.isValid()) {
+                continue;
+            }
+
+            // Placed backpacks tick with null player - modules need to handle this case
+            tickBackpack(null, placed.backpackId(), placed.backpackType(), openModuleIds, openBackpackIds);
+        }
+    }
+
     private void tickBackpack(
             Player player,
             UUID backpackId,
@@ -170,26 +185,41 @@ public final class ModuleEngineService {
             UUID voidId = findInstalledModuleId(data, "Void");
             Set<Material> voidWhitelist = (voidId == null) ? Set.of() : readWhitelistFromState(data, voidId);
 
-            UUID feedingId = findInstalledModuleId(data, "Feeding");
-            if (feedingId != null) {
-                ItemStack feedingSnapshot = resolveModuleSnapshotItem(data, feedingId);
-                List<Material> orderedWhitelist = readWhitelistOrderedFromState(data, feedingId);
-                changedAny |= feedingEngine.applyFeeding(player, logical, feedingSnapshot, orderedWhitelist);
+            // Feeding module only works when player is present (carried backpacks)
+            if (player != null) {
+                UUID feedingId = findInstalledModuleId(data, "Feeding");
+                if (feedingId != null) {
+                    ItemStack feedingSnapshot = resolveModuleSnapshotItem(data, feedingId);
+                    List<Material> orderedWhitelist = readWhitelistOrderedFromState(data, feedingId);
+                    changedAny |= feedingEngine.applyFeeding(player, logical, feedingSnapshot, orderedWhitelist);
+                }
             }
 
+            // Magnet module works differently for placed vs carried backpacks
             UUID magnetId = findInstalledModuleId(data, "Magnet");
             if (magnetId != null) {
                 ItemStack magnetSnapshot = resolveModuleSnapshotItem(data, magnetId);
                 ItemStack voidSnapshot = (voidId == null) ? null : resolveModuleSnapshotItem(data, voidId);
-                changedAny |= magnetVoidEngine.applyMagnet(player, logical, readWhitelistFromState(data, magnetId),
-                        magnetSnapshot, backpackId, backpackType, voidId, voidWhitelist, voidSnapshot);
+
+                if (player != null) {
+                    // Carried backpack: use player location
+                    changedAny |= magnetVoidEngine.applyMagnet(player, logical, readWhitelistFromState(data, magnetId),
+                            magnetSnapshot, backpackId, backpackType, voidId, voidWhitelist, voidSnapshot);
+                } else {
+                    // Placed backpack: use block location
+                    changedAny |= applyPlacedBackpackMagnet(backpackId, logical, magnetSnapshot, voidId, voidWhitelist,
+                            voidSnapshot, data);
+                }
             }
 
-            UUID restockId = findInstalledModuleId(data, "Restock");
-            if (restockId != null) {
-                int threshold = readRestockThresholdFromState(data, restockId);
-                java.util.List<ItemStack> whitelist = readRestockWhitelistFromState(data, restockId);
-                changedAny |= restockEngine.applyRestock(player, logical, threshold, whitelist);
+            // Restock module only works when player is present (carried backpacks)
+            if (player != null) {
+                UUID restockId = findInstalledModuleId(data, "Restock");
+                if (restockId != null) {
+                    int threshold = readRestockThresholdFromState(data, restockId);
+                    java.util.List<ItemStack> whitelist = readRestockWhitelistFromState(data, restockId);
+                    changedAny |= restockEngine.applyRestock(player, logical, threshold, whitelist);
+                }
             }
 
             if (changedAny) {
@@ -200,16 +230,38 @@ public final class ModuleEngineService {
         // Ticking module states (furnace-like) is safe even if backpack GUI is open.
         changedAny |= furnaceEngine.tickInstalledFurnaces(data, openModuleIds, ENGINE_DT_TICKS);
 
-        // Jukebox does not mutate contents; safe even while GUI is open.
-        UUID jukeboxId = findInstalledModuleId(data, "Jukebox");
-        ItemStack jukeboxSnapshot = jukeboxId == null ? null : resolveModuleSnapshotItem(data, jukeboxId);
-        jukeboxEngine.tickJukebox(player, backpackId, data, jukeboxId, jukeboxSnapshot);
+        // Jukebox only works when player is present (carried backpacks)
+        if (player != null) {
+            UUID jukeboxId = findInstalledModuleId(data, "Jukebox");
+            ItemStack jukeboxSnapshot = jukeboxId == null ? null : resolveModuleSnapshotItem(data, jukeboxId);
+            jukeboxEngine.tickJukebox(player, backpackId, data, jukeboxId, jukeboxSnapshot);
+        }
 
         if (changedAny) {
             plugin.repo().saveBackpack(data);
-            refreshBackpackItemsFor(player, backpackId, typeDef, data);
+            if (player != null) {
+                refreshBackpackItemsFor(player, backpackId, typeDef, data);
+            }
             plugin.sessions().refreshLinkedBackpacksThrottled(backpackId, data);
         }
+    }
+
+    private boolean applyPlacedBackpackMagnet(UUID backpackId, ItemStack[] logical, ItemStack magnetSnapshot,
+            UUID voidId, Set<Material> voidWhitelist, ItemStack voidSnapshot, BackpackData data) {
+        // Get the placed backpack location
+        var placedBackpack = plugin.placedBackpacks().getAllPlaced().values().stream()
+                .filter(pb -> pb.backpackId().equals(backpackId))
+                .findFirst()
+                .orElse(null);
+
+        if (placedBackpack == null || !placedBackpack.isValid()) {
+            return false;
+        }
+
+        // Use a special magnet implementation for placed backpacks
+        return magnetVoidEngine.applyMagnetAtLocation(placedBackpack.location(), logical,
+                readWhitelistFromState(data, findInstalledModuleId(data, "Magnet")),
+                magnetSnapshot, backpackId, data.backpackType(), voidId, voidWhitelist, voidSnapshot);
     }
 
     private void refreshBackpackItemsFor(Player player, UUID backpackId, BackpackTypeDef typeDef,

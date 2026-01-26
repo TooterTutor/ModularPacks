@@ -1,5 +1,5 @@
 name: ModularPacks
-version: "1.21.10-1.0"
+version: "1.21.10-2.0"
 main: io.github.tootertutor.ModularPacks.ModularPacksPlugin
 api-version: "1.21"
 
@@ -17,4 +17,11 @@ permissions:
   modularpacks.admin:
     default: op
   modularpacks.recipe:
+    default: true
+
+  modularpacks.place:
+    default: true
+  modularpacks.pickup:
+    default: true
+  modularpacks.open:
     default: true

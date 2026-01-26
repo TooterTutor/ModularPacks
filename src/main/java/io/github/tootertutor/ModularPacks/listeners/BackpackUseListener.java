@@ -35,6 +35,11 @@ public final class BackpackUseListener implements Listener {
         if (item == null || !item.hasItemMeta())
             return;
 
+        // Skip if player is sneaking with a backpack - they're trying to place it, not
+        // open it
+        if (p.isSneaking())
+            return;
+
         Keys keys = plugin.keys();
         var pdc = item.getItemMeta().getPersistentDataContainer();
 

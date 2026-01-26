@@ -30,13 +30,12 @@ modularpacks:
   UnlockedUpgradeSlotMaterial: WHITE_STAINED_GLASS_PANE
   LockedUpgradeSlotMaterial: IRON_BARS
 
-  # GUI Navigation Layout
-  # 🮵🮀🮁🮁🮁🮁🮁🮀🮶
-  #
-  # Total of 9 slots wide.
-  # 🮵 & 🮶 represents the Page Buttons
-  # 🮀 represents the Border Fillers
-  # 🮁 represents the UpgradeSlots
+  # Placeable Backpacks
+  # Whether backpacks can be placed as blocks in the world by shift-right-clicking.
+  Placeable: true
+  # Whether placed backpacks should drop their items when destroyed by explosions.
+  # If false, they are protected from explosions.
+  DropPlacedBackpacksOnExplosion: false
 
 BackpackTypes:
   # CraftingRecipe supports either:

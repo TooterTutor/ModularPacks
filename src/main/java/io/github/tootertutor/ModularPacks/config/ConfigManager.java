@@ -45,6 +45,10 @@ public final class ConfigManager {
     // Item types that cannot be inserted into backpacks (e.g. by Magnet)
     private Set<Material> backpackInsertBlacklist = Set.of();
 
+    // Placeable backpacks settings
+    private boolean placeableEnabled = true;
+    private boolean dropPlacedBackpacksOnExplosion = false;
+
     // Backpack types by name
     private final Map<String, BackpackTypeDef> types = new HashMap<>();
 
@@ -92,6 +96,10 @@ public final class ConfigManager {
                 bl.add(m);
         }
         backpackInsertBlacklist = Collections.unmodifiableSet(bl);
+
+        // Placeable backpacks settings
+        placeableEnabled = cfg.getBoolean("modularpacks.Placeable", true);
+        dropPlacedBackpacksOnExplosion = cfg.getBoolean("modularpacks.DropPlacedBackpacksOnExplosion", false);
 
         // Backpack types
         ConfigurationSection typesSec = cfg.getConfigurationSection("BackpackTypes");
@@ -216,6 +224,14 @@ public final class ConfigManager {
             return false;
 
         return true;
+    }
+
+    public boolean isPlaceableEnabled() {
+        return placeableEnabled;
+    }
+
+    public boolean shouldDropPlacedBackpacksOnExplosion() {
+        return dropPlacedBackpacksOnExplosion;
     }
 
     private static Material mat(String name, Material fallback) {
