@@ -72,6 +72,11 @@ public class BackpackSharingJoiner {
      * @param holder the joiner's backpack menu holder
      */
     public void openJoinDialog(Player player, BackpackMenuHolder holder) {
+        if (!plugin.cfg().isSharedBackpacksEnabled()) {
+            player.sendMessage(Text.c("&cBackpack sharing is disabled."));
+            return;
+        }
+
         new AnvilGUI.Builder()
                 .onClick((slot, stateSnapshot) -> {
                     if (slot != AnvilGUI.Slot.OUTPUT) {
@@ -132,6 +137,15 @@ public class BackpackSharingJoiner {
 
                     if (!hostData.sharePassword().isEmpty() && !hostData.sharePassword().equals(password)) {
                         player.sendMessage(Text.c("&cIncorrect password"));
+                        return Collections.singletonList(ResponseAction.close());
+                    }
+
+                    // Check max shared users limit
+                    int currentJoinedCount = plugin.repo().listJoinedBackpacks(hostId).size();
+                    int maxSharedUsers = plugin.cfg().getMaxSharedUsers();
+                    if (currentJoinedCount >= maxSharedUsers) {
+                        player.sendMessage(Text.c("&cCannot join: Host has reached the maximum of &f" + maxSharedUsers
+                                + "&c shared backpack" + (maxSharedUsers == 1 ? "." : "s.")));
                         return Collections.singletonList(ResponseAction.close());
                     }
 

@@ -49,6 +49,10 @@ public final class ConfigManager {
     private boolean placeableEnabled = true;
     private boolean dropPlacedBackpacksOnExplosion = false;
 
+    // Shared backpacks settings
+    private boolean sharedBackpacksEnabled = true;
+    private int maxSharedUsers = 5;
+
     // Backpack types by name
     private final Map<String, BackpackTypeDef> types = new HashMap<>();
 
@@ -100,6 +104,10 @@ public final class ConfigManager {
         // Placeable backpacks settings
         placeableEnabled = cfg.getBoolean("modularpacks.Placeable", true);
         dropPlacedBackpacksOnExplosion = cfg.getBoolean("modularpacks.DropPlacedBackpacksOnExplosion", false);
+
+        // Shared backpacks settings
+        sharedBackpacksEnabled = cfg.getBoolean("modularpacks.SharedBackpacks.Enabled", true);
+        maxSharedUsers = Math.max(1, cfg.getInt("modularpacks.SharedBackpacks.MaxSharedUsers", 5)); // Clamp to min 1
 
         // Backpack types
         ConfigurationSection typesSec = cfg.getConfigurationSection("BackpackTypes");
@@ -443,5 +451,13 @@ public final class ConfigManager {
 
     public Material lockedUpgradeSlotMaterial() {
         return lockedUpgradeSlotMaterial;
+    }
+
+    public boolean isSharedBackpacksEnabled() {
+        return sharedBackpacksEnabled;
+    }
+
+    public int getMaxSharedUsers() {
+        return maxSharedUsers;
     }
 }

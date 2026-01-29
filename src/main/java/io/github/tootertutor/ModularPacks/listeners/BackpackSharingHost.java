@@ -34,6 +34,11 @@ public class BackpackSharingHost {
      * Password can be set later via {@link #openPasswordDialog}.
      */
     public void hostBackpack(Player player, BackpackMenuHolder holder) {
+        if (!plugin.cfg().isSharedBackpacksEnabled()) {
+            player.sendMessage(Text.c("&cBackpack sharing is disabled."));
+            return;
+        }
+
         // Persist any in-flight UI state first to avoid dupes when toggling modes
         saveManager.flushSaveNow(player, holder, true);
 

@@ -37,6 +37,12 @@ modularpacks:
   # If false, they are protected from explosions.
   DropPlacedBackpacksOnExplosion: false
 
+  # Shared Backpack Settings
+  SharedBackpacks:
+    Enabled: true
+    # Maximum number of players that can share a single backpack.
+    MaxSharedUsers: 5
+
 BackpackTypes:
   # CraftingRecipe supports either:
   # 1) Single recipe (old format):
