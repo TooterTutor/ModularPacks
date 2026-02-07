@@ -6,7 +6,7 @@
 
     <groupId>io.github.tootertutor</groupId>
     <artifactId>modularpacks</artifactId>
-    <version>1.21.10-2.1</version>
+    <version>1.21.10-2.2</version>
     <packaging>jar</packaging>
 
     <name>modularpacks</name>

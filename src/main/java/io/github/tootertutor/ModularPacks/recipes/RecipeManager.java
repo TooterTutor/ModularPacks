@@ -73,6 +73,7 @@ public final class RecipeManager implements Listener {
     public void reload() {
         unregisterBackpackRecipes();
         registerBackpackRecipesFromConfig();
+        registerUpgradeRecipesFromConfig();
         try {
             Bukkit.updateRecipes();
         } catch (Throwable t) {
@@ -240,6 +241,31 @@ public final class RecipeManager implements Listener {
         }
     }
 
+    private void registerUpgradeRecipesFromConfig() {
+        var cfg = plugin.getConfig();
+
+        ConfigurationSection upgrades = cfg.getConfigurationSection("Upgrades");
+        if (upgrades == null)
+            return;
+
+        for (String upgradeId : upgrades.getKeys(false)) {
+            ConfigurationSection upgradeSec = upgrades.getConfigurationSection(upgradeId);
+            if (upgradeSec == null)
+                continue;
+
+            var def = plugin.cfg().findUpgrade(upgradeId);
+            if (def == null || !def.enabled())
+                continue;
+
+            for (RecipeVariant v : readRecipeVariants(upgradeSec)) {
+                String kind = v.section.getString("Type", "Crafting");
+                if ("Crafting".equalsIgnoreCase(kind)) {
+                    registerUpgradeCraftingRecipeVariant(def.id(), v.id, v.section);
+                }
+            }
+        }
+    }
+
     private void registerBackpackRecipes(String typeId, ConfigurationSection typeSec) {
         for (RecipeVariant v : readRecipeVariants(typeSec)) {
             String kind = v.section.getString("Type", "Crafting");
@@ -327,6 +353,89 @@ public final class RecipeManager implements Listener {
             dynamic.put(key, new DynamicRecipe(DynamicKind.BACKPACK, typeId, requirements));
         } else {
             plugin.getLogger().warning("Failed to register crafting recipe: " + key);
+        }
+    }
+
+    private void registerUpgradeCraftingRecipeVariant(String upgradeId, String variantId, ConfigurationSection recipe) {
+        if (recipe == null)
+            return;
+
+        String kind = recipe.getString("Type", "Crafting");
+        if (!"Crafting".equalsIgnoreCase(kind))
+            return;
+
+        List<String> pattern = recipe.getStringList("Pattern");
+        if (pattern == null || pattern.isEmpty())
+            return;
+
+        var def = plugin.cfg().findUpgrade(upgradeId);
+        if (def == null || !def.enabled())
+            return;
+
+        String suffix = (variantId == null || variantId.isBlank()) ? "main" : sanitize(variantId);
+        NamespacedKey key = new NamespacedKey(plugin, "upgrade_" + sanitize(upgradeId) + "_" + suffix);
+
+        ItemStack preview = new ItemStack(def.material());
+        ItemMeta meta = preview.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Text.c(Placeholders.expandText(plugin, def, preview, def.displayName())));
+            if (def.customModelData() > 0) {
+                CustomModelDataUtil.setCustomModelData(meta, def.customModelData());
+            }
+            if (def.glint()) {
+                meta.setEnchantmentGlintOverride(true);
+            }
+            preview.setItemMeta(meta);
+        }
+
+        ShapedRecipe shaped = new ShapedRecipe(key, preview);
+        shaped.shape(pattern.toArray(new String[0]));
+
+        Map<Character, Integer> symbolCounts = countSymbols(pattern);
+        List<SpecialRequirement> requirements = new ArrayList<>();
+
+        ConfigurationSection ing = recipe.getConfigurationSection("Ingredients");
+        if (ing != null) {
+            for (String k : ing.getKeys(false)) {
+                if (k == null || k.length() != 1)
+                    continue;
+                char symbol = k.charAt(0);
+                String raw = ing.getString(k);
+                ParsedIngredient parsed = parseIngredient(raw);
+
+                if (parsed.kind == IngredientKind.MATERIAL) {
+                    if (parsed.material != null)
+                        shaped.setIngredient(symbol, parsed.material);
+                    continue;
+                }
+
+                int requiredCount = symbolCounts.getOrDefault(symbol, 0);
+                if (requiredCount <= 0)
+                    continue;
+
+                if (parsed.kind == IngredientKind.BACKPACK_TYPE) {
+                    shaped.setIngredient(symbol, Material.PLAYER_HEAD);
+                    requirements.add(new SpecialRequirement(SpecialKind.BACKPACK_TYPE, parsed.id, requiredCount));
+                } else if (parsed.kind == IngredientKind.MODULE_TYPE) {
+                    Material m = parsed.material != null ? parsed.material : Material.PAPER;
+                    shaped.setIngredient(symbol, m);
+                    requirements.add(new SpecialRequirement(SpecialKind.MODULE_TYPE, parsed.id, requiredCount));
+                }
+            }
+        }
+
+        DynamicRecipe dyn = new DynamicRecipe(DynamicKind.UPGRADE, upgradeId, requirements);
+        if (Bukkit.addRecipe(shaped)) {
+            registeredKeys.add(key);
+            dynamic.put(key, dyn);
+        } else {
+            Recipe existing = Bukkit.getRecipe(key);
+            if (existing != null) {
+                registeredKeys.add(key);
+                dynamic.put(key, dyn);
+            } else {
+                plugin.getLogger().warning("Failed to register crafting recipe: " + key);
+            }
         }
     }
 
