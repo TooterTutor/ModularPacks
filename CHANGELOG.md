@@ -3,6 +3,26 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.2
+
+**Release Date:** 2026-02-07
+
+## Changes since 2.1
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fixed recipe registration (891d17a)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Fixed recipe registration (891d17a)
+---
+
+
 # ModularPacks 2.1
 
 **Release Date:** 2026-01-28
