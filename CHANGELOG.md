@@ -3,6 +3,27 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.3
+
+**Release Date:** 2026-02-09
+
+## Changes since 2.2
+
+### Features & Improvements
+- Added toggle lock to sorting button
+
+### Bug Fixes
+- Fixed sorting button logic (26d37c4)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- bump version (256e79c)
+- Fixed sorting button logic and added toggle lock to it (26d37c4)
+---
+
+
 # ModularPacks 2.2
 
 **Release Date:** 2026-02-07
