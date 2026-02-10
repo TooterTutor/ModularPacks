@@ -3,6 +3,27 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.3.1
+
+**Release Date:** 2026-02-10
+
+## Changes since 2.3
+
+### Features & Improvements
+
+
+### Bug Fixes
+
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- small version bump (85b4bd5)
+- sort lock now persists (d0e12c6)
+---
+
+
 # ModularPacks 2.3
 
 **Release Date:** 2026-02-09
