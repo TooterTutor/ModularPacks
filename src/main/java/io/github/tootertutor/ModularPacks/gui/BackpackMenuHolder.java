@@ -38,6 +38,7 @@ public final class BackpackMenuHolder implements InventoryHolder {
         this.pageSize = pageSize;
         this.logicalSlots = type.rows() * 9;
         this.upgradeSlots = upgradeSlots;
+        this.sortLocked = data.sortLocked();
     }
 
     public UUID backpackId() {

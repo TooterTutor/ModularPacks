@@ -62,6 +62,7 @@ public final class SQLiteBackpackRepository {
                 migrateColumn(st, "backpacks", "is_shared", "BOOLEAN DEFAULT 0");
                 migrateColumn(st, "backpacks", "share_password", "TEXT");
                 migrateColumn(st, "backpacks", "share_host_id", "TEXT");
+                migrateColumn(st, "backpacks", "sort_locked", "BOOLEAN DEFAULT 0");
 
                 st.executeUpdate("""
                             CREATE TABLE IF NOT EXISTS backpack_modules (
@@ -190,12 +191,13 @@ public final class SQLiteBackpackRepository {
 
             // Load contents from effective backpack ID
             try (PreparedStatement ps = getConnection().prepareStatement(
-                    "SELECT backpack_type, contents FROM backpacks WHERE backpack_id = ?")) {
+                    "SELECT backpack_type, contents, sort_locked FROM backpacks WHERE backpack_id = ?")) {
                 ps.setString(1, effectiveId.toString());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         data.backpackType(rs.getString("backpack_type"));
                         data.contentsBytes(rs.getBytes("contents"));
+                        data.sortLocked(rs.getBoolean("sort_locked"));
                     } else {
                         // insert new host backpack if it doesn't exist
                         try (PreparedStatement ins = getConnection().prepareStatement(
@@ -408,11 +410,12 @@ public final class SQLiteBackpackRepository {
 
             // Save contents to host (modifications visible to all joiners)
             try (PreparedStatement ps = getConnection().prepareStatement(
-                    "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ? WHERE backpack_id = ?")) {
+                    "UPDATE backpacks SET backpack_type = ?, contents = ?, sort_locked = ?, updated_at = ? WHERE backpack_id = ?")) {
                 ps.setString(1, data.backpackType());
                 ps.setBytes(2, data.contentsBytes());
-                ps.setLong(3, System.currentTimeMillis());
-                ps.setString(4, hostId.toString());
+                ps.setBoolean(3, data.sortLocked());
+                ps.setLong(4, System.currentTimeMillis());
+                ps.setString(5, hostId.toString());
                 ps.executeUpdate();
             } catch (SQLException e) {
                 throw new RuntimeException("Failed to save host backpack contents " + hostId, e);
@@ -436,14 +439,15 @@ public final class SQLiteBackpackRepository {
         } else {
             // This is an own backpack (not joined)
             try (PreparedStatement ps = getConnection().prepareStatement(
-                    "UPDATE backpacks SET backpack_type = ?, contents = ?, updated_at = ?, is_shared = ?, share_password = ?, share_host_id = ? WHERE backpack_id = ?")) {
+                    "UPDATE backpacks SET backpack_type = ?, contents = ?, sort_locked = ?, updated_at = ?, is_shared = ?, share_password = ?, share_host_id = ? WHERE backpack_id = ?")) {
                 ps.setString(1, data.backpackType());
                 ps.setBytes(2, data.contentsBytes());
-                ps.setLong(3, System.currentTimeMillis());
-                ps.setBoolean(4, data.isShared());
-                ps.setString(5, data.sharePassword());
-                ps.setString(6, data.shareHostId() != null ? data.shareHostId().toString() : null);
-                ps.setString(7, data.backpackId().toString());
+                ps.setBoolean(3, data.sortLocked());
+                ps.setLong(4, System.currentTimeMillis());
+                ps.setBoolean(5, data.isShared());
+                ps.setString(6, data.sharePassword());
+                ps.setString(7, data.shareHostId() != null ? data.shareHostId().toString() : null);
+                ps.setString(8, data.backpackId().toString());
                 ps.executeUpdate();
             } catch (SQLException e) {
                 throw new RuntimeException("Failed to save backpack " + data.backpackId(), e);

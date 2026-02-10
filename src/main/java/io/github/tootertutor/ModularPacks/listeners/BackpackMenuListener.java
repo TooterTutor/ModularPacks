@@ -241,8 +241,10 @@ public final class BackpackMenuListener implements Listener {
                 boolean shiftRightClick = e.getClick() == ClickType.SHIFT_RIGHT;
                 if (shiftRightClick) {
                     boolean locked = holder.toggleSortLocked();
+                    holder.data().sortLocked(locked);
                     player.sendMessage(Text.c(locked ? "&eSort locked." : "&aSort unlocked."));
                     renderer.render(holder);
+                    saveManager.scheduleSave(player, holder);
                     return;
                 }
 

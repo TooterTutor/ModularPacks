@@ -27,6 +27,9 @@ public final class BackpackData {
     private String sharePassword = "";
     private UUID shareHostId = null; // null if this is the host, otherwise UUID of the host backpack
 
+    // Sort fields
+    private boolean sortLocked = false;
+
     public BackpackData(UUID backpackId, String backpackType) {
         this.backpackId = backpackId;
         this.backpackType = backpackType;
@@ -86,6 +89,14 @@ public final class BackpackData {
 
     public void shareHostId(UUID hostId) {
         this.shareHostId = hostId;
+    }
+
+    public boolean sortLocked() {
+        return sortLocked;
+    }
+
+    public void sortLocked(boolean locked) {
+        this.sortLocked = locked;
     }
 
     /**
