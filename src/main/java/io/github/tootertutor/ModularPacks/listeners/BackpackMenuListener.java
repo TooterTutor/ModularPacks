@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -169,8 +170,12 @@ public final class BackpackMenuListener implements Listener {
             }
         }
 
+        boolean shiftRightSortToggle = clickedTop
+                && e.getClick() == ClickType.SHIFT_RIGHT
+                && rawSlot == SlotLayout.sortButtonSlot(topSize, holder.upgradeSlots(), holder.paginated());
+
         // Shift-click handling
-        if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+        if (!shiftRightSortToggle && e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
 
             // Shift-click from top -> player
             if (clickedTop) {
@@ -230,6 +235,31 @@ public final class BackpackMenuListener implements Listener {
                 ItemStack cursor = player.getItemOnCursor();
                 if (ItemStacks.isNotAir(cursor)) {
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    return;
+                }
+
+                boolean shiftRightClick = e.getClick() == ClickType.SHIFT_RIGHT;
+                if (shiftRightClick) {
+                    boolean locked = holder.toggleSortLocked();
+                    player.sendMessage(Text.c(locked ? "&eSort locked." : "&aSort unlocked."));
+                    renderer.render(holder);
+                    return;
+                }
+
+                if (e.getClick().isRightClick() && !e.getClick().isShiftClick()) {
+                    if (holder.sortLocked()) {
+                        player.sendMessage(Text.c("&cSort is locked. Shift + right-click to unlock."));
+                        return;
+                    }
+
+                    holder.sortMode(holder.sortMode().next());
+                    renderer.render(holder);
+                    saveManager.scheduleSave(player, holder);
+                    return;
+                }
+
+                if (holder.sortLocked()) {
+                    player.sendMessage(Text.c("&cSort is locked. Shift + right-click to unlock."));
                     return;
                 }
 

@@ -312,6 +312,8 @@ public final class BackpackMenuRenderer {
             List<String> lore = new ArrayList<>();
             lore.add("&7Left-click: &fSort");
             lore.add("&7Right-click: &fChange mode");
+            lore.add("&7Shift + Right-click: &fLock/Unlock");
+            lore.add("&7Status: " + (holder.sortLocked() ? "&cLocked" : "&aUnlocked"));
             lore.add("&7");
             lore.add("&7Mode:");
             for (BackpackSortMode mode : BackpackSortMode.values()) {

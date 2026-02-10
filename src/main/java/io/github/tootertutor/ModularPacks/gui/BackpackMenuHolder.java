@@ -25,6 +25,7 @@ public final class BackpackMenuHolder implements InventoryHolder {
     private final List<Integer> upgradeSlots; // actual inventory slot indices (bottom row)
 
     private BackpackSortMode sortMode = BackpackSortMode.REGISTRY;
+    private boolean sortLocked = false;
 
     private Inventory inventory;
 
@@ -89,6 +90,19 @@ public final class BackpackMenuHolder implements InventoryHolder {
         if (mode == null)
             mode = BackpackSortMode.REGISTRY;
         this.sortMode = mode;
+    }
+
+    public boolean sortLocked() {
+        return sortLocked;
+    }
+
+    public void sortLocked(boolean locked) {
+        this.sortLocked = locked;
+    }
+
+    public boolean toggleSortLocked() {
+        this.sortLocked = !this.sortLocked;
+        return this.sortLocked;
     }
 
     public void setInventory(Inventory inv) {
