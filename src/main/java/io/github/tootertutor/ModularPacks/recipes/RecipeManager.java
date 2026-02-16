@@ -193,30 +193,32 @@ public final class RecipeManager implements Listener {
     }
 
     /**
-     * Unregister only backpack crafting and smithing recipes, preserving upgrade
-     * recipes.
+     * Unregister backpack and upgrade recipes during reload.
      * Used during reload to minimize disruption.
      */
     private void unregisterBackpackRecipes() {
-        Set<NamespacedKey> backpackKeys = new HashSet<>();
+        Set<NamespacedKey> keysToRemove = new HashSet<>();
         for (NamespacedKey key : registeredKeys) {
             String keyStr = key.getKey();
-            if (keyStr.startsWith("backpack_") || keyStr.startsWith("backpack_smith_")) {
-                backpackKeys.add(key);
+            // Remove backpack, smithing, and upgrade recipes
+            if (keyStr.startsWith("backpack_") || keyStr.startsWith("backpack_smith_")
+                    || keyStr.startsWith("upgrade_")) {
+                keysToRemove.add(key);
             }
         }
-        for (NamespacedKey key : backpackKeys) {
+        for (NamespacedKey key : keysToRemove) {
             Bukkit.removeRecipe(key);
             registeredKeys.remove(key);
         }
-        // Clear dynamic recipes that are backpack-related
-        Set<NamespacedKey> backpackDynamicKeys = new HashSet<>();
+        // Clear dynamic recipes that are backpack or upgrade-related
+        Set<NamespacedKey> dynamicKeysToRemove = new HashSet<>();
         for (Map.Entry<NamespacedKey, DynamicRecipe> entry : dynamic.entrySet()) {
-            if (entry.getValue().kind == DynamicKind.BACKPACK) {
-                backpackDynamicKeys.add(entry.getKey());
+            DynamicKind kind = entry.getValue().kind;
+            if (kind == DynamicKind.BACKPACK || kind == DynamicKind.UPGRADE) {
+                dynamicKeysToRemove.add(entry.getKey());
             }
         }
-        for (NamespacedKey key : backpackDynamicKeys) {
+        for (NamespacedKey key : dynamicKeysToRemove) {
             dynamic.remove(key);
         }
         // Clear smithing upgrades (will be re-registered)
