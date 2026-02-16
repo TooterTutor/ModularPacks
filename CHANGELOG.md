@@ -3,6 +3,52 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.3.2
+
+**Release Date:** 2026-02-16
+
+## Changes since 2.3.1
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fix: repaired potential dupe exploit. (f6076b9)
+- Fixed some recipe registration (894d740)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- bump version (345022d)
+- Fix: repaired potential dupe exploit. (f6076b9)
+- Fixed some recipe registration (894d740)
+---
+
+
+# ModularPacks 2.3.2
+
+**Release Date:** 2026-02-16
+
+## Changes since 2.3.1
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fix: repaired potential dupe exploit. (f6076b9)
+- Fixed some recipe registration (894d740)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- bump version (345022d)
+- Fix: repaired potential dupe exploit. (f6076b9)
+- Fixed some recipe registration (894d740)
+---
+
+
 # ModularPacks 2.3.1
 
 **Release Date:** 2026-02-10
