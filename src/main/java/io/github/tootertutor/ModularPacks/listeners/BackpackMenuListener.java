@@ -58,6 +58,7 @@ public final class BackpackMenuListener implements Listener {
 
     // UI-specific state (page navigation)
     private final Map<UUID, Integer> ignoreCloseUntilTick = new HashMap<>();
+    private final Map<UUID, Integer> lastPageChangeTick = new HashMap<>();
 
     public BackpackMenuListener(ModularPacksPlugin plugin) {
         this(plugin, new BackpackMenuRenderer(plugin), new ScreenRouter(plugin));
@@ -133,6 +134,12 @@ public final class BackpackMenuListener implements Listener {
                     }
                 }
             }
+        }
+
+        // Block BOTTOM inventory clicks with NOTHING action
+        if (!clickedTop && e.getAction() == InventoryAction.NOTHING) {
+            e.setCancelled(true);
+            return;
         }
 
         // Detect sorting mod bursts
@@ -331,6 +338,14 @@ public final class BackpackMenuListener implements Listener {
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
                     }
+
+                    // Prevent duplicate page changes on the same tick (ALT+scroll protection)
+                    UUID playerId = player.getUniqueId();
+                    Integer lastChangeTick = lastPageChangeTick.get(playerId);
+                    if (lastChangeTick != null && lastChangeTick == now) {
+                        return;
+                    }
+                    lastPageChangeTick.put(playerId, now);
 
                     int direction = (rawSlot == prevSlot) ? -1 : 1;
                     changePage(player, holder, holder.page() + direction);
@@ -603,6 +618,8 @@ public final class BackpackMenuListener implements Listener {
         plugin.sessions().releaseAllFor(playerId);
         saveManager.clearPlayerData(playerId);
         sortGuard.clearPlayerData(playerId);
+        ignoreCloseUntilTick.remove(playerId);
+        lastPageChangeTick.remove(playerId);
     }
 
     private void changePage(Player player, BackpackMenuHolder holder, int newPage) {
