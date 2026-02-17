@@ -139,6 +139,7 @@ public final class ScreenRouter {
 			case ANVIL -> Bukkit.createInventory(holder, InventoryType.ANVIL, title);
 			case DROPPER -> Bukkit.createInventory(holder, InventoryType.DROPPER, title);
 			case HOPPER -> Bukkit.createInventory(holder, InventoryType.HOPPER, title);
+			case GENERIC -> Bukkit.createInventory(holder, InventoryType.CHEST, title);
 			default -> Bukkit.createInventory(holder, 27, title);
 		};
 
@@ -200,6 +201,7 @@ public final class ScreenRouter {
 			case ANVIL -> "Anvil Module";
 			case DROPPER -> getTitleForDropper(backpackId, moduleId);
 			case HOPPER -> getTitleForHopper(backpackId, moduleId);
+			case GENERIC -> "Custom Module";
 			default -> "Module";
 		};
 		return Component.text(title);

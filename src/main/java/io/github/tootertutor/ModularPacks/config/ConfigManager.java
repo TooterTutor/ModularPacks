@@ -174,6 +174,7 @@ public final class ConfigManager {
             return ScreenType.NONE;
         String key = id.trim().toLowerCase(Locale.ROOT);
         return switch (key) {
+            case "generic" -> ScreenType.GENERIC;
             case "crafting" -> ScreenType.CRAFTING;
             case "smithing" -> ScreenType.SMITHING;
             case "stonecutter" -> ScreenType.STONECUTTER;
