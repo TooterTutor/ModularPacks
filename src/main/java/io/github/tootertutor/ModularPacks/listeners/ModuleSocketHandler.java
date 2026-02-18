@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BundleMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -592,6 +593,8 @@ public final class ModuleSocketHandler {
             applyModuleLore(cursor);
         }
 
+        returnModuleBundleContents(player, cursor);
+
         holder.data().installedSnapshots().put(moduleId, ItemStackCodec.toBytes(new ItemStack[] { cursor.clone() }));
 
         player.setItemOnCursor(null);
@@ -599,6 +602,25 @@ public final class ModuleSocketHandler {
         saveManager.scheduleSave(player, holder);
         refreshBackpackItemsFor(player, holder);
         playSocketSuccess(player);
+    }
+
+    private void returnModuleBundleContents(Player player, ItemStack item) {
+        if (player == null || item == null || !item.hasItemMeta())
+            return;
+        ItemMeta meta = item.getItemMeta();
+        if (!(meta instanceof BundleMeta bundleMeta))
+            return;
+        if (!isModuleItem(item))
+            return;
+
+        List<ItemStack> contents = List.copyOf(bundleMeta.getItems());
+        if (!contents.isEmpty()) {
+            for (ItemStack stack : contents) {
+                giveOrDrop(player, stack);
+            }
+            bundleMeta.setItems(List.of());
+            item.setItemMeta(bundleMeta);
+        }
     }
 
     private void removeModuleToPlayer(Player player, BackpackMenuHolder holder, int invSlot) {
