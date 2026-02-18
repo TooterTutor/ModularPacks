@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
@@ -142,6 +144,9 @@ public final class RecipeSubcommand extends AbstractSubcommand {
 
         ConfigurationSection upgradeSec = plugin.getConfig().getConfigurationSection("Upgrades." + def.id());
         if (upgradeSec == null) {
+            upgradeSec = findExternalModuleSection(def.id());
+        }
+        if (upgradeSec == null) {
             player.sendMessage(Text.c("&cMissing config section: Upgrades." + def.id()));
             return;
         }
@@ -162,6 +167,22 @@ public final class RecipeSubcommand extends AbstractSubcommand {
         Component title = Component.text(def.id());
         ItemStack out = createUpgradePreview(def.id());
         RecipePreviewUi.openCrafting(plugin, player, title, grid, out);
+    }
+
+    private ConfigurationSection findExternalModuleSection(String id) {
+        if (id == null || id.isBlank())
+            return null;
+        for (Plugin other : Bukkit.getPluginManager().getPlugins()) {
+            if (other == null || other.getName().equals("ModularPacks"))
+                continue;
+            var cfg = other.getConfig();
+            if (cfg == null)
+                continue;
+            ConfigurationSection sec = cfg.getConfigurationSection("modularpacks-modules." + id);
+            if (sec != null)
+                return sec;
+        }
+        return null;
     }
 
     private void openBackpackRecipe(Player player, String typeIdInput, String variantIdOrNull) {
