@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -16,6 +17,7 @@ import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
@@ -166,6 +168,93 @@ public final class ConfigManager {
                         new UpgradeDef(id, displayName, material, lore, customModelData, glint, enabled, toggleable,
                                 secondaryAction, screenType));
             }
+        }
+
+        // Load external module definitions from other plugins
+        loadExternalModuleDefinitions();
+    }
+
+    /**
+     * Scan all loaded plugins for module definitions and register them.
+     * External plugins can define modules in their config.yml under
+     * "modularpacks-modules".
+     */
+    private void loadExternalModuleDefinitions() {
+        int loadedCount = 0;
+        for (Plugin plugin : Bukkit.getPluginManager().getPlugins()) {
+            // Skip ModularPacks itself
+            if (plugin.getName().equals("ModularPacks")) {
+                continue;
+            }
+
+            FileConfiguration pluginConfig = plugin.getConfig();
+            if (pluginConfig == null) {
+                continue;
+            }
+
+            ConfigurationSection modulesSection = pluginConfig.getConfigurationSection("modularpacks-modules");
+            if (modulesSection == null) {
+                continue;
+            }
+
+            plugin.getLogger().info("[ModularPacks] Discovering module definitions...");
+
+            for (String id : modulesSection.getKeys(false)) {
+                ConfigurationSection s = modulesSection.getConfigurationSection(id);
+                if (s == null)
+                    continue;
+
+                // Skip if already registered (config.yml takes precedence)
+                String key = id.toLowerCase(Locale.ROOT);
+                if (upgrades.containsKey(key)) {
+                    plugin.getLogger().warning(
+                            "[ModularPacks] Module '" + id
+                                    + "' already registered, skipping (config.yml has priority)");
+                    continue;
+                }
+
+                try {
+                    boolean enabled = s.getBoolean("Enabled", true);
+                    boolean toggleable = s.getBoolean("Toggleable", false);
+                    boolean secondaryAction = s.getBoolean("SecondaryAction", false);
+
+                    String displayName = s.getString("DisplayName", id);
+                    String matName = s.getString("OutputMaterial",
+                            s.getString("CraftingRecipe.OutputMaterial", "PAPER"));
+                    Material material = mat(matName, Material.PAPER);
+
+                    List<String> lore = s.getStringList("Lore");
+                    int customModelData = s.getInt("CustomModelData", 0);
+                    boolean glint = s.getBoolean("Glint", s.getBoolean("CraftingRecipe.Glint", false));
+
+                    // Get screen type from config or derive from ID
+                    String screenTypeStr = s.getString("ScreenType");
+                    ScreenType screenType;
+                    if (screenTypeStr != null && !screenTypeStr.isEmpty()) {
+                        try {
+                            screenType = ScreenType.valueOf(screenTypeStr.toUpperCase(Locale.ROOT));
+                        } catch (IllegalArgumentException e) {
+                            screenType = deriveScreenType(id);
+                        }
+                    } else {
+                        screenType = deriveScreenType(id);
+                    }
+
+                    UpgradeDef upgradeDef = new UpgradeDef(id, displayName, material, lore, customModelData, glint,
+                            enabled, toggleable, secondaryAction, screenType);
+                    upgrades.put(key, upgradeDef);
+                    loadedCount++;
+                    plugin.getLogger()
+                            .info("[ModularPacks] Registered module definition: " + id + " (" + plugin.getName() + ")");
+                } catch (Exception e) {
+                    plugin.getLogger().warning("[ModularPacks] Failed to load module definition '" + id + "': "
+                            + e.getMessage());
+                }
+            }
+        }
+
+        if (loadedCount > 0) {
+            this.plugin.getLogger().info("Loaded " + loadedCount + " external module definition(s)");
         }
     }
 
@@ -432,6 +521,37 @@ public final class ConfigManager {
         if (input == null)
             return null;
         return upgrades.get(input.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Register a custom upgrade definition programmatically.
+     * This allows external plugins to register module definitions for custom
+     * modules.
+     * 
+     * @param def The upgrade definition to register
+     * @throws IllegalArgumentException if def is null or ID already exists
+     */
+    public void registerCustomUpgrade(UpgradeDef def) {
+        if (def == null) {
+            throw new IllegalArgumentException("UpgradeDef cannot be null");
+        }
+        String key = def.id().toLowerCase(Locale.ROOT);
+        if (upgrades.containsKey(key)) {
+            throw new IllegalArgumentException("Upgrade with ID '" + def.id() + "' is already registered");
+        }
+        upgrades.put(key, def);
+    }
+
+    /**
+     * Check if an upgrade is registered.
+     * 
+     * @param upgradeId The upgrade ID
+     * @return true if the upgrade is registered
+     */
+    public boolean isUpgradeRegistered(String upgradeId) {
+        if (upgradeId == null)
+            return false;
+        return upgrades.containsKey(upgradeId.toLowerCase(Locale.ROOT));
     }
 
     public Collection<UpgradeDef> getUpgrades() {

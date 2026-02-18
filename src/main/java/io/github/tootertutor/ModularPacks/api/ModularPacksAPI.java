@@ -11,6 +11,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.api.modules.IModule;
 import io.github.tootertutor.ModularPacks.api.modules.ModuleRegistry;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
+import io.github.tootertutor.ModularPacks.config.UpgradeDef;
 
 /**
  * Public API for ModularPacks.
@@ -93,6 +94,9 @@ public class ModularPacksAPI {
 
     /**
      * Register a custom module.
+     * Note: This only registers the module implementation, not the item definition.
+     * To allow giving and crafting the module, use registerModule(IModule,
+     * UpgradeDef) instead.
      * 
      * @param module The module to register
      * @throws IllegalArgumentException if module is null or already registered
@@ -102,6 +106,57 @@ public class ModularPacksAPI {
             throw new IllegalArgumentException("Module cannot be null");
         }
         moduleRegistry.registerModule(module);
+    }
+
+    /**
+     * Register a custom module with its item definition.
+     * This allows the module to be given via commands and crafted in recipes.
+     * 
+     * <p>
+     * Example usage:
+     * 
+     * <pre>{@code
+     * ModularPacksAPI api = ModularPacksAPI.getInstance();
+     * if (api != null) {
+     *     MyCustomModule module = new MyCustomModule();
+     *     UpgradeDef def = new UpgradeDef(
+     *             "MyModule", // id
+     *             "&6My Custom Module", // displayName
+     *             Material.DIAMOND, // material
+     *             List.of("&7Custom functionality"), // lore
+     *             1001, // customModelData
+     *             false, // glint
+     *             true, // enabled
+     *             true, // toggleable
+     *             false, // secondaryAction
+     *             ScreenType.GENERIC // screenType
+     *     );
+     *     api.registerModule(module, def);
+     * }
+     * }</pre>
+     * 
+     * @param module     The module to register
+     * @param upgradeDef The upgrade definition for creating items
+     * @throws IllegalArgumentException if module or upgradeDef is null, or if
+     *                                  already registered
+     */
+    public void registerModule(IModule module, UpgradeDef upgradeDef) {
+        if (module == null) {
+            throw new IllegalArgumentException("Module cannot be null");
+        }
+        if (upgradeDef == null) {
+            throw new IllegalArgumentException("UpgradeDef cannot be null");
+        }
+
+        // Validate that IDs match
+        if (!module.getModuleId().equalsIgnoreCase(upgradeDef.id())) {
+            throw new IllegalArgumentException(
+                    "Module ID '" + module.getModuleId() + "' does not match UpgradeDef ID '" + upgradeDef.id() + "'");
+        }
+
+        // Register both the module implementation and the item definition
+        moduleRegistry.registerModule(module);
+        plugin.cfg().registerCustomUpgrade(upgradeDef);
     }
 
     /**

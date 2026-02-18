@@ -736,7 +736,15 @@ public final class ModuleSocketHandler {
 
         ScreenType screenType = def.screenType();
         if (screenType == ScreenType.NONE) {
-            player.sendMessage(Text.c("&cThis module has no configurable UI."));
+            // For custom modules with ScreenType.NONE, call the module's open() method
+            // directly
+            var module = plugin.moduleFactory().getRegistry().getModule(moduleType);
+            if (module.isPresent()) {
+                saveManager.flushSaveNow(player, holder);
+                module.get().open(plugin, player, holder.backpackId(), holder.type().id(), moduleId);
+            } else {
+                player.sendMessage(Text.c("&cThis module has no configurable UI."));
+            }
             return;
         }
 
