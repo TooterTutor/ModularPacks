@@ -25,11 +25,11 @@ public final class SlotLayout {
     } // last slot of nav row
 
     /**
-     * Center the upgrade sockets on the bottom row. Max 7 sockets (leaves room for
+     * Center the upgrade sockets on the bottom row. Max 5 sockets (leaves room for
      * buttons).
      */
     public static List<Integer> upgradeSocketSlots(int invSize, int upgradeSlots, boolean paginated) {
-        upgradeSlots = Math.max(0, Math.min(7, upgradeSlots));
+        upgradeSlots = Math.max(0, Math.min(5, upgradeSlots));
         List<Integer> out = new ArrayList<>();
         if (upgradeSlots == 0)
             return out;
