@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.jukebox;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -28,16 +28,16 @@ import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
-final class JukeboxEngine {
+public final class JukeboxEngine {
 
     private final ModularPacksPlugin plugin;
     private final Map<UUID, JukeboxPlayback> jukeboxByPlayer = new HashMap<>();
 
-    JukeboxEngine(ModularPacksPlugin plugin) {
+    public JukeboxEngine(ModularPacksPlugin plugin) {
         this.plugin = plugin;
     }
 
-    void stopIfActiveBackpackMissing(Player player, ItemStack[] inventoryContents) {
+    public void stopIfActiveBackpackMissing(Player player, ItemStack[] inventoryContents) {
         if (player == null || inventoryContents == null || inventoryContents.length == 0)
             return;
 
@@ -51,11 +51,11 @@ final class JukeboxEngine {
         }
     }
 
-    void cleanupOfflinePlayers() {
+    public void cleanupOfflinePlayers() {
         jukeboxByPlayer.entrySet().removeIf(e -> Bukkit.getPlayer(e.getKey()) == null);
     }
 
-    void tickJukebox(
+    public void tickJukebox(
             Player player,
             UUID backpackId,
             BackpackData data,

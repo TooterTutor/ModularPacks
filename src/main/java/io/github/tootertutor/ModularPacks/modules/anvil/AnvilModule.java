@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.anvil;
 
 import java.util.UUID;
 

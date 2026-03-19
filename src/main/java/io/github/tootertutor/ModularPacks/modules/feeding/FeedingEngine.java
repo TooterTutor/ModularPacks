@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.feeding;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +18,7 @@ import org.bukkit.potion.PotionEffectTypeCategory;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.modules.BackpackInventoryUtil;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.Consumable;
@@ -26,16 +27,16 @@ import io.papermc.paper.datacomponent.item.SuspiciousStewEffects;
 import io.papermc.paper.datacomponent.item.consumable.ConsumeEffect;
 import io.papermc.paper.potion.SuspiciousEffectEntry;
 
-final class FeedingEngine {
+public final class FeedingEngine {
 
     private final ModularPacksPlugin plugin;
     private final Map<UUID, Integer> lastFedTickByPlayer = new HashMap<>();
 
-    FeedingEngine(ModularPacksPlugin plugin) {
+    public FeedingEngine(ModularPacksPlugin plugin) {
         this.plugin = plugin;
     }
 
-    boolean applyFeeding(Player player, ItemStack[] contents, ItemStack moduleSnapshot,
+    public boolean applyFeeding(Player player, ItemStack[] contents, ItemStack moduleSnapshot,
             List<Material> orderedWhitelist) {
         if (player == null || contents == null)
             return false;

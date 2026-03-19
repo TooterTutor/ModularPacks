@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.furnace;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

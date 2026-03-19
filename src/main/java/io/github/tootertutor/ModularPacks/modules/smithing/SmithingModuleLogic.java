@@ -1,16 +1,13 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.smithing;
 
 import java.util.Iterator;
-import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.MenuType;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.SmithingTransformRecipe;
 import org.bukkit.inventory.SmithingTrimRecipe;
@@ -19,73 +16,21 @@ import org.bukkit.inventory.meta.trim.ArmorTrim;
 import org.bukkit.inventory.meta.trim.TrimMaterial;
 import org.bukkit.plugin.Plugin;
 
-import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
-import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.listeners.ModuleClickHandler;
+import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
-import net.kyori.adventure.text.Component;
 
-/**
- * Smithing module that provides a smithing table interface in backpacks.
- * Handles both transform recipes (netherite upgrade) and trim recipes (armor
- * customization).
- */
-public final class SmithingModule extends AbstractModule {
+public final class SmithingModuleLogic {
 
     private static final int TEMPLATE_SLOT = 0;
     private static final int BASE_SLOT = 1;
     private static final int ADDITION_SLOT = 2;
     private static final int OUTPUT_SLOT = 3;
 
-    public SmithingModule() {
-        super("smithing", ScreenType.SMITHING, "Smithing Module");
+    private SmithingModuleLogic() {
     }
 
-    @Override
-    public void open(ModularPacksPlugin plugin, Player player, UUID backpackId, String backpackType, UUID moduleId) {
-        if (plugin == null || player == null || !player.isOnline())
-            return;
-
-        InventoryView view = MenuType.SMITHING.builder()
-                .title(Component.text("Smithing Module"))
-                .location(player.getLocation())
-                .checkReachable(false)
-                .build(player);
-        if (view == null)
-            return;
-
-        Inventory top = view.getTopInventory();
-
-        // Load saved state
-        byte[] state = loadState(plugin, backpackId, backpackType, moduleId);
-        if (state != null && state.length > 0) {
-            ItemStack[] saved = loadItemStackArray(state);
-            int limit = Math.min(saved.length, top.getSize());
-            for (int i = 0; i < limit; i++) {
-                top.setItem(i, saved[i]);
-            }
-        }
-
-        // Output is derived - clear it
-        if (top.getSize() > 3) {
-            top.setItem(OUTPUT_SLOT, null);
-        }
-
-        player.openInventory(view);
-
-        // Verify the inventory actually opened (another plugin could have cancelled it)
-        InventoryView current = player.getOpenInventory();
-        if (current == null || current.getTopInventory() != view.getTopInventory()) {
-            return;
-        }
-
-        createSession(player, backpackId, backpackType, moduleId);
-        player.updateInventory();
-    }
-
-    @Override
-    public void updateResult(Inventory inv) {
+    public static void updateResult(Inventory inv) {
         if (inv == null || inv.getSize() < 4)
             return;
 
@@ -97,25 +42,11 @@ public final class SmithingModule extends AbstractModule {
         inv.setItem(OUTPUT_SLOT, result);
     }
 
-    @Override
-    public boolean isValidInventoryView(InventoryView view) {
-        return view != null && view.getTopInventory().getSize() >= 4;
+    public static boolean handleClick(InventoryClickEvent e, Player player) {
+        return handleClick(null, e, player);
     }
 
-    @Override
-    public boolean isEnabled() {
-        return true;
-    }
-
-    /**
-     * Handle a click event in the smithing module inventory.
-     * 
-     * @param plugin The plugin instance (optional, for delayed operations)
-     * @param e      The click event
-     * @param player The player who clicked
-     * @return true if the click was handled
-     */
-    public boolean handleClick(Plugin plugin, InventoryClickEvent e, Player player) {
+    public static boolean handleClick(Plugin plugin, InventoryClickEvent e, Player player) {
         Inventory inv = e.getView().getTopInventory();
         if (inv == null || inv.getSize() < 4)
             return false;
@@ -126,14 +57,7 @@ public final class SmithingModule extends AbstractModule {
                 () -> updateResult(inv));
     }
 
-    /**
-     * Determine the preferred insertion slot for an item being added to the
-     * smithing table.
-     * 
-     * @param stack The item to insert
-     * @return The preferred slot index, or -1 if the item shouldn't be inserted
-     */
-    public int preferredInsertSlot(ItemStack stack) {
+    public static int preferredInsertSlot(ItemStack stack) {
         if (ItemStacks.isAir(stack))
             return -1;
 
@@ -142,38 +66,14 @@ public final class SmithingModule extends AbstractModule {
         if (name.endsWith("_SMITHING_TEMPLATE"))
             return TEMPLATE_SLOT;
 
-        // Trim materials & netherite ingot typically go in the "addition" slot
+        // Trim materials & netherite ingot typically go in the "addition" slot.
         if (asTrimMaterial(t) != null || t == Material.NETHERITE_INGOT)
             return ADDITION_SLOT;
 
         return BASE_SLOT;
     }
 
-    @Override
-    protected byte[] serializeState(Inventory inventory) {
-        ItemStack[] items = new ItemStack[inventory.getSize()];
-        for (int i = 0; i < items.length; i++) {
-            items[i] = inventory.getItem(i);
-        }
-        // Don't save the output slot (it's derived)
-        if (items.length > 3)
-            items[OUTPUT_SLOT] = null;
-
-        return saveItemStackArray(items);
-    }
-
-    @Override
-    protected void deserializeState(Inventory inventory, byte[] stateBytes) {
-        ItemStack[] saved = loadItemStackArray(stateBytes);
-        int limit = Math.min(saved.length, inventory.getSize());
-        for (int i = 0; i < limit; i++) {
-            inventory.setItem(i, saved[i]);
-        }
-    }
-
-    // ========== Private Crafting Logic ==========
-
-    private void craftShift(Player player, Inventory inv) {
+    private static void craftShift(Player player, Inventory inv) {
         ModuleLogicHelper.standardCraftShift(player, 64, () -> {
             ItemStack template = inv.getItem(TEMPLATE_SLOT);
             ItemStack base = inv.getItem(BASE_SLOT);
@@ -189,7 +89,7 @@ public final class SmithingModule extends AbstractModule {
         });
     }
 
-    private void craftOnceToCursor(Player player, Inventory inv) {
+    private static void craftOnceToCursor(Player player, Inventory inv) {
         ItemStack template = inv.getItem(TEMPLATE_SLOT);
         ItemStack base = inv.getItem(BASE_SLOT);
         ItemStack addition = inv.getItem(ADDITION_SLOT);
@@ -202,7 +102,7 @@ public final class SmithingModule extends AbstractModule {
         });
     }
 
-    private ItemStack computeResult(ItemStack template, ItemStack base, ItemStack addition) {
+    private static ItemStack computeResult(ItemStack template, ItemStack base, ItemStack addition) {
         if (ModuleLogicHelper.isEmpty(template) || ModuleLogicHelper.isEmpty(base)
                 || ModuleLogicHelper.isEmpty(addition))
             return null;
@@ -232,7 +132,7 @@ public final class SmithingModule extends AbstractModule {
         return null;
     }
 
-    private boolean matchesTransform(SmithingTransformRecipe recipe, ItemStack template, ItemStack base,
+    private static boolean matchesTransform(SmithingTransformRecipe recipe, ItemStack template, ItemStack base,
             ItemStack addition) {
         if (recipe.getTemplate() == null || recipe.getBase() == null || recipe.getAddition() == null)
             return false;
@@ -240,14 +140,15 @@ public final class SmithingModule extends AbstractModule {
                 && recipe.getAddition().test(addition);
     }
 
-    private boolean matchesTrim(SmithingTrimRecipe recipe, ItemStack template, ItemStack base, ItemStack addition) {
+    private static boolean matchesTrim(SmithingTrimRecipe recipe, ItemStack template, ItemStack base,
+            ItemStack addition) {
         if (recipe.getTemplate() == null || recipe.getBase() == null || recipe.getAddition() == null)
             return false;
         return recipe.getTemplate().test(template) && recipe.getBase().test(base)
                 && recipe.getAddition().test(addition);
     }
 
-    private ItemStack applyTrim(SmithingTrimRecipe recipe, ItemStack base, ItemStack addition) {
+    private static ItemStack applyTrim(SmithingTrimRecipe recipe, ItemStack base, ItemStack addition) {
         if (ModuleLogicHelper.isEmpty(base) || ModuleLogicHelper.isEmpty(addition))
             return null;
 
@@ -270,7 +171,7 @@ public final class SmithingModule extends AbstractModule {
         return out;
     }
 
-    private TrimMaterial asTrimMaterial(Material mat) {
+    private static TrimMaterial asTrimMaterial(Material mat) {
         if (mat == null)
             return null;
 
@@ -289,4 +190,5 @@ public final class SmithingModule extends AbstractModule {
             default -> null;
         };
     }
+
 }

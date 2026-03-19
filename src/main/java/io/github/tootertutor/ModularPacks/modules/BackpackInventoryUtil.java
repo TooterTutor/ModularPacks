@@ -4,12 +4,12 @@ import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
-final class BackpackInventoryUtil {
+public final class BackpackInventoryUtil {
 
     private BackpackInventoryUtil() {
     }
 
-    static ItemStack decrementOne(ItemStack stack) {
+    public static ItemStack decrementOne(ItemStack stack) {
         if (stack == null)
             return null;
         ItemStack s = stack.clone();
@@ -20,7 +20,7 @@ final class BackpackInventoryUtil {
         return s;
     }
 
-    static ItemStack insertIntoContents(ItemStack[] contents, ItemStack stack) {
+    public static ItemStack insertIntoContents(ItemStack[] contents, ItemStack stack) {
         if (contents == null)
             return stack;
         if (ItemStacks.isAir(stack))

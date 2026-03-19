@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.furnace;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -25,17 +25,18 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
+import io.github.tootertutor.ModularPacks.modules.BackpackInventoryUtil;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
-final class FurnaceEngine {
+public final class FurnaceEngine {
 
     private final ModularPacksPlugin plugin;
 
-    FurnaceEngine(ModularPacksPlugin plugin) {
+    public FurnaceEngine(ModularPacksPlugin plugin) {
         this.plugin = plugin;
     }
 
-    void tickFurnaceScreen(
+    public void tickFurnaceScreen(
             Player player,
             UUID backpackId,
             String backpackType,
@@ -85,7 +86,7 @@ final class FurnaceEngine {
         plugin.repo().saveBackpack(data);
     }
 
-    boolean tickInstalledFurnaces(BackpackData data, Set<UUID> openModuleIds, int dtTicks) {
+    public boolean tickInstalledFurnaces(BackpackData data, Set<UUID> openModuleIds, int dtTicks) {
         boolean changedAny = false;
         for (UUID moduleId : data.installedModules().values()) {
             if (moduleId == null)

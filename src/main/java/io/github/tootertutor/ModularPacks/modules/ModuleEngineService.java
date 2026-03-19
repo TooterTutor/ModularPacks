@@ -26,6 +26,12 @@ import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.modules.feeding.FeedingEngine;
+import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceEngine;
+import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceModule;
+import io.github.tootertutor.ModularPacks.modules.jukebox.JukeboxEngine;
+import io.github.tootertutor.ModularPacks.modules.magnet.MagnetVoidEngine;
+import io.github.tootertutor.ModularPacks.modules.restock.RestockEngine;
 
 /**
  * Periodically ticks open module screens and passive backpack modules.

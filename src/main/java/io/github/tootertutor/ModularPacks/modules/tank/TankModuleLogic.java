@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.tank;
 
 import java.util.ArrayList;
 import java.util.List;

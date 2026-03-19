@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.magnet;
 
 import java.util.Set;
 import java.util.UUID;
@@ -16,17 +16,18 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.VoidedItemRecord;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.modules.BackpackInventoryUtil;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
-final class MagnetVoidEngine {
+public final class MagnetVoidEngine {
 
     private final ModularPacksPlugin plugin;
 
-    MagnetVoidEngine(ModularPacksPlugin plugin) {
+    public MagnetVoidEngine(ModularPacksPlugin plugin) {
         this.plugin = plugin;
     }
 
-    boolean applyMagnet(
+    public boolean applyMagnet(
             Player player,
             ItemStack[] contents,
             Set<Material> whitelist,
@@ -126,7 +127,7 @@ final class MagnetVoidEngine {
      * Apply magnet effect for placed backpacks at a specific location.
      * Similar to applyMagnet but uses a fixed location instead of player location.
      */
-    boolean applyMagnetAtLocation(
+    public boolean applyMagnetAtLocation(
             Location location,
             ItemStack[] contents,
             Set<Material> whitelist,

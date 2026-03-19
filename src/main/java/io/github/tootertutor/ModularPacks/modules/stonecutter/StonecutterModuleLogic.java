@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.stonecutter;
 
 import java.util.Iterator;
 
@@ -12,6 +12,7 @@ import org.bukkit.inventory.StonecuttingRecipe;
 import org.bukkit.plugin.Plugin;
 
 import io.github.tootertutor.ModularPacks.listeners.ModuleClickHandler;
+import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class StonecutterModuleLogic {

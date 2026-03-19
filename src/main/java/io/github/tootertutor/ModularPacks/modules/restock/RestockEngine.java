@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.modules;
+package io.github.tootertutor.ModularPacks.modules.restock;
 
 import java.util.List;
 
@@ -21,7 +21,7 @@ public final class RestockEngine {
         this.plugin = plugin;
     }
 
-    boolean applyRestock(Player player, ItemStack[] backpackContents, int threshold, List<ItemStack> whitelist) {
+    public boolean applyRestock(Player player, ItemStack[] backpackContents, int threshold, List<ItemStack> whitelist) {
         if (player == null || backpackContents == null)
             return false;
         threshold = clampThreshold(threshold);
@@ -38,7 +38,7 @@ public final class RestockEngine {
         return changed;
     }
 
-    static int clampThreshold(int threshold) {
+    public static int clampThreshold(int threshold) {
         if (threshold <= 0)
             return DEFAULT_THRESHOLD;
         return Math.max(1, Math.min(64, threshold));
