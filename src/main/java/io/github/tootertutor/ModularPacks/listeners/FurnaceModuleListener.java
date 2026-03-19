@@ -19,8 +19,8 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.FurnaceModule;
-import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
+import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceModule;
+import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class FurnaceModuleListener implements Listener {

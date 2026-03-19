@@ -31,7 +31,7 @@ import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.FurnaceStateCodec;
+import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
 

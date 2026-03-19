@@ -24,8 +24,8 @@ import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
+import io.github.tootertutor.ModularPacks.modules.tank.TankModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.tank.TankStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
 

@@ -14,7 +14,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.modules.StonecutterModule;
+import io.github.tootertutor.ModularPacks.modules.stonecutter.StonecutterModule;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class StonecutterModuleListener implements Listener {

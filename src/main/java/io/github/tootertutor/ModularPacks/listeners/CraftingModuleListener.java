@@ -14,8 +14,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.modules.CraftingModule;
-import io.github.tootertutor.ModularPacks.modules.CraftingModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.crafting.CraftingModule;
+import io.github.tootertutor.ModularPacks.modules.crafting.CraftingModuleLogic;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class CraftingModuleListener implements Listener {

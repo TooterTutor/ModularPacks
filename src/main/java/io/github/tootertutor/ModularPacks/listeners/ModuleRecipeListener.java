@@ -17,9 +17,9 @@ import org.bukkit.inventory.ItemStack;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
-import io.github.tootertutor.ModularPacks.modules.CraftingModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.SmithingModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.StonecutterModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.crafting.CraftingModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.smithing.SmithingModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.stonecutter.StonecutterModuleLogic;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class ModuleRecipeListener implements Listener {

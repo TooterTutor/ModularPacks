@@ -18,7 +18,7 @@ import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.tank.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 

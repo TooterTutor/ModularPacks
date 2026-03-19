@@ -10,8 +10,8 @@ import org.bukkit.persistence.PersistentDataType;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.UpgradeDef;
-import io.github.tootertutor.ModularPacks.modules.TankModuleLogic;
-import io.github.tootertutor.ModularPacks.modules.TankStateCodec;
+import io.github.tootertutor.ModularPacks.modules.tank.TankModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.tank.TankStateCodec;
 import io.github.tootertutor.ModularPacks.util.Text;
 
 public final class UpgradeItems {

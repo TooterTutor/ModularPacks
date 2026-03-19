@@ -13,7 +13,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.AnvilModule;
+import io.github.tootertutor.ModularPacks.modules.anvil.AnvilModule;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class AnvilModuleListener implements Listener {
