@@ -20,6 +20,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.screens.core.DefaultScreenTypeResolver;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class ConfigManager {
@@ -162,7 +163,7 @@ public final class ConfigManager {
                 boolean glint = s.getBoolean("Glint", s.getBoolean("CraftingRecipe.Glint", false));
 
                 // Derive screen types from module ID to avoid config confusion.
-                ScreenType screenType = deriveScreenType(id);
+                ScreenType screenType = DefaultScreenTypeResolver.deriveFromUpgradeId(id);
 
                 upgrades.put(id.toLowerCase(Locale.ROOT),
                         new UpgradeDef(id, displayName, material, lore, customModelData, glint, enabled, toggleable,
@@ -229,16 +230,7 @@ public final class ConfigManager {
 
                     // Get screen type from config or derive from ID
                     String screenTypeStr = s.getString("ScreenType");
-                    ScreenType screenType;
-                    if (screenTypeStr != null && !screenTypeStr.isEmpty()) {
-                        try {
-                            screenType = ScreenType.valueOf(screenTypeStr.toUpperCase(Locale.ROOT));
-                        } catch (IllegalArgumentException e) {
-                            screenType = deriveScreenType(id);
-                        }
-                    } else {
-                        screenType = deriveScreenType(id);
-                    }
+                    ScreenType screenType = DefaultScreenTypeResolver.fromConfigOrDerived(screenTypeStr, id);
 
                     UpgradeDef upgradeDef = new UpgradeDef(id, displayName, material, lore, customModelData, glint,
                             enabled, toggleable, secondaryAction, screenType);
@@ -256,25 +248,6 @@ public final class ConfigManager {
         if (loadedCount > 0) {
             this.plugin.getLogger().info("Loaded " + loadedCount + " external module definition(s)");
         }
-    }
-
-    private ScreenType deriveScreenType(String id) {
-        if (id == null)
-            return ScreenType.NONE;
-        String key = id.trim().toLowerCase(Locale.ROOT);
-        return switch (key) {
-            case "generic" -> ScreenType.GENERIC;
-            case "crafting" -> ScreenType.CRAFTING;
-            case "smithing" -> ScreenType.SMITHING;
-            case "stonecutter" -> ScreenType.STONECUTTER;
-            case "anvil" -> ScreenType.ANVIL;
-            case "smelting" -> ScreenType.SMELTING;
-            case "blasting" -> ScreenType.BLASTING;
-            case "smoking" -> ScreenType.SMOKING;
-            case "restock" -> ScreenType.DROPPER; // primary UI (whitelist)
-            case "feeding", "void", "magnet", "jukebox" -> ScreenType.DROPPER;
-            default -> ScreenType.NONE;
-        };
     }
 
     public boolean resizeGui() {
