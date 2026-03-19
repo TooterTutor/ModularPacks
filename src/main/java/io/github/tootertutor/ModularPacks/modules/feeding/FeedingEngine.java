@@ -54,10 +54,11 @@ public final class FeedingEngine {
 
         FeedingSettings settings = readFeedingSettings(moduleSnapshot);
         List<Material> ordered = orderedWhitelist == null ? java.util.Collections.emptyList() : orderedWhitelist;
+        boolean isBlacklist = isBlacklistMode(moduleSnapshot);
 
         // If whitelist-order is selected but no whitelist is configured, behave like
         // best-candidate.
-        if (settings.mode == FeedingSelectionMode.WHITELIST_ORDER && !ordered.isEmpty()) {
+        if (!isBlacklist && settings.mode == FeedingSelectionMode.WHITELIST_ORDER && !ordered.isEmpty()) {
             int chosen = chooseFeedingByWhitelistOrder(contents, ordered, settings.preference, minFood, foodLevel);
             if (chosen < 0)
                 return false;
@@ -67,9 +68,6 @@ public final class FeedingEngine {
         java.util.Set<Material> filterSet = ordered.isEmpty()
                 ? java.util.Collections.emptySet()
                 : new java.util.HashSet<>(ordered);
-
-        // Check if using blacklist mode
-        boolean isBlacklist = isBlacklistMode(moduleSnapshot);
 
         CandidatePick good = new CandidatePick();
         CandidatePick bad = new CandidatePick();
@@ -484,7 +482,7 @@ public final class FeedingEngine {
         static FeedingSelectionMode parse(String raw) {
             if (raw == null)
                 return BEST_CANDIDATE;
-            String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
+            String s = normalizeEnumToken(raw);
             if (s.isEmpty())
                 return BEST_CANDIDATE;
             return switch (s) {
@@ -502,7 +500,7 @@ public final class FeedingEngine {
         static FeedingPreference parse(String raw) {
             if (raw == null)
                 return NUTRITION;
-            String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
+            String s = normalizeEnumToken(raw);
             if (s.isEmpty())
                 return NUTRITION;
             return switch (s) {
@@ -510,6 +508,16 @@ public final class FeedingEngine {
                 default -> NUTRITION;
             };
         }
+    }
+
+    private static String normalizeEnumToken(String raw) {
+        if (raw == null)
+            return "";
+        String normalized = raw.trim().toUpperCase(java.util.Locale.ROOT).replace('-', '_').replace(' ', '_');
+        while (normalized.contains("__")) {
+            normalized = normalized.replace("__", "_");
+        }
+        return normalized;
     }
 
     private static final class FeedingSettings {
