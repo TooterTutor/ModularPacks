@@ -22,7 +22,7 @@ import org.bukkit.plugin.Plugin;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
-import io.github.tootertutor.ModularPacks.listeners.ModuleClickHandler;
+import io.github.tootertutor.ModularPacks.listeners.module.ModuleClickHandler;
 import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import net.kyori.adventure.text.Component;

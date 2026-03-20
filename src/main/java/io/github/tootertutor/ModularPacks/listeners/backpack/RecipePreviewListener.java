@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.listeners;
+package io.github.tootertutor.ModularPacks.listeners.backpack;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;

@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.listeners;
+package io.github.tootertutor.ModularPacks.listeners.module;
 
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;

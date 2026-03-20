@@ -16,7 +16,7 @@ import org.bukkit.inventory.meta.trim.ArmorTrim;
 import org.bukkit.inventory.meta.trim.TrimMaterial;
 import org.bukkit.plugin.Plugin;
 
-import io.github.tootertutor.ModularPacks.listeners.ModuleClickHandler;
+import io.github.tootertutor.ModularPacks.listeners.module.ModuleClickHandler;
 import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 

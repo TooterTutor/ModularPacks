@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.listeners;
+package io.github.tootertutor.ModularPacks.listeners.module;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;

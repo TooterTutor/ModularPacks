@@ -11,7 +11,7 @@ import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.StonecuttingRecipe;
 import org.bukkit.plugin.Plugin;
 
-import io.github.tootertutor.ModularPacks.listeners.ModuleClickHandler;
+import io.github.tootertutor.ModularPacks.listeners.module.ModuleClickHandler;
 import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 

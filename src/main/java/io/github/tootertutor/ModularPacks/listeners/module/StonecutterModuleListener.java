@@ -1,64 +1,56 @@
-package io.github.tootertutor.ModularPacks.listeners;
+package io.github.tootertutor.ModularPacks.listeners.module;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.anvil.AnvilModule;
+import io.github.tootertutor.ModularPacks.modules.stonecutter.StonecutterModule;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
-public final class AnvilModuleListener implements Listener {
+public final class StonecutterModuleListener implements Listener {
 
     private final ModularPacksPlugin plugin;
-    private final AnvilModule module;
+    private final StonecutterModule module;
 
-    public AnvilModuleListener(ModularPacksPlugin plugin, AnvilModule module) {
+    public StonecutterModuleListener(ModularPacksPlugin plugin, StonecutterModule module) {
         this.plugin = plugin;
         this.module = module;
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
         if (!module.hasSession(player))
             return;
-        if (e.getView().getTopInventory().getType() != InventoryType.ANVIL)
+
+        Inventory top = e.getView().getTopInventory();
+        if (top == null || top.getType() != InventoryType.STONECUTTER)
             return;
 
-        // Optional: prevent putting backpacks into anvil slots during module session
-        ItemStack cursor = e.getCursor();
-        if (isBackpack(cursor)) {
-            int raw = e.getRawSlot();
-            if (raw >= 0 && raw < e.getView().getTopInventory().getSize()) {
-                e.setCancelled(true);
-            }
-        }
-
-        // Respect container rules for the anvil module too (it persists items in
-        // moduleStates).
-        int topSize = e.getView().getTopInventory().getSize();
+        boolean clickedTop = e.getClickedInventory() != null && e.getClickedInventory().equals(top);
         int raw = e.getRawSlot();
-        boolean clickedTop = e.getClickedInventory() != null
-                && e.getClickedInventory().equals(e.getView().getTopInventory());
-
-        if (clickedTop && raw >= 0 && raw < topSize) {
+        if (clickedTop && raw >= 0 && raw < top.getSize()) {
             InventoryAction action = e.getAction();
             if (action == InventoryAction.PLACE_ALL
                     || action == InventoryAction.PLACE_ONE
                     || action == InventoryAction.PLACE_SOME
                     || action == InventoryAction.SWAP_WITH_CURSOR) {
+                ItemStack cursor = e.getCursor();
                 if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
                     e.setCancelled(true);
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    return;
                 }
             }
             if (action == InventoryAction.HOTBAR_SWAP) {
@@ -67,6 +59,8 @@ public final class AnvilModuleListener implements Listener {
                     ItemStack hotbar = player.getInventory().getItem(btn);
                     if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
                         e.setCancelled(true);
+                        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                        return;
                     }
                 }
             }
@@ -76,30 +70,31 @@ public final class AnvilModuleListener implements Listener {
             ItemStack moving = e.getCurrentItem();
             if (ItemStacks.isNotAir(moving) && !plugin.cfg().isAllowedInBackpack(moving)) {
                 e.setCancelled(true);
+                Bukkit.getScheduler().runTask(plugin, player::updateInventory);
             }
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
         if (!module.hasSession(player))
             return;
-        if (e.getView().getTopInventory().getType() != InventoryType.ANVIL)
+
+        Inventory top = e.getView().getTopInventory();
+        if (top == null || top.getType() != InventoryType.STONECUTTER)
             return;
 
         ItemStack cursor = e.getOldCursor();
-        if (ItemStacks.isAir(cursor))
-            return;
-        if (plugin.cfg().isAllowedInBackpack(cursor))
-            return;
-
-        int topSize = e.getView().getTopInventory().getSize();
-        for (int raw : e.getRawSlots()) {
-            if (raw >= 0 && raw < topSize) {
-                e.setCancelled(true);
-                return;
+        if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
+            int topSize = top.getSize();
+            for (int raw : e.getRawSlots()) {
+                if (raw >= 0 && raw < topSize) {
+                    e.setCancelled(true);
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    return;
+                }
             }
         }
     }
@@ -110,18 +105,9 @@ public final class AnvilModuleListener implements Listener {
             return;
         if (!module.hasSession(player))
             return;
-        if (e.getInventory().getType() != InventoryType.ANVIL)
+        if (e.getInventory().getType() != InventoryType.STONECUTTER)
             return;
 
         module.handleClose(plugin, player, e.getInventory());
-    }
-
-    private boolean isBackpack(ItemStack item) {
-        if (item == null || !item.hasItemMeta())
-            return false;
-        Keys keys = plugin.keys();
-        var pdc = item.getItemMeta().getPersistentDataContainer();
-        return pdc.has(keys.BACKPACK_ID, PersistentDataType.STRING)
-                && pdc.has(keys.BACKPACK_TYPE, PersistentDataType.STRING);
     }
 }

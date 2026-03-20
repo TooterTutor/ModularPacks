@@ -1,4 +1,4 @@
-package io.github.tootertutor.ModularPacks.listeners;
+package io.github.tootertutor.ModularPacks.listeners.module;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
