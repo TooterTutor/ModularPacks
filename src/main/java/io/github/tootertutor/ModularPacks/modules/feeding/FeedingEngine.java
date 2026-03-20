@@ -1,8 +1,11 @@
 package io.github.tootertutor.ModularPacks.modules.feeding;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -53,7 +56,7 @@ public final class FeedingEngine {
             return false;
 
         FeedingSettings settings = readFeedingSettings(moduleSnapshot);
-        List<Material> ordered = orderedWhitelist == null ? java.util.Collections.emptyList() : orderedWhitelist;
+        List<Material> ordered = orderedWhitelist == null ? Collections.emptyList() : orderedWhitelist;
         boolean isBlacklist = isBlacklistMode(moduleSnapshot);
 
         // If whitelist-order is selected but no whitelist is configured, behave like
@@ -65,9 +68,9 @@ public final class FeedingEngine {
             return consumeFeeding(player, contents, chosen, minFood, foodLevel, settings, now);
         }
 
-        java.util.Set<Material> filterSet = ordered.isEmpty()
-                ? java.util.Collections.emptySet()
-                : new java.util.HashSet<>(ordered);
+        Set<Material> filterSet = ordered.isEmpty()
+                ? Collections.emptySet()
+                : new HashSet<>(ordered);
 
         CandidatePick good = new CandidatePick();
         CandidatePick bad = new CandidatePick();
