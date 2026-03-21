@@ -3,6 +3,102 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.0
+
+**Release Date:** 2026-03-20
+
+## Changes since 2.3.2
+
+### Features & Improvements
+- Added password view to host button (2c12619)
+- Added more support for Custom Model Data (1cee67b)
+- Added Settings button and logic (c77a559)
+- Added BundleMeta check (4830a1f)
+- Added new Generic screen type for API calls (d6fc68e)
+
+### Bug Fixes
+- Fixed backpack coloring desync (b4f7775)
+- Fixing small inconsistencies (b200ec2)
+- Fixed bug with Feeding Engine (f975577)
+- Fix: Recipe command now checks configs for `modularpacks-modules` (01584a3)
+
+### Refactoring & Code Quality
+- Refactor done (1fd083a)
+- Cleaned up ConfigManager (41a18d7)
+- Refactored how modules are structured within the plugin (808e306)
+
+### All Commits
+- Fixed backpack coloring desync (b4f7775)
+- Cleared colors revert to original model colors (ebd2439)
+- Added password view to host button (2c12619)
+- Added more support for Custom Model Data (1cee67b)
+- Added Settings button and logic (c77a559)
+- Backpack now handles custom name (d2ac15c)
+- Internal package changes (fd00a36)
+- Fixing small inconsistencies (b200ec2)
+- Fixed bug with Feeding Engine (f975577)
+- Refactor done (1fd083a)
+- Attempt to clean up ScreenRouter (7d9b5a6)
+- Cleaned up ConfigManager (41a18d7)
+- Refactored how modules are structured within the plugin (808e306)
+- Bump version (9224e88)
+- Small change to SlotLayout (98864f7)
+- Fix: Recipe command now checks configs for `modularpacks-modules` (01584a3)
+- Added BundleMeta check (4830a1f)
+- Custom modules provided by external plugins are now config-driven (969cd31)
+- bump version (dec748b)
+- Added new Generic screen type for API calls (d6fc68e)
+---
+
+
+# ModularPacks 2.4.0
+
+**Release Date:** 2026-03-20
+
+## Changes since 2.3.2
+
+### Features & Improvements
+- Added password view to host button (2c12619)
+- Added more support for Custom Model Data (1cee67b)
+- Added Settings button and logic (c77a559)
+- Added BundleMeta check (4830a1f)
+- Added new Generic screen type for API calls (d6fc68e)
+
+### Bug Fixes
+- Fixed backpack coloring desync (b4f7775)
+- Fixing small inconsistencies (b200ec2)
+- Fixed bug with Feeding Engine (f975577)
+- Fix: Recipe command now checks configs for `modularpacks-modules` (01584a3)
+
+### Refactoring & Code Quality
+- Refactor done (1fd083a)
+- Cleaned up ConfigManager (41a18d7)
+- Refactored how modules are structured within the plugin (808e306)
+
+### All Commits
+- Fixed backpack coloring desync (b4f7775)
+- Cleared colors revert to original model colors (ebd2439)
+- Added password view to host button (2c12619)
+- Added more support for Custom Model Data (1cee67b)
+- Added Settings button and logic (c77a559)
+- Backpack now handles custom name (d2ac15c)
+- Internal package changes (fd00a36)
+- Fixing small inconsistencies (b200ec2)
+- Fixed bug with Feeding Engine (f975577)
+- Refactor done (1fd083a)
+- Attempt to clean up ScreenRouter (7d9b5a6)
+- Cleaned up ConfigManager (41a18d7)
+- Refactored how modules are structured within the plugin (808e306)
+- Bump version (9224e88)
+- Small change to SlotLayout (98864f7)
+- Fix: Recipe command now checks configs for `modularpacks-modules` (01584a3)
+- Added BundleMeta check (4830a1f)
+- Custom modules provided by external plugins are now config-driven (969cd31)
+- bump version (dec748b)
+- Added new Generic screen type for API calls (d6fc68e)
+---
+
+
 # ModularPacks 2.3.2
 
 **Release Date:** 2026-02-16
