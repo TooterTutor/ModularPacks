@@ -2,6 +2,7 @@ package io.github.tootertutor.ModularPacks.listeners.backpack;
 
 import java.util.Iterator;
 
+import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -14,12 +15,14 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
+import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
@@ -80,8 +83,8 @@ public final class PlacedBackpackBreakListener implements Listener {
         // Cancel the default drop
         event.setDropItems(false);
 
-        // Create the backpack item
-        ItemStack backpackItem = backpackItems.createExisting(placed.backpackId(), placed.backpackType());
+        // Create the backpack item and restore any placement-time visual overrides.
+        ItemStack backpackItem = createDroppedBackpackItem(placed);
 
         // Drop the backpack item
         if (player.getGameMode() != GameMode.CREATIVE) {
@@ -113,8 +116,7 @@ public final class PlacedBackpackBreakListener implements Listener {
                     BackpackTypeDef typeDef = plugin.cfg().findType(placed.backpackType());
 
                     if (data != null && typeDef != null) {
-                        ItemStack backpackItem = backpackItems.createExisting(placed.backpackId(),
-                                placed.backpackType());
+                        ItemStack backpackItem = createDroppedBackpackItem(placed);
                         block.getWorld().dropItemNaturally(block.getLocation(), backpackItem);
                         block.setType(Material.AIR);
                         plugin.placedBackpacks().remove(placed.location());
@@ -144,8 +146,7 @@ public final class PlacedBackpackBreakListener implements Listener {
                     BackpackTypeDef typeDef = plugin.cfg().findType(placed.backpackType());
 
                     if (data != null && typeDef != null) {
-                        ItemStack backpackItem = backpackItems.createExisting(placed.backpackId(),
-                                placed.backpackType());
+                        ItemStack backpackItem = createDroppedBackpackItem(placed);
                         block.getWorld().dropItemNaturally(block.getLocation(), backpackItem);
                         block.setType(Material.AIR);
                         plugin.placedBackpacks().remove(placed.location());
@@ -153,5 +154,30 @@ public final class PlacedBackpackBreakListener implements Listener {
                 }
             }
         }
+    }
+
+    private ItemStack createDroppedBackpackItem(PlacedBackpack placed) {
+        ItemStack backpackItem = backpackItems.createExisting(placed.backpackId(), placed.backpackType());
+        if (placed.modelDataStrings().isEmpty() && placed.modelDataColors().isEmpty()) {
+            return backpackItem;
+        }
+
+        ItemMeta meta = backpackItem.getItemMeta();
+        if (meta == null) {
+            return backpackItem;
+        }
+
+        CustomModelDataUtil.setCustomModelDataStrings(meta, placed.modelDataStrings());
+        if (!placed.modelDataColors().isEmpty()) {
+            java.util.List<Color> colors = new java.util.ArrayList<>(placed.modelDataColors().size());
+            for (Integer rgb : placed.modelDataColors()) {
+                int value = rgb == null ? 0xFFFFFF : (rgb & 0xFFFFFF);
+                colors.add(Color.fromRGB((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF));
+            }
+            CustomModelDataUtil.setCustomModelDataColors(meta, colors);
+        }
+
+        backpackItem.setItemMeta(meta);
+        return backpackItem;
     }
 }

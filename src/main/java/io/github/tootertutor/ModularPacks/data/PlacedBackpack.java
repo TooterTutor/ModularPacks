@@ -1,5 +1,7 @@
 package io.github.tootertutor.ModularPacks.data;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Location;
@@ -16,14 +18,23 @@ public final class PlacedBackpack {
     private final Location location;
     private final UUID ownerId; // Player who placed it
     private final String ownerName;
+    private final List<String> modelDataStrings;
+    private final List<Integer> modelDataColors;
     private long lastTickTime;
 
     public PlacedBackpack(UUID backpackId, String backpackType, Location location, UUID ownerId, String ownerName) {
+        this(backpackId, backpackType, location, ownerId, ownerName, List.of(), List.of());
+    }
+
+    public PlacedBackpack(UUID backpackId, String backpackType, Location location, UUID ownerId, String ownerName,
+            List<String> modelDataStrings, List<Integer> modelDataColors) {
         this.backpackId = backpackId;
         this.backpackType = backpackType;
         this.location = location;
         this.ownerId = ownerId;
         this.ownerName = ownerName;
+        this.modelDataStrings = modelDataStrings == null ? List.of() : List.copyOf(modelDataStrings);
+        this.modelDataColors = modelDataColors == null ? List.of() : List.copyOf(modelDataColors);
         this.lastTickTime = System.currentTimeMillis();
     }
 
@@ -45,6 +56,14 @@ public final class PlacedBackpack {
 
     public String ownerName() {
         return ownerName;
+    }
+
+    public List<String> modelDataStrings() {
+        return new ArrayList<>(modelDataStrings);
+    }
+
+    public List<Integer> modelDataColors() {
+        return new ArrayList<>(modelDataColors);
     }
 
     public long lastTickTime() {

@@ -6,14 +6,17 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -24,10 +27,13 @@ import org.bukkit.block.Skull;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Rotatable;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
+import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 import io.github.tootertutor.ModularPacks.item.SkullTextureUtil;
 
 /**
@@ -57,7 +63,7 @@ public final class PlacedBackpackManager {
     /**
      * Register a newly placed backpack.
      */
-    public boolean place(Location location, UUID backpackId, String backpackType, Player placer) {
+    public boolean place(Location location, UUID backpackId, String backpackType, Player placer, ItemStack sourceItem) {
         String key = locationKey(location);
 
         if (placedBackpacks.containsKey(key)) {
@@ -65,12 +71,32 @@ public final class PlacedBackpackManager {
             return false;
         }
 
+        List<String> modelDataStrings = List.of();
+        List<Integer> modelDataColors = List.of();
+        if (sourceItem != null) {
+            ItemMeta sourceMeta = sourceItem.getItemMeta();
+            if (sourceMeta != null) {
+                modelDataStrings = CustomModelDataUtil.getCustomModelDataStrings(sourceMeta);
+                List<Color> rawColors = CustomModelDataUtil.getCustomModelDataColors(sourceMeta);
+                if (!rawColors.isEmpty()) {
+                    List<Integer> rgb = new ArrayList<>(rawColors.size());
+                    for (Color c : rawColors) {
+                        int color = ((c.getRed() & 0xFF) << 16) | ((c.getGreen() & 0xFF) << 8) | (c.getBlue() & 0xFF);
+                        rgb.add(color);
+                    }
+                    modelDataColors = rgb;
+                }
+            }
+        }
+
         PlacedBackpack placed = new PlacedBackpack(
                 backpackId,
                 backpackType,
                 location.clone(),
                 placer.getUniqueId(),
-                placer.getName());
+                placer.getName(),
+                modelDataStrings,
+                modelDataColors);
 
         placedBackpacks.put(key, placed);
         backpackPlacements.computeIfAbsent(backpackId, k -> new HashSet<>()).add(key);
@@ -378,7 +404,9 @@ public final class PlacedBackpackManager {
                         pb.location().getBlockZ(),
                         pb.ownerId().toString(),
                         pb.ownerName(),
-                        rotation));
+                        rotation,
+                        pb.modelDataStrings(),
+                        pb.modelDataColors()));
             }
 
             try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
@@ -418,7 +446,9 @@ public final class PlacedBackpackManager {
                         sp.backpackType,
                         location,
                         ownerId,
-                        sp.ownerName);
+                        sp.ownerName,
+                        sp.modelDataStrings,
+                        sp.modelDataColors);
 
                 placedBackpacks.put(entry.getKey(), placed);
                 backpackPlacements.computeIfAbsent(backpackId, k -> new HashSet<>()).add(entry.getKey());
@@ -467,9 +497,12 @@ public final class PlacedBackpackManager {
         final String ownerId;
         final String ownerName;
         String rotation; // Stored as BlockFace name - transient for old data
+        List<String> modelDataStrings;
+        List<Integer> modelDataColors;
 
         SavedPlacement(String backpackId, String backpackType, String worldName, int x, int y, int z,
-                String ownerId, String ownerName, String rotation) {
+                String ownerId, String ownerName, String rotation,
+                List<String> modelDataStrings, List<Integer> modelDataColors) {
             this.backpackId = backpackId;
             this.backpackType = backpackType;
             this.worldName = worldName;
@@ -479,6 +512,8 @@ public final class PlacedBackpackManager {
             this.ownerId = ownerId;
             this.ownerName = ownerName;
             this.rotation = rotation != null ? rotation : "NORTH";
+            this.modelDataStrings = modelDataStrings == null ? new ArrayList<>() : new ArrayList<>(modelDataStrings);
+            this.modelDataColors = modelDataColors == null ? new ArrayList<>() : new ArrayList<>(modelDataColors);
         }
 
         // Handle deserialization of old objects without rotation field
@@ -486,6 +521,12 @@ public final class PlacedBackpackManager {
             in.defaultReadObject();
             if (this.rotation == null) {
                 this.rotation = "NORTH";
+            }
+            if (this.modelDataStrings == null) {
+                this.modelDataStrings = new ArrayList<>();
+            }
+            if (this.modelDataColors == null) {
+                this.modelDataColors = new ArrayList<>();
             }
         }
     }

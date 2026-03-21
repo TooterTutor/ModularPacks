@@ -134,7 +134,7 @@ public final class BackpackPlacementListener implements Listener {
         }
 
         // Place the backpack
-        boolean success = plugin.placedBackpacks().place(placementLoc, backpackId, backpackType, player);
+        boolean success = plugin.placedBackpacks().place(placementLoc, backpackId, backpackType, player, item);
         if (!success) {
             player.sendMessage(Text.c(
                     plugin.lang().get("backpack.placement.failed", "&cAn error occurred while placing the backpack.")));

@@ -1,5 +1,6 @@
 package io.github.tootertutor.ModularPacks.listeners.backpack;
 
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -11,12 +12,14 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
+import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
@@ -143,6 +146,23 @@ public final class PlacedBackpackInteractListener implements Listener {
 
         // Create the backpack item
         ItemStack backpackItem = backpackItems.createExisting(placed.backpackId(), placed.backpackType());
+
+        // Restore custom_model_data strings/colors captured at placement time
+        if (!placed.modelDataStrings().isEmpty() || !placed.modelDataColors().isEmpty()) {
+            ItemMeta meta = backpackItem.getItemMeta();
+            if (meta != null) {
+                CustomModelDataUtil.setCustomModelDataStrings(meta, placed.modelDataStrings());
+                if (!placed.modelDataColors().isEmpty()) {
+                    java.util.List<Color> colors = new java.util.ArrayList<>(placed.modelDataColors().size());
+                    for (Integer rgb : placed.modelDataColors()) {
+                        int value = rgb == null ? 0xFFFFFF : (rgb & 0xFFFFFF);
+                        colors.add(Color.fromRGB((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF));
+                    }
+                    CustomModelDataUtil.setCustomModelDataColors(meta, colors);
+                }
+                backpackItem.setItemMeta(meta);
+            }
+        }
 
         // Give the item to the player
         if (!player.getInventory().addItem(backpackItem).isEmpty()) {
