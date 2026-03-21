@@ -2,6 +2,7 @@ package io.github.tootertutor.ModularPacks.gui;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -53,7 +54,7 @@ public final class BackpackSettingsMenu {
         Inventory inv = plugin.getServer().createInventory(settingsHolder, 27, Text.c("&8Backpack Settings"));
 
         // Get the backpack item from player's inventory
-        ItemStack backpackItem = findBackpackInInventory(player);
+        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
         if (backpackItem == null) {
             player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
             return;
@@ -147,7 +148,7 @@ public final class BackpackSettingsMenu {
         BackpackData data = holder.data();
 
         // Get the backpack item first
-        ItemStack backpackItem = findBackpackInInventory(player);
+        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
         if (backpackItem == null) {
             player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
             return;
@@ -206,7 +207,7 @@ public final class BackpackSettingsMenu {
      * Handle clicks in hopper-based color picker.
      */
     public void handleColorPickerClick(Player player, BackpackMenuHolder holder, int slot, ClickType click) {
-        ItemStack backpackItem = findBackpackInInventory(player);
+        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
         if (backpackItem == null) {
             player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
             return;
@@ -230,7 +231,7 @@ public final class BackpackSettingsMenu {
         Inventory picker = plugin.getServer().createInventory(colorHolder, InventoryType.HOPPER,
                 Text.c("&8Backpack Colors"));
 
-        ItemStack backpackItem = findBackpackInInventory(player);
+        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
         if (backpackItem == null) {
             player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
             return;
@@ -396,7 +397,11 @@ public final class BackpackSettingsMenu {
      * Find the backpack ItemStack in the player's inventory by looking for the
      * backpack ID in the item's PersistentDataContainer.
      */
-    private ItemStack findBackpackInInventory(Player player) {
+    private ItemStack findBackpackInInventory(Player player, UUID backpackId) {
+        if (backpackId == null) {
+            return null;
+        }
+
         // Search player inventory for the backpack item
         for (ItemStack item : player.getInventory().getContents()) {
             if (item == null || item.getItemMeta() == null) {
@@ -406,24 +411,31 @@ public final class BackpackSettingsMenu {
             ItemMeta meta = item.getItemMeta();
             org.bukkit.persistence.PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
-            // Try to get the backpack ID from the item
-            // This assumes backpack items have a stored backpack ID
-            // You may need to adjust this based on your actual backpack item marker
-            if (pdc.has(new org.bukkit.NamespacedKey(plugin, "backpack_id"),
-                    org.bukkit.persistence.PersistentDataType.STRING)) {
+            String itemBackpackId = pdc.get(plugin.keys().BACKPACK_ID,
+                    org.bukkit.persistence.PersistentDataType.STRING);
+            if (itemBackpackId != null && backpackId.toString().equals(itemBackpackId)) {
                 return item;
             }
         }
 
-        // If not found in inventory, check main hand and offhand
+        // If not found in inventory scan, explicitly check main hand and offhand by
+        // exact ID
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         if (mainHand != null && mainHand.getItemMeta() != null) {
-            return mainHand;
+            String id = mainHand.getItemMeta().getPersistentDataContainer().get(plugin.keys().BACKPACK_ID,
+                    org.bukkit.persistence.PersistentDataType.STRING);
+            if (id != null && backpackId.toString().equals(id)) {
+                return mainHand;
+            }
         }
 
         ItemStack offHand = player.getInventory().getItemInOffHand();
         if (offHand != null && offHand.getItemMeta() != null) {
-            return offHand;
+            String id = offHand.getItemMeta().getPersistentDataContainer().get(plugin.keys().BACKPACK_ID,
+                    org.bukkit.persistence.PersistentDataType.STRING);
+            if (id != null && backpackId.toString().equals(id)) {
+                return offHand;
+            }
         }
 
         return null;
