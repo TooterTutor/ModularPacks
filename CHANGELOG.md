@@ -3,6 +3,28 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.1
+
+**Release Date:** 2026-03-21
+
+## Changes since 2.4.0
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fixed custom backpack colors reverting when being placed (64e9d9e)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump Version (1779ec3)
+- Fixed custom backpack colors reverting when being placed (64e9d9e)
+- bump version (0f1dd36)
+---
+
+
 # ModularPacks 2.4.0
 
 **Release Date:** 2026-03-20
