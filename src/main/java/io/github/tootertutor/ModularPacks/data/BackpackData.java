@@ -30,6 +30,9 @@ public final class BackpackData {
     // Sort fields
     private boolean sortLocked = false;
 
+    // Settings fields
+    private String backpackName = ""; // Empty string means use default type name
+
     public BackpackData(UUID backpackId, String backpackType) {
         this.backpackId = backpackId;
         this.backpackType = backpackType;
@@ -113,6 +116,14 @@ public final class BackpackData {
      */
     public boolean isShareHost() {
         return isShared && shareHostId == null;
+    }
+
+    public String backpackName() {
+        return backpackName == null ? "" : backpackName;
+    }
+
+    public void backpackName(String name) {
+        this.backpackName = name == null ? "" : name;
     }
 
 }
