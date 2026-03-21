@@ -76,7 +76,8 @@ public final class BackpackItems {
         if (meta == null)
             return false;
 
-        meta.displayName(Text.c(type.displayName()));
+        String customName = data != null && data.backpackName() != null ? data.backpackName().trim() : "";
+        meta.displayName(Text.c(customName.isEmpty() ? type.displayName() : customName));
         meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_ID, PersistentDataType.STRING,
                 backpackId.toString());
         meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_TYPE, PersistentDataType.STRING, type.id());

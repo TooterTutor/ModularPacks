@@ -27,8 +27,11 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
+import io.github.tootertutor.ModularPacks.gui.BackpackSettingsMenu;
+import io.github.tootertutor.ModularPacks.gui.ColorPickerHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
+import io.github.tootertutor.ModularPacks.gui.SettingsMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.listeners.module.ModuleSocketHandler;
@@ -56,6 +59,7 @@ public final class BackpackMenuListener implements Listener {
     private final ModuleSocketHandler moduleHandler;
     private final BackpackSharingHost sharingHost;
     private final BackpackSharingJoiner sharingJoiner;
+    private final BackpackSettingsMenu settingsMenu;
 
     // UI-specific state (page navigation)
     private final Map<UUID, Integer> ignoreCloseUntilTick = new HashMap<>();
@@ -76,6 +80,7 @@ public final class BackpackMenuListener implements Listener {
         this.moduleHandler = new ModuleSocketHandler(plugin, renderer, screens, saveManager);
         this.sharingHost = new BackpackSharingHost(plugin, renderer, saveManager);
         this.sharingJoiner = new BackpackSharingJoiner(plugin, renderer, saveManager);
+        this.settingsMenu = new BackpackSettingsMenu(plugin, sharingHost, sharingJoiner);
     }
 
     @EventHandler
@@ -84,6 +89,23 @@ public final class BackpackMenuListener implements Listener {
             return;
 
         var topHolder = e.getView().getTopInventory().getHolder();
+
+        // Handle settings menu clicks
+        if (topHolder instanceof SettingsMenuHolder settingsHolder) {
+            e.setCancelled(true);
+            if (e.getRawSlot() >= 0 && e.getRawSlot() < e.getView().getTopInventory().getSize()) {
+                settingsMenu.handleClick(player, settingsHolder.backpackMenuHolder(), e.getRawSlot(), e.getClick());
+            }
+            return;
+        }
+
+        if (topHolder instanceof ColorPickerHolder colorHolder) {
+            e.setCancelled(true);
+            if (e.getRawSlot() >= 0 && e.getRawSlot() < e.getView().getTopInventory().getSize()) {
+                settingsMenu.handleColorPickerClick(player, colorHolder.backpackMenuHolder(), e.getRawSlot());
+            }
+            return;
+        }
 
         if (!(topHolder instanceof BackpackMenuHolder holder))
             return;
@@ -279,7 +301,7 @@ public final class BackpackMenuListener implements Listener {
                 return;
             }
 
-            // Mode button (share/private toggle)
+            // Mode button (now opens settings menu)
             int modeSlot = SlotLayout.modeButtonSlot(topSize, holder.upgradeSlots(), holder.paginated(), sortSlot);
             if (modeSlot >= 0 && rawSlot == modeSlot) {
                 e.setCancelled(true);
@@ -292,39 +314,9 @@ public final class BackpackMenuListener implements Listener {
                     }
                 }
 
-                boolean isLeftClick = e.getClick().isLeftClick();
-                boolean isRightClick = e.getClick().isRightClick();
-
-                if (!holder.data().isShared()) {
-                    // Private mode: Left-click → Host Mode (no password required), Right-click →
-                    // Join Mode
-                    if (isLeftClick) {
-                        sharingHost.hostBackpack(player, holder);
-                    } else if (isRightClick) {
-                        // Open join dialog
-                        sharingJoiner.openJoinDialog(player, holder);
-                    }
-                } else {
-                    // Shared mode: Left-click → Private, Right-click → Set Password (host) or
-                    // Change Join (joiner)
-                    if (isLeftClick) {
-                        // Try to leave (if joiner) or disable share (if host)
-                        if (holder.data().isShareHost()) {
-                            sharingHost.stopHosting(player, holder);
-                        } else {
-                            sharingJoiner.leaveJoinedBackpack(player, holder);
-                            player.sendMessage(Text.c("&aLeft shared backpack."));
-                        }
-                    } else if (isRightClick) {
-                        if (holder.data().isShareHost()) {
-                            // Host mode: Set/change password
-                            sharingHost.openPasswordDialog(player, holder);
-                        } else {
-                            // Join mode: Change join (re-open join dialog)
-                            sharingJoiner.openJoinDialog(player, holder);
-                        }
-                    }
-                }
+                // Open settings menu
+                saveManager.flushSaveNow(player, holder, true);
+                settingsMenu.openSettingsMenu(player, holder);
                 return;
             }
 
