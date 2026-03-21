@@ -62,7 +62,7 @@ public final class BackpackMenuRenderer {
                 pageSize,
                 upgradeSlots);
 
-        Component title = Text.c("&8Backpack &7(" + type.displayName() + "&7)");
+        Component title = buildBackpackTitle(type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
         holder.setInventory(inv);
 
@@ -120,7 +120,7 @@ public final class BackpackMenuRenderer {
         page = Math.max(0, Math.min(page, pc - 1));
         holder.page(page);
 
-        Component title = Text.c("&8Backpack &7(" + type.displayName() + "&7)");
+        Component title = buildBackpackTitle(type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
         holder.setInventory(inv);
 
@@ -168,12 +168,20 @@ public final class BackpackMenuRenderer {
         int clamped = Math.max(0, Math.min(page, holder.pageCount() - 1));
         holder.page(clamped);
 
-        Component title = Text.c("&8Backpack &7(" + type.displayName() + "&7)");
+        Component title = buildBackpackTitle(type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
         holder.setInventory(inv);
 
         render(holder);
         player.openInventory(inv);
+    }
+
+    private Component buildBackpackTitle(BackpackTypeDef type, BackpackData data) {
+        String customName = data.backpackName() == null ? "" : data.backpackName().trim();
+        if (!customName.isEmpty()) {
+            return Text.c("&8" + customName + " &7(" + type.displayName() + "&7)");
+        }
+        return Text.c("&8Backpack &7(" + type.displayName() + "&7)");
     }
 
     public void render(BackpackMenuHolder holder) {
@@ -333,38 +341,26 @@ public final class BackpackMenuRenderer {
 
     private void renderModeButton(Inventory inv, BackpackData data, int slot) {
         List<String> lore = new ArrayList<>();
+        lore.add("&7Open backpack settings");
+        lore.add("&7");
+        lore.add("&7Includes:");
+        lore.add("&8• &fHost/Join/Private mode");
+        lore.add("&8• &fBackpack colors");
+        lore.add("&8• &fCustom name");
+        lore.add("&7");
+        lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open");
 
         if (data.isShared()) {
-            // Shared mode (Host or Join)
             if (data.isShareHost()) {
-                // Host mode
-                String shortId = data.backpackId().toString().substring(0, 8);
-                lore.add("&bHost Mode");
-                lore.add("&7ID: &f" + shortId);
-                lore.add("&7Password: &f" + (data.sharePassword().isEmpty() ? "(none)" : data.sharePassword()));
-                lore.add("&7");
-                lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 → Private");
-                lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Set Password");
-                inv.setItem(slot, namedItem(Material.ENDER_EYE, "&bShared", lore));
+                lore.add("&7Current mode: &bHost");
             } else {
-                // Join mode
-                String shortId = data.shareHostId().toString().substring(0, 8);
-                lore.add("&dJoin Mode");
-                lore.add("&7Host ID: &f" + shortId);
-                lore.add("&7Password: &f" + (data.sharePassword().isEmpty() ? "(none)" : data.sharePassword()));
-                lore.add("&7");
-                lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 → Private");
-                lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Change Join");
-                inv.setItem(slot, namedItem(Material.ENDER_PEARL, "&dJoined", lore));
+                lore.add("&7Current mode: &dJoined");
             }
         } else {
-            // Private mode
-            lore.add("&7Your backpack is private.");
-            lore.add("&7");
-            lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 → Host Mode");
-            lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 → Join Mode");
-            inv.setItem(slot, namedItem(Material.BARRIER, "&cPrivate", lore));
+            lore.add("&7Current mode: &cPrivate");
         }
+
+        inv.setItem(slot, namedItem(Material.REPEATER, "&6Settings", lore));
     }
 
     private void renderUpgradeSockets(BackpackMenuHolder holder) {
