@@ -205,7 +205,7 @@ public final class BackpackSettingsMenu {
     /**
      * Handle clicks in hopper-based color picker.
      */
-    public void handleColorPickerClick(Player player, BackpackMenuHolder holder, int slot) {
+    public void handleColorPickerClick(Player player, BackpackMenuHolder holder, int slot, ClickType click) {
         ItemStack backpackItem = findBackpackInInventory(player);
         if (backpackItem == null) {
             player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
@@ -215,7 +215,13 @@ public final class BackpackSettingsMenu {
         // Slots 0-4 map directly to editable custom_model_data color indices 0-4.
         // Slot 5 (tier/index 5) is intentionally not exposed.
         if (slot >= 0 && slot <= 4) {
-            openCustomRgbDialog(player, holder, backpackItem, slot);
+            if (click.isRightClick()) {
+                BackpackColorTints.clearColorTint(backpackItem, slot);
+                player.sendMessage(Text.c("&aRemoved custom color override for group " + (slot + 1) + "."));
+                openColorPickerMenu(player, holder);
+            } else {
+                openCustomRgbDialog(player, holder, backpackItem, slot);
+            }
         }
     }
 
@@ -233,19 +239,24 @@ public final class BackpackSettingsMenu {
         int[] colors = BackpackColorTints.getColors(backpackItem);
         picker.setItem(0, createButton("&fGroup 1", Material.NAME_TAG,
                 List.of("&7Edits color index: &f0", "&7Current: &f#" + String.format("%06X", colors[0]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal")));
+                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
+                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
         picker.setItem(1, createButton("&fGroup 2", Material.NAME_TAG,
                 List.of("&7Edits color index: &f1", "&7Current: &f#" + String.format("%06X", colors[1]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal")));
+                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
+                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
         picker.setItem(2, createButton("&fGroup 3", Material.NAME_TAG,
                 List.of("&7Edits color index: &f2", "&7Current: &f#" + String.format("%06X", colors[2]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal")));
+                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
+                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
         picker.setItem(3, createButton("&fGroup 4", Material.NAME_TAG,
                 List.of("&7Edits color index: &f3", "&7Current: &f#" + String.format("%06X", colors[3]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal")));
+                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
+                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
         picker.setItem(4, createButton("&fGroup 5", Material.NAME_TAG,
                 List.of("&7Edits color index: &f4", "&7Current: &f#" + String.format("%06X", colors[4]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal")));
+                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
+                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
 
         player.openInventory(picker);
     }

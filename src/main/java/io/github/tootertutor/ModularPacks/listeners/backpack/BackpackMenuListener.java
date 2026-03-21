@@ -102,7 +102,8 @@ public final class BackpackMenuListener implements Listener {
         if (topHolder instanceof ColorPickerHolder colorHolder) {
             e.setCancelled(true);
             if (e.getRawSlot() >= 0 && e.getRawSlot() < e.getView().getTopInventory().getSize()) {
-                settingsMenu.handleColorPickerClick(player, colorHolder.backpackMenuHolder(), e.getRawSlot());
+                settingsMenu.handleColorPickerClick(player, colorHolder.backpackMenuHolder(), e.getRawSlot(),
+                        e.getClick());
             }
             return;
         }

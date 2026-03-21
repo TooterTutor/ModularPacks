@@ -125,6 +125,7 @@ public final class ConfigManager {
                 String displayName = firstString(s, "DisplayName", key);
                 List<String> lore = firstStringList(s, "Lore");
                 int customModelData = firstInt(s, "CustomModelData", 0);
+                int defaultColor = parseDefaultColor(s, 0xFFFFFF);
                 String skullData = firstString(s, "SkullData", null);
                 if (skullData != null) {
                     skullData = skullData.trim();
@@ -138,7 +139,7 @@ public final class ConfigManager {
 
                 types.put(key.toLowerCase(Locale.ROOT),
                         new BackpackTypeDef(key, displayName, rows, upgradeSlots, output, lore, customModelData,
-                                skullData));
+                                skullData, defaultColor));
             }
         }
 
@@ -310,6 +311,38 @@ public final class ConfigManager {
             return fallback;
         Material m = parseMaterial(name);
         return m != null ? m : fallback;
+    }
+
+    private static int parseDefaultColor(ConfigurationSection s, int fallback) {
+        if (s == null)
+            return fallback;
+
+        Object raw = s.get("DefaultColor");
+        if (raw == null)
+            return fallback;
+
+        if (raw instanceof Number n) {
+            return n.intValue() & 0xFFFFFF;
+        }
+
+        String text = String.valueOf(raw).trim();
+        if (text.isEmpty())
+            return fallback;
+
+        if (text.startsWith("#")) {
+            text = text.substring(1);
+        } else if (text.startsWith("0x") || text.startsWith("0X")) {
+            text = text.substring(2);
+        }
+
+        try {
+            if (text.matches("^[0-9A-Fa-f]{6}$")) {
+                return Integer.parseInt(text, 16) & 0xFFFFFF;
+            }
+            return Integer.parseInt(text) & 0xFFFFFF;
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
     }
 
     private static boolean isShulkerBox(Material mat) {

@@ -77,6 +77,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1001
+    DefaultColor: 11100488
     SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDBiMWI1MzY3NDkxODM5MWEwN2E5ZDAwNTgyYzA1OGY5MjgwYmM1MjZhNzE2Yzc5NmVlNWVhYjRiZTEwYTc2MCJ9fX0=
   Copper:
     Rows: 3
@@ -98,6 +99,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1002
+    DefaultColor: 16747872
     SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMWU1ODNjYjc3MTU4MWQzYjI3YjIzZjYxN2M3YjhhNDNkY2Q3MjIwNDQ3ZmY5NWZmMTk2MDQxNGQyMzUwYmRiOSJ9fX0=
   Iron:
     Rows: 4
@@ -120,6 +122,7 @@ BackpackTypes:
           - "{backpackId}"
           - "{installedModules}"
         CustomModelData: 1003
+        DefaultColor: 14540253
         SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGRhZjhlZGMzMmFmYjQ2MWFlZTA3MTMwNTgwMjMxMDFmOTI0ZTJhN2VmYTg4M2RhZTcyZDVkNTdkNGMwNTNkNyJ9fX0=
       - "2":
         Type: Crafting
@@ -138,6 +141,7 @@ BackpackTypes:
           - "{backpackId}"
           - "{installedModules}"
         CustomModelData: 1003
+        DefaultColor: 14540253
         SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2Y4NzUyNWFkODRlZmQxNjgwNmEyNmNhMDE5ODRiMjgwZTViYTY0MDM1MDViNmY2Yzk4MDNjMjQ2NDJhYmZjNyJ9fX0=
   Gold:
     Rows: 6
@@ -159,6 +163,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1004
+    DefaultColor: 16761654
     SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2Y4NzUyNWFkODRlZmQxNjgwNmEyNmNhMDE5ODRiMjgwZTViYTY0MDM1MDViNmY2Yzk4MDNjMjQ2NDJhYmZjNyJ9fX0=
   Diamond:
     Rows: 8
@@ -180,6 +185,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1005
+    DefaultColor: 6936575
     SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTBkMWIwNzMyYmY3YTcwZGU0ZGMwMTU1OWNjNWM5ODExMDY4ZWY3YjYwOTUwMTAzODI3MDlmOTQwOTM5MjdmNiJ9fX0=
   Netherite:
     Rows: 10
@@ -197,6 +203,7 @@ BackpackTypes:
       - "{backpackId}"
       - "{installedModules}"
     CustomModelData: 1006
+    DefaultColor: 4473924
     SkullData: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODM1ZDdjYzA5ZmZmYmNhM2UxYzAwZDQyMWFmYWE0MzJjZjcxZmNiMDk1NTVmNTQ1MjNlNTIyMGQxYWYwZjk3ZCJ9fX0=
 
 # CraftingRecipe.Ingredients supports vanilla materials (e.g. `IRON_INGOT`) AND special ModularPacks tokens:

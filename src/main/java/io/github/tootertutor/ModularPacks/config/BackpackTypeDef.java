@@ -12,5 +12,6 @@ public record BackpackTypeDef(
 		Material outputMaterial,
 		List<String> lore,
 		int customModelData,
-		String skullData) {
+		String skullData,
+		int defaultColor) {
 }

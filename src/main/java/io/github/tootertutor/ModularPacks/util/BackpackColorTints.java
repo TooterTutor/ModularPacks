@@ -7,7 +7,10 @@ import org.bukkit.Color;
 import org.bukkit.DyeColor;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
+import io.github.tootertutor.ModularPacks.api.ModularPacksAPI;
+import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 
 /**
@@ -23,6 +26,8 @@ import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
  */
 public final class BackpackColorTints {
 
+    private static final int FALLBACK_TIER_COLOR = 0xFFFFFF;
+
     private BackpackColorTints() {
     }
 
@@ -33,16 +38,33 @@ public final class BackpackColorTints {
     public static int[] getColors(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) {
-            return getDefaultColors();
+            return getDefaultColors(getTierDefault(item));
         }
 
         List<Color> componentColors = CustomModelDataUtil.getCustomModelDataColors(meta);
-        if (componentColors.isEmpty()) {
-            return getDefaultColors();
+        List<String> componentStrings = CustomModelDataUtil.getCustomModelDataStrings(meta);
+
+        int tierDefault = getTierDefault(item);
+        int[] colors = getDefaultColors(tierDefault);
+
+        if (!componentColors.isEmpty() && componentColors.size() == componentStrings.size()
+                && !componentStrings.isEmpty()) {
+            for (int i = 0; i < componentColors.size(); i++) {
+                String key = componentStrings.get(i);
+                int rgb = colorToRgb(componentColors.get(i));
+                Integer colorIndex = parseColorKey(key);
+                if (colorIndex != null) {
+                    colors[colorIndex] = rgb;
+                }
+            }
+            return colors;
         }
 
-        int[] colors = getDefaultColors();
-        int limit = Math.min(6, componentColors.size());
+        if (componentColors.isEmpty()) {
+            return colors;
+        }
+
+        int limit = Math.min(5, componentColors.size());
         for (int i = 0; i < limit; i++) {
             colors[i] = colorToRgb(componentColors.get(i));
         }
@@ -79,10 +101,31 @@ public final class BackpackColorTints {
             return;
         }
 
-        int[] colors = getColors(item);
-        colors[colorIndex] = colorValue;
+        ColorState state = readState(meta);
+        state.colors[colorIndex] = colorValue & 0xFFFFFF;
 
-        saveColors(meta, colors);
+        saveState(meta, state);
+        item.setItemMeta(meta);
+    }
+
+    /**
+     * Remove a color tint at the given index (0-4) entirely from the underlying
+     * custom_model_data colors list.
+     */
+    public static void clearColorTint(ItemStack item, int colorIndex) {
+        if (colorIndex < 0 || colorIndex >= 5) {
+            return;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return;
+        }
+
+        ColorState state = readState(meta);
+        state.colors[colorIndex] = null;
+
+        saveState(meta, state);
         item.setItemMeta(meta);
     }
 
@@ -90,24 +133,15 @@ public final class BackpackColorTints {
      * Get the backpack tier/rank from the 6th color value (index 5).
      */
     public static int getBackpackTier(ItemStack item) {
-        int[] colors = getColors(item);
-        return colors[5];
+        return getTierDefault(item);
     }
 
     /**
      * Set the backpack tier/rank in the 6th color value (index 5).
      */
     public static void setBackpackTier(ItemStack item, int tier) {
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) {
-            return;
-        }
-
-        int[] colors = getColors(item);
-        colors[5] = tier;
-
-        saveColors(meta, colors);
-        item.setItemMeta(meta);
+        // Tier color is derived from backpack_type defaults and is not directly
+        // settable.
     }
 
     /**
@@ -123,7 +157,12 @@ public final class BackpackColorTints {
             return;
         }
 
-        saveColors(meta, colors);
+        ColorState state = new ColorState();
+        for (int i = 0; i < 5; i++) {
+            state.colors[i] = colors[i] & 0xFFFFFF;
+        }
+
+        saveState(meta, state);
         item.setItemMeta(meta);
     }
 
@@ -141,15 +180,13 @@ public final class BackpackColorTints {
             return;
         }
 
-        int[] colors = getColors(item);
+        ColorState state = readState(meta);
 
-        // Set colors 0-4 from DyeColor mapping
         for (int i = 0; i < 5; i++) {
-            colors[i] = dyeColorToRGB(dyeColors[i]);
+            state.colors[i] = dyeColorToRGB(dyeColors[i]);
         }
-        // Index 5 (tier) is preserved
 
-        saveColors(meta, colors);
+        saveState(meta, state);
         item.setItemMeta(meta);
     }
 
@@ -157,28 +194,122 @@ public final class BackpackColorTints {
      * Initialize a backpack item with default colors and an optional tier.
      */
     public static void initializeColors(ItemStack item, int tier) {
-        int[] colors = getDefaultColors();
-        colors[5] = tier;
+        int[] colors = getDefaultColors(getTierDefault(item));
         setColors(item, colors);
     }
 
     /**
      * Get default colors: white for indices 0-4, and 0 for tier (index 5).
      */
-    private static int[] getDefaultColors() {
+    private static int[] getDefaultColors(int tierDefault) {
         return new int[] { 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF,
-                0xFFFFFF, 0 };
+                0xFFFFFF, tierDefault };
     }
 
     /**
-     * Save colors array to ItemMeta's custom_model_data colors list.
+     * Save sparse colors state to ItemMeta's custom_model_data strings/colors
+     * lists.
      */
-    private static void saveColors(ItemMeta meta, int[] colors) {
-        List<Color> colorList = new ArrayList<>(6);
-        for (int i = 0; i < 6; i++) {
-            colorList.add(rgbToColor(colors[i]));
+    private static void saveState(ItemMeta meta, ColorState state) {
+        List<String> stringList = new ArrayList<>();
+        List<Color> colorList = new ArrayList<>();
+
+        for (int i = 0; i < 5; i++) {
+            if (state.colors[i] == null) {
+                continue;
+            }
+            stringList.add(colorKey(i));
+            colorList.add(rgbToColor(state.colors[i]));
         }
+
+        // Always persist the derived tier default as index 5 so the colors tag
+        // remains tied to backpack_type even when all editable overrides are cleared.
+        stringList.add(colorKey(5));
+        colorList.add(rgbToColor(getTierDefault(meta)));
+
+        CustomModelDataUtil.setCustomModelDataStrings(meta, stringList);
         CustomModelDataUtil.setCustomModelDataColors(meta, colorList);
+    }
+
+    private static ColorState readState(ItemMeta meta) {
+        ColorState state = new ColorState();
+        List<Color> componentColors = CustomModelDataUtil.getCustomModelDataColors(meta);
+        List<String> componentStrings = CustomModelDataUtil.getCustomModelDataStrings(meta);
+
+        if (!componentColors.isEmpty() && componentColors.size() == componentStrings.size()
+                && !componentStrings.isEmpty()) {
+            for (int i = 0; i < componentColors.size(); i++) {
+                String key = componentStrings.get(i);
+                int rgb = colorToRgb(componentColors.get(i));
+                Integer colorIndex = parseColorKey(key);
+                if (colorIndex != null && colorIndex < 5) {
+                    state.colors[colorIndex] = rgb;
+                }
+            }
+            return state;
+        }
+
+        int limit = Math.min(5, componentColors.size());
+        for (int i = 0; i < limit; i++) {
+            state.colors[i] = colorToRgb(componentColors.get(i));
+        }
+        return state;
+    }
+
+    private static String colorKey(int colorIndex) {
+        return "color:" + colorIndex;
+    }
+
+    private static Integer parseColorKey(String key) {
+        if (key == null || !key.startsWith("color:")) {
+            return null;
+        }
+        try {
+            int colorIndex = Integer.parseInt(key.substring("color:".length()));
+            if (colorIndex < 0 || colorIndex > 5) {
+                return null;
+            }
+            return colorIndex;
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static final class ColorState {
+        private final Integer[] colors = new Integer[5];
+    }
+
+    private static int getTierDefault(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return FALLBACK_TIER_COLOR;
+        }
+
+        return getTierDefault(meta);
+    }
+
+    private static int getTierDefault(ItemMeta meta) {
+        if (meta == null) {
+            return FALLBACK_TIER_COLOR;
+        }
+
+        ModularPacksAPI api = ModularPacksAPI.getInstance();
+        if (api == null || api.getPlugin() == null) {
+            return FALLBACK_TIER_COLOR;
+        }
+
+        String backpackType = meta.getPersistentDataContainer()
+                .get(api.getPlugin().keys().BACKPACK_TYPE, PersistentDataType.STRING);
+        if (backpackType == null) {
+            return FALLBACK_TIER_COLOR;
+        }
+
+        BackpackTypeDef def = api.getPlugin().cfg().findType(backpackType);
+        if (def == null) {
+            return FALLBACK_TIER_COLOR;
+        }
+
+        return def.defaultColor() & 0xFFFFFF;
     }
 
     private static int colorToRgb(Color color) {
