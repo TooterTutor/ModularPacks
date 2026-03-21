@@ -75,6 +75,9 @@ public final class BackpackSettingsMenu {
                 // Currently hosting
                 List<String> lore = new ArrayList<>();
                 lore.add("&7Currently hosting this backpack");
+                lore.add("&7Password: &f"
+                        + (data.sharePassword() == null || data.sharePassword().isEmpty() ? "(none)"
+                                : data.sharePassword()));
                 lore.add("&7");
                 lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Stop hosting");
                 lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Set host password");
