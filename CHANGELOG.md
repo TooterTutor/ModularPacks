@@ -3,6 +3,28 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.2
+
+**Release Date:** 2026-03-21
+
+## Changes since 2.4.1
+
+### Features & Improvements
+- Added placed backpack models (e281a36)
+
+### Bug Fixes
+- Fixed placed backpacks having no name (f5cc5f7)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (e97a2e5)
+- Fixed placed backpacks having no name (f5cc5f7)
+- Added placed backpack models (e281a36)
+---
+
+
 # ModularPacks 2.4.1
 
 **Release Date:** 2026-03-21
