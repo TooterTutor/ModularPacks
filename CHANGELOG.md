@@ -3,6 +3,31 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.3
+
+**Release Date:** 2026-03-22
+
+## Changes since 2.4.2
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fixed backpack color picking not selecting the correct group (d366ddb)
+- Fixed backpacks from losing data when being placed in certain scenarios (efd7d66)
+- Fixed default offset values for placed backpack model (a767846)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (d67334d)
+- Fixed backpack color picking not selecting the correct group (d366ddb)
+- Fixed backpacks from losing data when being placed in certain scenarios (efd7d66)
+- Fixed default offset values for placed backpack model (a767846)
+---
+
+
 # ModularPacks 2.4.2
 
 **Release Date:** 2026-03-21
