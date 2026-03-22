@@ -41,6 +41,7 @@ import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 import io.github.tootertutor.ModularPacks.item.SkullTextureUtil;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Manages all placed backpacks in the world.
@@ -383,8 +384,9 @@ public final class PlacedBackpackManager {
             String skullData = typeDef.skullData();
             if (skullData != null && !skullData.isBlank()) {
                 SkullTextureUtil.applyBase64Texture(skull, skullData);
-                state.update(true, false);
             }
+            skull.customName(Text.c(typeDef.displayName()));
+            state.update(true, false);
         }
     }
 
@@ -429,6 +431,7 @@ public final class PlacedBackpackManager {
             if (skullData != null && !skullData.isBlank()) {
                 SkullTextureUtil.applyBase64Texture(skull, skullData);
             }
+            skull.customName(Text.c(typeDef.displayName()));
             state.update(true, false);
         }
 
@@ -460,6 +463,7 @@ public final class PlacedBackpackManager {
             if (skullData != null && !skullData.isBlank()) {
                 SkullTextureUtil.applyBase64Texture(skull, skullData);
             }
+            skull.customName(Text.c(typeDef.displayName()));
             state.update(true, false);
         }
 
