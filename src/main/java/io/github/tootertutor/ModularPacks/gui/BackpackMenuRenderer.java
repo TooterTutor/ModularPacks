@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -58,6 +59,7 @@ public final class BackpackMenuRenderer {
                 backpackId,
                 type,
                 data,
+                null,
                 paginated,
                 pageSize,
                 upgradeSlots);
@@ -113,7 +115,8 @@ public final class BackpackMenuRenderer {
 
         int pageSize = paginated ? 45 : type.rows() * 9;
 
-        BackpackMenuHolder holder = new BackpackMenuHolder(backpackId, type, data, paginated, pageSize, upgradeSlots);
+        BackpackMenuHolder holder = new BackpackMenuHolder(backpackId, type, data, null, paginated, pageSize,
+                upgradeSlots);
 
         // clamp and set page
         int pc = paginated ? Math.max(1, (int) Math.ceil((type.rows() * 9) / 45.0)) : 1;
@@ -131,6 +134,10 @@ public final class BackpackMenuRenderer {
     }
 
     public void openMenu(Player player, BackpackData data, BackpackTypeDef type, int page) {
+        openMenu(player, data, type, page, null);
+    }
+
+    public void openMenu(Player player, BackpackData data, BackpackTypeDef type, int page, Location placedLocation) {
         boolean paginated = type.rows() > 5;
         boolean hasNavRow = paginated || type.upgradeSlots() > 0;
 
@@ -161,6 +168,7 @@ public final class BackpackMenuRenderer {
                 data.backpackId(),
                 type,
                 data,
+                placedLocation,
                 paginated,
                 pageSize,
                 upgradeSlots);

@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Location;
-import org.bukkit.World;
 
 /**
  * Represents a backpack placed in the world as a physical block.
@@ -79,9 +78,6 @@ public final class PlacedBackpack {
      */
     public boolean isValid() {
         if (location == null || location.getWorld() == null)
-            return false;
-        World world = location.getWorld();
-        if (!world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4))
             return false;
         return true;
     }

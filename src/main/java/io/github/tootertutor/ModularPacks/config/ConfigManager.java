@@ -51,6 +51,15 @@ public final class ConfigManager {
     // Placeable backpacks settings
     private boolean placeableEnabled = true;
     private boolean dropPlacedBackpacksOnExplosion = false;
+    private double placedBackpackRenderOffsetX = 0.5;
+    private double placedBackpackRenderOffsetY = 0.4;
+    private double placedBackpackRenderOffsetZ = 0.5;
+    private double placedBackpackRenderRotationX = 0.0;
+    private double placedBackpackRenderRotationY = 0.0;
+    private double placedBackpackRenderRotationZ = 0.0;
+    private double placedBackpackRenderScaleX = 1.0;
+    private double placedBackpackRenderScaleY = 1.0;
+    private double placedBackpackRenderScaleZ = 1.0;
 
     // Shared backpacks settings
     private boolean sharedBackpacksEnabled = true;
@@ -107,6 +116,15 @@ public final class ConfigManager {
         // Placeable backpacks settings
         placeableEnabled = cfg.getBoolean("modularpacks.Placeable", true);
         dropPlacedBackpacksOnExplosion = cfg.getBoolean("modularpacks.DropPlacedBackpacksOnExplosion", false);
+        placedBackpackRenderOffsetX = cfg.getDouble("modularpacks.PlacedBackpackRender.Offset.X", 0.5);
+        placedBackpackRenderOffsetY = cfg.getDouble("modularpacks.PlacedBackpackRender.Offset.Y", 0.2);
+        placedBackpackRenderOffsetZ = cfg.getDouble("modularpacks.PlacedBackpackRender.Offset.Z", 0.5);
+        placedBackpackRenderRotationX = cfg.getDouble("modularpacks.PlacedBackpackRender.Rotation.X", 0.0);
+        placedBackpackRenderRotationY = cfg.getDouble("modularpacks.PlacedBackpackRender.Rotation.Y", 0.0);
+        placedBackpackRenderRotationZ = cfg.getDouble("modularpacks.PlacedBackpackRender.Rotation.Z", 0.0);
+        placedBackpackRenderScaleX = cfg.getDouble("modularpacks.PlacedBackpackRender.Scale.X", 1.0);
+        placedBackpackRenderScaleY = cfg.getDouble("modularpacks.PlacedBackpackRender.Scale.Y", 1.0);
+        placedBackpackRenderScaleZ = cfg.getDouble("modularpacks.PlacedBackpackRender.Scale.Z", 1.0);
 
         // Shared backpacks settings
         sharedBackpacksEnabled = cfg.getBoolean("modularpacks.SharedBackpacks.Enabled", true);
@@ -304,6 +322,42 @@ public final class ConfigManager {
 
     public boolean shouldDropPlacedBackpacksOnExplosion() {
         return dropPlacedBackpacksOnExplosion;
+    }
+
+    public double placedBackpackRenderOffsetX() {
+        return placedBackpackRenderOffsetX;
+    }
+
+    public double placedBackpackRenderOffsetY() {
+        return placedBackpackRenderOffsetY;
+    }
+
+    public double placedBackpackRenderOffsetZ() {
+        return placedBackpackRenderOffsetZ;
+    }
+
+    public double placedBackpackRenderRotationX() {
+        return placedBackpackRenderRotationX;
+    }
+
+    public double placedBackpackRenderRotationY() {
+        return placedBackpackRenderRotationY;
+    }
+
+    public double placedBackpackRenderRotationZ() {
+        return placedBackpackRenderRotationZ;
+    }
+
+    public double placedBackpackRenderScaleX() {
+        return placedBackpackRenderScaleX;
+    }
+
+    public double placedBackpackRenderScaleY() {
+        return placedBackpackRenderScaleY;
+    }
+
+    public double placedBackpackRenderScaleZ() {
+        return placedBackpackRenderScaleZ;
     }
 
     private static Material mat(String name, Material fallback) {

@@ -3,6 +3,7 @@ package io.github.tootertutor.ModularPacks.gui;
 import java.util.List;
 import java.util.UUID;
 
+import org.bukkit.Location;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
@@ -14,6 +15,7 @@ public final class BackpackMenuHolder implements InventoryHolder {
     private final UUID backpackId;
     private final BackpackTypeDef type;
     private final BackpackData data;
+    private final Location placedLocation;
 
     private int page = 0;
 
@@ -29,11 +31,13 @@ public final class BackpackMenuHolder implements InventoryHolder {
 
     private Inventory inventory;
 
-    public BackpackMenuHolder(UUID backpackId, BackpackTypeDef type, BackpackData data, boolean paginated, int pageSize,
+    public BackpackMenuHolder(UUID backpackId, BackpackTypeDef type, BackpackData data, Location placedLocation,
+            boolean paginated, int pageSize,
             List<Integer> upgradeSlots) {
         this.backpackId = backpackId;
         this.type = type;
         this.data = data;
+        this.placedLocation = placedLocation == null ? null : placedLocation.clone();
         this.paginated = paginated;
         this.pageSize = pageSize;
         this.logicalSlots = type.rows() * 9;
@@ -51,6 +55,14 @@ public final class BackpackMenuHolder implements InventoryHolder {
 
     public BackpackData data() {
         return data;
+    }
+
+    public Location placedLocation() {
+        return placedLocation == null ? null : placedLocation.clone();
+    }
+
+    public boolean isPlacedContext() {
+        return placedLocation != null;
     }
 
     public boolean paginated() {

@@ -109,7 +109,7 @@ public final class PlacedBackpackInteractListener implements Listener {
         }
 
         // Open the backpack GUI (page 0 = first page)
-        plugin.getBackpackMenuRenderer().openMenu(player, data, typeDef, 0);
+        plugin.getBackpackMenuRenderer().openMenu(player, data, typeDef, 0, placed.location());
 
     }
 

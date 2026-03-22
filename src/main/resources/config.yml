@@ -37,6 +37,25 @@ modularpacks:
   # If false, they are protected from explosions.
   DropPlacedBackpacksOnExplosion: false
 
+  # World render transform for placed backpack ItemDisplays.
+  # Offset is relative to block origin (0,0,0 = lower northwest corner).
+  # Rotation is in degrees around the local X/Y/Z axes and is applied in addition
+  # to the block's facing rotation.
+  # Scale uses 1.0 as vanilla size.
+  PlacedBackpackRender:
+    Offset:
+      X: 0.5
+      Y: 0.2
+      Z: 0.5
+    Rotation:
+      X: 0.0
+      Y: 0.0
+      Z: 0.0
+    Scale:
+      X: 1.0
+      Y: 1.0
+      Z: 1.0
+
   # Shared Backpack Settings
   SharedBackpacks:
     Enabled: true

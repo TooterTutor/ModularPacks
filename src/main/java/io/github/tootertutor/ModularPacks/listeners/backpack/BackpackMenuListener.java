@@ -637,7 +637,7 @@ public final class BackpackMenuListener implements Listener {
         ignoreCloseUntilTick.put(player.getUniqueId(), now + 1);
 
         Bukkit.getScheduler().runTask(plugin, () -> {
-            renderer.openMenu(player, holder.data(), holder.type(), holder.page());
+            renderer.openMenu(player, holder.data(), holder.type(), holder.page(), holder.placedLocation());
         });
     }
 

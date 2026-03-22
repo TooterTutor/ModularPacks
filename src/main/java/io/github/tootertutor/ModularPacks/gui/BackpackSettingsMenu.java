@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
@@ -14,6 +15,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
+import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
+import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackSharingHost;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackSharingJoiner;
 import io.github.tootertutor.ModularPacks.util.BackpackColorTints;
@@ -35,12 +38,14 @@ public final class BackpackSettingsMenu {
     private static final int SLOT_BACK = 22;
 
     private final ModularPacksPlugin plugin;
+    private final BackpackItems backpackItems;
     private final BackpackSharingHost sharingHost;
     private final BackpackSharingJoiner sharingJoiner;
 
     public BackpackSettingsMenu(ModularPacksPlugin plugin,
             BackpackSharingHost sharingHost, BackpackSharingJoiner sharingJoiner) {
         this.plugin = plugin;
+        this.backpackItems = new BackpackItems(plugin);
         this.sharingHost = sharingHost;
         this.sharingJoiner = sharingJoiner;
     }
@@ -54,7 +59,7 @@ public final class BackpackSettingsMenu {
         Inventory inv = plugin.getServer().createInventory(settingsHolder, 27, Text.c("&8Backpack Settings"));
 
         // Get the backpack item from player's inventory
-        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
+        ItemStack backpackItem = resolveBackpackItemForSettings(player, holder);
         if (backpackItem == null) {
             player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
             return;
@@ -147,13 +152,6 @@ public final class BackpackSettingsMenu {
     public void handleClick(Player player, BackpackMenuHolder holder, int slot, ClickType click) {
         BackpackData data = holder.data();
 
-        // Get the backpack item first
-        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
-        if (backpackItem == null) {
-            player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
-            return;
-        }
-
         // Row 1: Dynamic mode button
         if (slot == SLOT_SHARING) {
             if (data.isShared()) {
@@ -207,9 +205,9 @@ public final class BackpackSettingsMenu {
      * Handle clicks in hopper-based color picker.
      */
     public void handleColorPickerClick(Player player, BackpackMenuHolder holder, int slot, ClickType click) {
-        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
+        ItemStack backpackItem = resolveBackpackItemForSettings(player, holder);
         if (backpackItem == null) {
-            player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
+            player.sendMessage(Text.c("&cCould not find backpack item to edit."));
             return;
         }
 
@@ -218,6 +216,7 @@ public final class BackpackSettingsMenu {
         if (slot >= 0 && slot <= 4) {
             if (click.isRightClick()) {
                 BackpackColorTints.clearColorTint(backpackItem, slot);
+                persistVisualChanges(holder, backpackItem);
                 player.sendMessage(Text.c("&aRemoved custom color override for group " + (slot + 1) + "."));
                 openColorPickerMenu(player, holder);
             } else {
@@ -231,9 +230,9 @@ public final class BackpackSettingsMenu {
         Inventory picker = plugin.getServer().createInventory(colorHolder, InventoryType.HOPPER,
                 Text.c("&8Backpack Colors"));
 
-        ItemStack backpackItem = findBackpackInInventory(player, holder.backpackId());
+        ItemStack backpackItem = resolveBackpackItemForSettings(player, holder);
         if (backpackItem == null) {
-            player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
+            player.sendMessage(Text.c("&cCould not find backpack item to edit."));
             return;
         }
 
@@ -277,6 +276,7 @@ public final class BackpackSettingsMenu {
                     }
 
                     BackpackColorTints.setColorTint(backpackItem, colorIndex, rgb);
+                    persistVisualChanges(holder, backpackItem);
                     player.sendMessage(
                             Text.c("&aUpdated group " + (colorIndex + 1) + " to &f#" + String.format("%06X", rgb)));
 
@@ -439,5 +439,56 @@ public final class BackpackSettingsMenu {
         }
 
         return null;
+    }
+
+    private ItemStack resolveBackpackItemForSettings(Player player, BackpackMenuHolder holder) {
+        if (holder == null) {
+            return null;
+        }
+
+        if (holder.isPlacedContext()) {
+            Location placedLocation = holder.placedLocation();
+            if (placedLocation == null) {
+                return null;
+            }
+
+            PlacedBackpack placed = plugin.placedBackpacks().getAt(placedLocation);
+            if (placed == null) {
+                return null;
+            }
+
+            ItemStack item = backpackItems.createExisting(placed.backpackId(), placed.backpackType());
+            ItemMeta meta = item.getItemMeta();
+            if (meta == null) {
+                return item;
+            }
+
+            io.github.tootertutor.ModularPacks.item.CustomModelDataUtil.setCustomModelDataStrings(meta,
+                    placed.modelDataStrings());
+            if (!placed.modelDataColors().isEmpty()) {
+                java.util.List<org.bukkit.Color> colors = new java.util.ArrayList<>(placed.modelDataColors().size());
+                for (Integer rgb : placed.modelDataColors()) {
+                    int value = rgb == null ? 0xFFFFFF : (rgb & 0xFFFFFF);
+                    colors.add(org.bukkit.Color.fromRGB((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF));
+                }
+                io.github.tootertutor.ModularPacks.item.CustomModelDataUtil.setCustomModelDataColors(meta, colors);
+            }
+
+            item.setItemMeta(meta);
+            return item;
+        }
+
+        return findBackpackInInventory(player, holder.backpackId());
+    }
+
+    private void persistVisualChanges(BackpackMenuHolder holder, ItemStack backpackItem) {
+        if (holder == null || backpackItem == null || !holder.isPlacedContext()) {
+            return;
+        }
+
+        Location placedLocation = holder.placedLocation();
+        if (placedLocation != null) {
+            plugin.placedBackpacks().updatePlacedVisuals(placedLocation, backpackItem);
+        }
     }
 }
