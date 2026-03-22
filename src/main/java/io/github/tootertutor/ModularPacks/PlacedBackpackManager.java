@@ -268,7 +268,7 @@ public final class PlacedBackpackManager {
 
             Block block = placed.location().getBlock();
             if (block.getType() != Material.PLAYER_HEAD) {
-                remove(placed.location());
+                dropAndRemoveBrokenPlacement(placed);
                 continue;
             }
 
@@ -717,6 +717,27 @@ public final class PlacedBackpackManager {
         if (entity != null) {
             entity.remove();
         }
+    }
+
+    /**
+     * Handles non-player block destruction (e.g. flowing water/physics) by
+     * dropping the actual backpack item before unregistering the placement.
+     */
+    private void dropAndRemoveBrokenPlacement(PlacedBackpack placed) {
+        if (placed == null) {
+            return;
+        }
+
+        Location location = placed.location();
+        World world = location.getWorld();
+        if (world != null) {
+            ItemStack backpackItem = createRenderItem(placed);
+            if (backpackItem != null && backpackItem.getType() != Material.AIR) {
+                world.dropItemNaturally(location, backpackItem);
+            }
+        }
+
+        remove(location);
     }
 
     private ItemStack createRenderItem(PlacedBackpack placed) {

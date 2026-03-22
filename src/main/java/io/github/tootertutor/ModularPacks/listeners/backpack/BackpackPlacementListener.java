@@ -9,7 +9,9 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -70,6 +72,13 @@ public final class BackpackPlacementListener implements Listener {
 
         if (!meta.getPersistentDataContainer().has(keys.BACKPACK_TYPE, PersistentDataType.STRING))
             return;
+
+        // From this point on, this interaction is explicitly a backpack placement
+        // attempt. Deny vanilla handling so blocked placements don't fall through and
+        // place a normal head item.
+        event.setUseItemInHand(Result.DENY);
+        event.setUseInteractedBlock(Result.DENY);
+        event.setCancelled(true);
 
         // Check if placeable feature is enabled
         if (!plugin.cfg().isPlaceableEnabled()) {
@@ -135,6 +144,15 @@ public final class BackpackPlacementListener implements Listener {
             return;
         }
 
+        // Reject placements where a floor head cannot survive, otherwise vanilla
+        // physics will pop it off immediately and can desync backpack tracking.
+        BlockData headData = Material.PLAYER_HEAD.createBlockData();
+        if (!targetBlock.canPlace(headData)) {
+            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.blocked",
+                    "&cCannot place backpack there - space is occupied.")));
+            return;
+        }
+
         // Get the placement location
         Location placementLoc = targetBlock.getLocation();
 
@@ -166,8 +184,7 @@ public final class BackpackPlacementListener implements Listener {
             player.getInventory().setItemInMainHand(item);
         }
 
-        // Cancel the event to prevent normal block placement
-        event.setCancelled(true);
+        // Already cancelled above to block vanilla fallback placement.
     }
 
     /**

@@ -25,13 +25,13 @@ import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.modules.feeding.FeedingEngine;
 import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceEngine;
 import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceModule;
 import io.github.tootertutor.ModularPacks.modules.jukebox.JukeboxEngine;
 import io.github.tootertutor.ModularPacks.modules.magnet.MagnetVoidEngine;
 import io.github.tootertutor.ModularPacks.modules.restock.RestockEngine;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
  * Periodically ticks open module screens and passive backpack modules.
@@ -153,6 +153,11 @@ public final class ModuleEngineService {
     }
 
     private void tickPlacedBackpacks(Set<UUID> openModuleIds, Set<UUID> openBackpackIds) {
+        // Keep block/render tracking in sync with world physics (water flow, support
+        // loss, etc.) and clean up/drop items when placements break outside player
+        // interactions.
+        plugin.placedBackpacks().tickPlacedBackpacks(openModuleIds, openBackpackIds);
+
         // Tick placed backpacks with special module logic for block-form backpacks
         var placedBackpacks = plugin.placedBackpacks().getAllPlaced();
 

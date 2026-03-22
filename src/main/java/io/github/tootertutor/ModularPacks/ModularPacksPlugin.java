@@ -29,6 +29,7 @@ import io.github.tootertutor.ModularPacks.listeners.backpack.ClickDebugListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackBreakListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackChunkLoadListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackInteractListener;
+import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackPhysicsListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PreventNestingListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.RecipePreviewListener;
 import io.github.tootertutor.ModularPacks.listeners.module.AnvilModuleListener;
@@ -110,6 +111,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PlacedBackpackInteractListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PlacedBackpackBreakListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PlacedBackpackChunkLoadListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PlacedBackpackPhysicsListener(this), this);
         Bukkit.getPluginManager().registerEvents(new AnvilModuleListener(this, screenRouter.getAnvilModule()), this);
         Bukkit.getPluginManager().registerEvents(new FurnaceModuleListener(this, screenRouter.getFurnaceModule()),
                 this);
