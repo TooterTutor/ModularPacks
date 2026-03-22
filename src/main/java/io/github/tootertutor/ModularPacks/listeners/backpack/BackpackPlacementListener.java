@@ -1,10 +1,12 @@
 package io.github.tootertutor.ModularPacks.listeners.backpack;
 
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
@@ -106,11 +108,28 @@ public final class BackpackPlacementListener implements Listener {
             return;
 
         BlockFace face = event.getBlockFace();
-        Block targetBlock = clickedBlock.getRelative(face);
 
-        // Check if the target location is replaceable
-        if (!targetBlock.getType().isAir() && targetBlock.getType() != Material.WATER &&
-                targetBlock.getType() != Material.LAVA && !targetBlock.isReplaceable()) {
+        // If the clicked block itself is replaceable (snow layer, grass, flowers, etc.)
+        // use it as the placement target so it gets replaced, matching vanilla
+        // behaviour.
+        Block targetBlock;
+        if (isReplaceableTarget(clickedBlock)) {
+            targetBlock = clickedBlock;
+        } else {
+            targetBlock = clickedBlock.getRelative(face);
+        }
+
+        // Skulls cannot be waterlogged — block placement inside water or lava.
+        Material targetMat = targetBlock.getType();
+        if (targetMat == Material.WATER || targetMat == Material.LAVA
+                || targetMat == Material.BUBBLE_COLUMN) {
+            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.blocked",
+                    "&cCannot place backpack there - space is occupied.")));
+            return;
+        }
+
+        // Check if the target location is free
+        if (!targetBlock.getType().isAir() && !targetBlock.isReplaceable()) {
             player.sendMessage(Text.c(plugin.lang().get("backpack.placement.blocked",
                     "&cCannot place backpack there - space is occupied.")));
             return;
@@ -149,5 +168,30 @@ public final class BackpackPlacementListener implements Listener {
 
         // Cancel the event to prevent normal block placement
         event.setCancelled(true);
+    }
+
+    /**
+     * Returns true if the block should be treated as a replacement target when
+     * clicked — i.e. it is in {@code #minecraft:replaceable},
+     * {@code #minecraft:replaceable_by_mushrooms}, or
+     * {@code #minecraft:replaceable_by_trees}, but is NOT fluid (water/lava are
+     * handled separately).
+     */
+    private boolean isReplaceableTarget(Block block) {
+        Material mat = block.getType();
+        // Never treat fluids as a replaceable target — those are blocked outright.
+        if (mat == Material.WATER || mat == Material.LAVA || mat == Material.BUBBLE_COLUMN) {
+            return false;
+        }
+        if (block.isReplaceable()) {
+            return true;
+        }
+        // Check the two additional vanilla tags that isReplaceable() may not cover.
+        Set<Material> byMushrooms = Tag.REPLACEABLE_BY_MUSHROOMS.getValues();
+        if (byMushrooms != null && byMushrooms.contains(mat)) {
+            return true;
+        }
+        Set<Material> byTrees = Tag.REPLACEABLE_BY_TREES.getValues();
+        return byTrees != null && byTrees.contains(mat);
     }
 }
