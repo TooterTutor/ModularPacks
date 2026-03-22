@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -17,6 +18,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
+import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackSharingHost;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackSharingJoiner;
 import io.github.tootertutor.ModularPacks.util.BackpackColorTints;
@@ -36,6 +38,13 @@ public final class BackpackSettingsMenu {
     private static final int SLOT_COLORS = 13;
     private static final int SLOT_NAME = 15;
     private static final int SLOT_BACK = 22;
+    private static final String[] COLOR_GROUP_NAMES = {
+            "Body",
+            "Stripes",
+            "Main Pocket",
+            "Side Pockets",
+            "Towel"
+    };
 
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
@@ -112,15 +121,15 @@ public final class BackpackSettingsMenu {
         slot = SLOT_COLORS;
         int[] colors = BackpackColorTints.getColors(backpackItem);
         List<String> colorLore = new ArrayList<>();
-        colorLore.add("&7Edit model groups 1-5 individually");
+        colorLore.add("&7Edit backpack model color groups");
         colorLore.add("&7");
         colorLore.add("&7Current colors:");
         for (int i = 0; i < 5; i++) {
-            colorLore.add("&8• &fGroup " + (i + 1) + ": #" + String.format("%06X", colors[i]));
+            colorLore.add("&8• &f" + groupLabel(i) + ": #" + String.format("%06X", colors[i]));
         }
         colorLore.add("&7");
         colorLore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open color picker");
-        inv.setItem(slot, createButton("&dBackpack Colors", Material.LEATHER_CHESTPLATE, colorLore));
+        inv.setItem(slot, createColorPreviewItem(backpackItem, colorLore));
 
         // Row 2: Name button (right)
         slot = SLOT_NAME;
@@ -217,7 +226,7 @@ public final class BackpackSettingsMenu {
             if (click.isRightClick()) {
                 BackpackColorTints.clearColorTint(backpackItem, slot);
                 persistVisualChanges(holder, backpackItem);
-                player.sendMessage(Text.c("&aRemoved custom color override for group " + (slot + 1) + "."));
+                player.sendMessage(Text.c("&aRemoved custom color override for " + groupLabel(slot) + "."));
                 openColorPickerMenu(player, holder);
             } else {
                 openCustomRgbDialog(player, holder, backpackItem, slot);
@@ -237,24 +246,24 @@ public final class BackpackSettingsMenu {
         }
 
         int[] colors = BackpackColorTints.getColors(backpackItem);
-        picker.setItem(0, createButton("&fGroup 1", Material.NAME_TAG,
-                List.of("&7Edits color index: &f0", "&7Current: &f#" + String.format("%06X", colors[0]),
+        picker.setItem(0, createButton("&f" + groupLabel(0), Material.NAME_TAG,
+                List.of("&7Model tint slot: &f0", "&7Current: &f#" + String.format("%06X", colors[0]),
                         "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
                         "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(1, createButton("&fGroup 2", Material.NAME_TAG,
-                List.of("&7Edits color index: &f1", "&7Current: &f#" + String.format("%06X", colors[1]),
+        picker.setItem(1, createButton("&f" + groupLabel(1), Material.NAME_TAG,
+                List.of("&7Model tint slot: &f1", "&7Current: &f#" + String.format("%06X", colors[1]),
                         "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
                         "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(2, createButton("&fGroup 3", Material.NAME_TAG,
-                List.of("&7Edits color index: &f2", "&7Current: &f#" + String.format("%06X", colors[2]),
+        picker.setItem(2, createButton("&f" + groupLabel(2), Material.NAME_TAG,
+                List.of("&7Model tint slot: &f2", "&7Current: &f#" + String.format("%06X", colors[2]),
                         "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
                         "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(3, createButton("&fGroup 4", Material.NAME_TAG,
-                List.of("&7Edits color index: &f3", "&7Current: &f#" + String.format("%06X", colors[3]),
+        picker.setItem(3, createButton("&f" + groupLabel(3), Material.NAME_TAG,
+                List.of("&7Model tint slot: &f3", "&7Current: &f#" + String.format("%06X", colors[3]),
                         "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
                         "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(4, createButton("&fGroup 5", Material.NAME_TAG,
-                List.of("&7Edits color index: &f4", "&7Current: &f#" + String.format("%06X", colors[4]),
+        picker.setItem(4, createButton("&f" + groupLabel(4), Material.NAME_TAG,
+                List.of("&7Model tint slot: &f4", "&7Current: &f#" + String.format("%06X", colors[4]),
                         "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
                         "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
 
@@ -278,7 +287,7 @@ public final class BackpackSettingsMenu {
                     BackpackColorTints.setColorTint(backpackItem, colorIndex, rgb);
                     persistVisualChanges(holder, backpackItem);
                     player.sendMessage(
-                            Text.c("&aUpdated group " + (colorIndex + 1) + " to &f#" + String.format("%06X", rgb)));
+                            Text.c("&aUpdated " + groupLabel(colorIndex) + " to &f#" + String.format("%06X", rgb)));
 
                     return java.util.Arrays.asList(
                             AnvilGUI.ResponseAction.close(),
@@ -286,7 +295,7 @@ public final class BackpackSettingsMenu {
                                     () -> openColorPickerMenu(player, holder))));
                 })
                 .text("#FFAA33")
-                .title("Group " + (colorIndex + 1) + " RGB")
+                .title(groupLabel(colorIndex) + " RGB")
                 .plugin(plugin)
                 .open(player);
     }
@@ -393,6 +402,42 @@ public final class BackpackSettingsMenu {
         return item;
     }
 
+    private ItemStack createColorPreviewItem(ItemStack backpackItem, List<String> lore) {
+        ItemStack preview = new ItemStack(Material.PLAYER_HEAD);
+        ItemMeta previewMeta = preview.getItemMeta();
+        if (previewMeta == null) {
+            return createButton("&dBackpack Colors", Material.PLAYER_HEAD, lore);
+        }
+
+        previewMeta.displayName(Text.c("&dBackpack Colors"));
+        previewMeta.lore(Text.lore(lore));
+
+        if (backpackItem != null) {
+            ItemMeta sourceMeta = backpackItem.getItemMeta();
+            if (sourceMeta != null) {
+                int customModelData = CustomModelDataUtil.getCustomModelData(sourceMeta);
+                if (customModelData > 0) {
+                    CustomModelDataUtil.setCustomModelData(previewMeta, customModelData);
+                }
+
+                CustomModelDataUtil.setCustomModelDataStrings(previewMeta,
+                        CustomModelDataUtil.getCustomModelDataStrings(sourceMeta));
+                CustomModelDataUtil.setCustomModelDataColors(previewMeta,
+                        CustomModelDataUtil.getCustomModelDataColors(sourceMeta));
+            }
+        }
+
+        preview.setItemMeta(previewMeta);
+        return preview;
+    }
+
+    private String groupLabel(int groupIndex) {
+        if (groupIndex < 0 || groupIndex >= COLOR_GROUP_NAMES.length) {
+            return "Group " + (groupIndex + 1);
+        }
+        return COLOR_GROUP_NAMES[groupIndex];
+    }
+
     /**
      * Find the backpack ItemStack in the player's inventory by looking for the
      * backpack ID in the item's PersistentDataContainer.
@@ -463,15 +508,15 @@ public final class BackpackSettingsMenu {
                 return item;
             }
 
-            io.github.tootertutor.ModularPacks.item.CustomModelDataUtil.setCustomModelDataStrings(meta,
+            CustomModelDataUtil.setCustomModelDataStrings(meta,
                     placed.modelDataStrings());
             if (!placed.modelDataColors().isEmpty()) {
-                java.util.List<org.bukkit.Color> colors = new java.util.ArrayList<>(placed.modelDataColors().size());
+                List<Color> colors = new ArrayList<>(placed.modelDataColors().size());
                 for (Integer rgb : placed.modelDataColors()) {
                     int value = rgb == null ? 0xFFFFFF : (rgb & 0xFFFFFF);
-                    colors.add(org.bukkit.Color.fromRGB((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF));
+                    colors.add(Color.fromRGB((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF));
                 }
-                io.github.tootertutor.ModularPacks.item.CustomModelDataUtil.setCustomModelDataColors(meta, colors);
+                CustomModelDataUtil.setCustomModelDataColors(meta, colors);
             }
 
             item.setItemMeta(meta);

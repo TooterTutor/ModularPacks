@@ -33,7 +33,7 @@ public final class BackpackColorTints {
 
     /**
      * Get all color tints including tier as a 6-element integer array.
-     * Returns default colors if not set: all white except tier.
+     * Returns backpack-type default colors when no overrides are present.
      */
     public static int[] getColors(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
@@ -78,7 +78,7 @@ public final class BackpackColorTints {
      */
     public static int getColorTint(ItemStack item, int colorIndex) {
         if (colorIndex < 0 || colorIndex >= 5) {
-            return 0xFFFFFF; // White by default
+            return FALLBACK_TIER_COLOR;
         }
 
         int[] colors = getColors(item);
@@ -109,8 +109,8 @@ public final class BackpackColorTints {
     }
 
     /**
-     * Remove a color tint at the given index (0-4) entirely from the underlying
-     * custom_model_data colors list.
+     * Remove a color tint at the given index (0-4) by restoring the default
+     * value for that slot in the underlying custom_model_data colors list.
      */
     public static void clearColorTint(ItemStack item, int colorIndex) {
         if (colorIndex < 0 || colorIndex >= 5) {
@@ -199,33 +199,34 @@ public final class BackpackColorTints {
     }
 
     /**
-     * Get default colors: white for indices 0-4, and 0 for tier (index 5).
+     * Get default colors for all model groups and the tier slot from the backpack
+     * type's configured default color.
      */
     private static int[] getDefaultColors(int tierDefault) {
-        return new int[] { 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF,
-                0xFFFFFF, tierDefault };
+        return new int[] { tierDefault, tierDefault, tierDefault, tierDefault,
+                tierDefault, tierDefault };
     }
 
     /**
-     * Save sparse colors state to ItemMeta's custom_model_data strings/colors
-     * lists.
+     * Save colors state to ItemMeta's custom_model_data strings/colors lists.
+     *
+     * Always writes the full six-slot color payload so CMD colors remain index-
+     * stable regardless of edit order:
+     * - color:0..4 => editable model groups, defaulting to white when cleared
+     * - color:5 => derived tier/default color
      */
     private static void saveState(ItemMeta meta, ColorState state) {
         List<String> stringList = new ArrayList<>();
         List<Color> colorList = new ArrayList<>();
+        int tierDefault = getTierDefault(meta);
 
         for (int i = 0; i < 5; i++) {
-            if (state.colors[i] == null) {
-                continue;
-            }
             stringList.add(colorKey(i));
-            colorList.add(rgbToColor(state.colors[i]));
+            colorList.add(rgbToColor(state.colors[i] == null ? tierDefault : state.colors[i]));
         }
 
-        // Always persist the derived tier default as index 5 so the colors tag
-        // remains tied to backpack_type even when all editable overrides are cleared.
         stringList.add(colorKey(5));
-        colorList.add(rgbToColor(getTierDefault(meta)));
+        colorList.add(rgbToColor(tierDefault));
 
         CustomModelDataUtil.setCustomModelDataStrings(meta, stringList);
         CustomModelDataUtil.setCustomModelDataColors(meta, colorList);
