@@ -3,6 +3,27 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.4
+
+**Release Date:** 2026-03-22
+
+## Changes since 2.4.3
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fixed placed backpacks losing their backpack data when placed in fluid blocks (3ce8cad)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (ace2542)
+- Fixed placed backpacks losing their backpack data when placed in fluid blocks (3ce8cad)
+---
+
+
 # ModularPacks 2.4.3
 
 **Release Date:** 2026-03-22
