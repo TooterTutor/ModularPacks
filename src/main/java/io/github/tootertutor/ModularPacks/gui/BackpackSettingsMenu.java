@@ -13,6 +13,8 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
@@ -454,10 +456,10 @@ public final class BackpackSettingsMenu {
             }
 
             ItemMeta meta = item.getItemMeta();
-            org.bukkit.persistence.PersistentDataContainer pdc = meta.getPersistentDataContainer();
+            PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
             String itemBackpackId = pdc.get(plugin.keys().BACKPACK_ID,
-                    org.bukkit.persistence.PersistentDataType.STRING);
+                    PersistentDataType.STRING);
             if (itemBackpackId != null && backpackId.toString().equals(itemBackpackId)) {
                 return item;
             }
@@ -468,7 +470,7 @@ public final class BackpackSettingsMenu {
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         if (mainHand != null && mainHand.getItemMeta() != null) {
             String id = mainHand.getItemMeta().getPersistentDataContainer().get(plugin.keys().BACKPACK_ID,
-                    org.bukkit.persistence.PersistentDataType.STRING);
+                    PersistentDataType.STRING);
             if (id != null && backpackId.toString().equals(id)) {
                 return mainHand;
             }
@@ -477,7 +479,7 @@ public final class BackpackSettingsMenu {
         ItemStack offHand = player.getInventory().getItemInOffHand();
         if (offHand != null && offHand.getItemMeta() != null) {
             String id = offHand.getItemMeta().getPersistentDataContainer().get(plugin.keys().BACKPACK_ID,
-                    org.bukkit.persistence.PersistentDataType.STRING);
+                    PersistentDataType.STRING);
             if (id != null && backpackId.toString().equals(id)) {
                 return offHand;
             }

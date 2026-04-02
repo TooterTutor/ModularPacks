@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -242,7 +243,11 @@ public final class BackpackMenuRenderer {
         if (holder.paginated()) {
             int valid = validVisibleSlots(holder, storageSize); // note overload below
             if (valid < storageSize) {
-                ItemStack blocked = namedItem(plugin.cfg().navBorderFiller(), "&7");
+                ItemStack blocked = namedItemWithPdc(
+                        plugin.cfg().navBorderFiller(),
+                        "&7",
+                        plugin.cfg().getGuiItemKey(),
+                        "nav-border-filler");
                 for (int i = valid; i < storageSize; i++) {
                     inv.setItem(i, blocked);
                 }
@@ -302,8 +307,12 @@ public final class BackpackMenuRenderer {
         int invSize = inv.getSize();
         int bottomStart = SlotLayout.bottomRowStart(invSize);
 
-        // Fill bottom row
-        ItemStack filler = namedItem(plugin.cfg().navBorderFiller(), "&7");
+        // Fill bottom row with border fillers marked with PDC
+        ItemStack filler = namedItemWithPdc(
+                plugin.cfg().navBorderFiller(),
+                "&7",
+                plugin.cfg().getGuiItemKey(),
+                "nav-border-filler");
         for (int slot = bottomStart; slot < invSize; slot++) {
             inv.setItem(slot, filler);
         }
@@ -316,10 +325,18 @@ public final class BackpackMenuRenderer {
             int nextSlot = SlotLayout.nextButtonSlot(invSize);
 
             if (holder.page() > 0) {
-                inv.setItem(prevSlot, namedItem(plugin.cfg().navPageButtons(), "&ePrevious Page"));
+                inv.setItem(prevSlot, namedItemWithPdc(
+                        plugin.cfg().navPageButtons(),
+                        "&ePrevious Page",
+                        plugin.cfg().getGuiItemKey(),
+                        "nav-page-button"));
             }
             if (holder.page() < pageCount - 1) {
-                inv.setItem(nextSlot, namedItem(plugin.cfg().navPageButtons(), "&eNext Page"));
+                inv.setItem(nextSlot, namedItemWithPdc(
+                        plugin.cfg().navPageButtons(),
+                        "&eNext Page",
+                        plugin.cfg().getGuiItemKey(),
+                        "nav-page-button"));
             }
         }
 
@@ -390,7 +407,12 @@ public final class BackpackMenuRenderer {
                 emptyLore.add("&7Place a module here to activate");
                 emptyLore.add("&7special backpack abilities.");
                 inv.setItem(invSlot,
-                        namedItem(plugin.cfg().unlockedUpgradeSlotMaterial(), "&eEmpty Module Slot", emptyLore));
+                        namedItemWithPdc(
+                                plugin.cfg().unlockedUpgradeSlotMaterial(),
+                                "&eEmpty Module Slot",
+                                emptyLore,
+                                plugin.cfg().getGuiItemKey(),
+                                "unlocked-upgrade-slot"));
                 continue;
             }
 
@@ -473,6 +495,46 @@ public final class BackpackMenuRenderer {
         if (meta != null) {
             meta.displayName(Text.c(name));
             meta.lore(Text.lore(lore));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /**
+     * Create a named item with PDC data marker.
+     * 
+     * @param mat      The material
+     * @param name     The display name
+     * @param pdcKey   The NamespacedKey for the PDC marker
+     * @param pdcValue The string value to store in PDC
+     * @return ItemStack with PDC marker applied
+     */
+    private ItemStack namedItemWithPdc(Material mat, String name, NamespacedKey pdcKey, String pdcValue) {
+        ItemStack item = namedItem(mat, name);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.getPersistentDataContainer().set(pdcKey, PersistentDataType.STRING, pdcValue);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /**
+     * Create a named item with lore and PDC data marker.
+     * 
+     * @param mat      The material
+     * @param name     The display name
+     * @param lore     The lore lines
+     * @param pdcKey   The NamespacedKey for the PDC marker
+     * @param pdcValue The string value to store in PDC
+     * @return ItemStack with PDC marker applied
+     */
+    private ItemStack namedItemWithPdc(Material mat, String name, List<String> lore,
+            NamespacedKey pdcKey, String pdcValue) {
+        ItemStack item = namedItem(mat, name, lore);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.getPersistentDataContainer().set(pdcKey, PersistentDataType.STRING, pdcValue);
             item.setItemMeta(meta);
         }
         return item;
