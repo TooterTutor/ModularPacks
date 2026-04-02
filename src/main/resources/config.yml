@@ -24,6 +24,11 @@ modularpacks:
   #   - SHULKER_BOX
   BackpackInsertBlacklist: []
 
+  # PersistentDataContainer (PDC) namespace for marking GUI menu items.
+  # This is used to tag items (nav buttons, borders, slot markers) in GUIs
+  # so they can be identified and their data can be persisted.
+  PDCNamespace: "modularpacks"
+
   # GUI Materials
   NavPageButtons: ARROW
   NavBorderFiller: GRAY_STAINED_GLASS_PANE

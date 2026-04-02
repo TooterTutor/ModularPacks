@@ -15,6 +15,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -65,6 +66,9 @@ public final class ConfigManager {
     private boolean sharedBackpacksEnabled = true;
     private int maxSharedUsers = 5;
 
+    // Single shared NamespacedKey for all GUI menu items; value identifies the type
+    private NamespacedKey guiItemKey;
+
     // Backpack types by name
     private final Map<String, BackpackTypeDef> types = new HashMap<>();
 
@@ -94,8 +98,10 @@ public final class ConfigManager {
                 Sound.BLOCK_CHEST_CLOSE);
 
         navPageButtons = mat(cfg.getString("modularpacks.NavPageButtons", "ARROW"), Material.ARROW);
+
         navBorderFiller = mat(cfg.getString("modularpacks.NavBorderFiller", "GRAY_STAINED_GLASS_PANE"),
                 Material.GRAY_STAINED_GLASS_PANE);
+
         unlockedUpgradeSlotMaterial = mat(
                 cfg.getString("modularpacks.UnlockedUpgradeSlotMaterial", "WHITE_STAINED_GLASS_PANE"),
                 Material.WHITE_STAINED_GLASS_PANE);
@@ -129,6 +135,9 @@ public final class ConfigManager {
         // Shared backpacks settings
         sharedBackpacksEnabled = cfg.getBoolean("modularpacks.SharedBackpacks.Enabled", true);
         maxSharedUsers = Math.max(1, cfg.getInt("modularpacks.SharedBackpacks.MaxSharedUsers", 5)); // Clamp to min 1
+
+        cfg.getString("modularpacks.PDCNamespace", "modularpacks");
+        guiItemKey = new NamespacedKey(plugin, "gui-item");
 
         // Backpack types
         ConfigurationSection typesSec = cfg.getConfigurationSection("BackpackTypes");
@@ -267,6 +276,15 @@ public final class ConfigManager {
         if (loadedCount > 0) {
             this.plugin.getLogger().info("Loaded " + loadedCount + " external module definition(s)");
         }
+    }
+
+    /**
+     * Get the shared NamespacedKey used on all GUI menu items.
+     * The stored value identifies the item type (e.g. "nav-border-filler",
+     * "nav-page-button").
+     */
+    public NamespacedKey getGuiItemKey() {
+        return guiItemKey;
     }
 
     public boolean resizeGui() {
@@ -510,7 +528,7 @@ public final class ConfigManager {
         if (value instanceof ConfigurationSection cs)
             return cs;
         if (value instanceof Map<?, ?> m) {
-            org.bukkit.configuration.MemoryConfiguration mem = new org.bukkit.configuration.MemoryConfiguration();
+            MemoryConfiguration mem = new MemoryConfiguration();
             @SuppressWarnings("unchecked")
             Map<String, Object> typed = (Map<String, Object>) m;
             return mem.createSection("r", typed);
