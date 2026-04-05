@@ -145,21 +145,20 @@ public final class PlacedBackpackInteractListener implements Listener {
         }
 
         // Create the backpack item
+        // Module strings will be regenerated fresh from current installed modules
         ItemStack backpackItem = backpackItems.createExisting(placed.backpackId(), placed.backpackType());
 
-        // Restore custom_model_data strings/colors captured at placement time
-        if (!placed.modelDataStrings().isEmpty() || !placed.modelDataColors().isEmpty()) {
+        // Restore color customizations captured at placement time
+        // (Module strings are regenerated fresh by createExisting())
+        if (!placed.modelDataColors().isEmpty()) {
             ItemMeta meta = backpackItem.getItemMeta();
             if (meta != null) {
-                CustomModelDataUtil.setCustomModelDataStrings(meta, placed.modelDataStrings());
-                if (!placed.modelDataColors().isEmpty()) {
-                    java.util.List<Color> colors = new java.util.ArrayList<>(placed.modelDataColors().size());
-                    for (Integer rgb : placed.modelDataColors()) {
-                        int value = rgb == null ? 0xFFFFFF : (rgb & 0xFFFFFF);
-                        colors.add(Color.fromRGB((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF));
-                    }
-                    CustomModelDataUtil.setCustomModelDataColors(meta, colors);
+                java.util.List<Color> colors = new java.util.ArrayList<>(placed.modelDataColors().size());
+                for (Integer rgb : placed.modelDataColors()) {
+                    int value = rgb == null ? 0xFFFFFF : (rgb & 0xFFFFFF);
+                    colors.add(Color.fromRGB((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF));
                 }
+                CustomModelDataUtil.setCustomModelDataColors(meta, colors);
                 backpackItem.setItemMeta(meta);
             }
         }

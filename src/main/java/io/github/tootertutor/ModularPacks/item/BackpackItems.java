@@ -63,6 +63,14 @@ public final class BackpackItems {
             meta.lore(Text.lore(expanded));
         }
 
+        // Load backpack data and add module-based CMD strings
+        BackpackData backpackData = plugin.repo().loadOrCreate(id, typeId);
+        List<String> moduleModelDataStrings = ModuleModelDataGenerator.generateModuleModelDataStrings(plugin,
+                backpackData);
+        if (!moduleModelDataStrings.isEmpty()) {
+            CustomModelDataUtil.setCustomModelDataStrings(meta, moduleModelDataStrings);
+        }
+
         item.setItemMeta(meta);
         return item;
     }
@@ -98,6 +106,14 @@ public final class BackpackItems {
             meta.lore(Text.lore(expanded));
         } else {
             meta.lore(null);
+        }
+
+        // Generate module-based CMD strings (color info is in the colors array)
+        List<String> moduleModelDataStrings = ModuleModelDataGenerator.generateModuleModelDataStrings(plugin, data);
+        if (!moduleModelDataStrings.isEmpty()) {
+            CustomModelDataUtil.setCustomModelDataStrings(meta, moduleModelDataStrings);
+        } else {
+            CustomModelDataUtil.setCustomModelDataStrings(meta, java.util.List.of());
         }
 
         item.setItemMeta(meta);
