@@ -47,8 +47,8 @@ public final class BackpackColorTints {
         int tierDefault = getTierDefault(item);
         int[] colors = getDefaultColors(tierDefault);
 
-        if (!componentColors.isEmpty() && componentColors.size() == componentStrings.size()
-                && !componentStrings.isEmpty()) {
+        if (hasLegacyColorKeys(componentStrings) && !componentColors.isEmpty()
+                && componentColors.size() == componentStrings.size()) {
             for (int i = 0; i < componentColors.size(); i++) {
                 String key = componentStrings.get(i);
                 int rgb = colorToRgb(componentColors.get(i));
@@ -64,7 +64,7 @@ public final class BackpackColorTints {
             return colors;
         }
 
-        int limit = Math.min(5, componentColors.size());
+        int limit = Math.min(6, componentColors.size());
         for (int i = 0; i < limit; i++) {
             colors[i] = colorToRgb(componentColors.get(i));
         }
@@ -208,27 +208,29 @@ public final class BackpackColorTints {
     }
 
     /**
-     * Save colors state to ItemMeta's custom_model_data strings/colors lists.
+     * Save colors state to ItemMeta's custom_model_data colors list.
      *
      * Always writes the full six-slot color payload so CMD colors remain index-
      * stable regardless of edit order:
-     * - color:0..4 => editable model groups, defaulting to white when cleared
-     * - color:5 => derived tier/default color
+     * - index 0..4 => editable model groups, defaulting to tier/default when
+     * cleared
+     * - index 5 => derived tier/default color
+     *
+     * Existing non-color CMD strings, such as module flags, are preserved.
+     * Legacy color:* strings are stripped during save.
      */
     private static void saveState(ItemMeta meta, ColorState state) {
-        List<String> stringList = new ArrayList<>();
         List<Color> colorList = new ArrayList<>();
         int tierDefault = getTierDefault(meta);
 
         for (int i = 0; i < 5; i++) {
-            stringList.add(colorKey(i));
             colorList.add(rgbToColor(state.colors[i] == null ? tierDefault : state.colors[i]));
         }
 
-        stringList.add(colorKey(5));
         colorList.add(rgbToColor(tierDefault));
 
-        CustomModelDataUtil.setCustomModelDataStrings(meta, stringList);
+        List<String> preservedStrings = stripLegacyColorKeys(CustomModelDataUtil.getCustomModelDataStrings(meta));
+        CustomModelDataUtil.setCustomModelDataStrings(meta, preservedStrings);
         CustomModelDataUtil.setCustomModelDataColors(meta, colorList);
     }
 
@@ -237,8 +239,8 @@ public final class BackpackColorTints {
         List<Color> componentColors = CustomModelDataUtil.getCustomModelDataColors(meta);
         List<String> componentStrings = CustomModelDataUtil.getCustomModelDataStrings(meta);
 
-        if (!componentColors.isEmpty() && componentColors.size() == componentStrings.size()
-                && !componentStrings.isEmpty()) {
+        if (hasLegacyColorKeys(componentStrings) && !componentColors.isEmpty()
+                && componentColors.size() == componentStrings.size()) {
             for (int i = 0; i < componentColors.size(); i++) {
                 String key = componentStrings.get(i);
                 int rgb = colorToRgb(componentColors.get(i));
@@ -257,8 +259,31 @@ public final class BackpackColorTints {
         return state;
     }
 
-    private static String colorKey(int colorIndex) {
-        return "color:" + colorIndex;
+    private static List<String> stripLegacyColorKeys(List<String> strings) {
+        if (strings == null || strings.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> filtered = new ArrayList<>(strings.size());
+        for (String value : strings) {
+            if (parseColorKey(value) == null) {
+                filtered.add(value);
+            }
+        }
+        return filtered;
+    }
+
+    private static boolean hasLegacyColorKeys(List<String> strings) {
+        if (strings == null || strings.isEmpty()) {
+            return false;
+        }
+
+        for (String value : strings) {
+            if (parseColorKey(value) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Integer parseColorKey(String key) {
