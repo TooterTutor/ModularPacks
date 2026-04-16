@@ -1,6 +1,7 @@
 package io.github.tootertutor.ModularPacks.gui;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class SlotLayout {
@@ -51,6 +52,10 @@ public final class SlotLayout {
                 continue;
             out.add(rowStart + offset);
         }
+
+        // Keep the selected sockets center-biased, but expose them in stable
+        // left-to-right order so socket index 0..4 matches visual medallion slots.
+        Collections.sort(out);
 
         return out;
     }
