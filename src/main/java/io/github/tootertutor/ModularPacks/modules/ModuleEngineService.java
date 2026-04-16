@@ -338,9 +338,12 @@ public final class ModuleEngineService {
             if (def == null || !def.enabled())
                 continue;
 
-            Byte enabled = meta.getPersistentDataContainer().get(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE);
-            if (enabled != null && enabled == 0)
-                continue;
+            if (def.toggleable()) {
+                Byte enabled = meta.getPersistentDataContainer().get(plugin.keys().MODULE_ENABLED,
+                        PersistentDataType.BYTE);
+                if (enabled != null && enabled == 0)
+                    continue;
+            }
 
             return moduleId;
         }

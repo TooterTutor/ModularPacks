@@ -103,6 +103,12 @@ public final class ModuleSocketHandler {
 
         // TOGGLE (Shift+Left)
         if (click == ClickType.SHIFT_LEFT) {
+            String type = getModuleType(clicked);
+            var def = type == null ? null : plugin.cfg().findUpgrade(type);
+            if (def == null || !def.toggleable()) {
+                return;
+            }
+
             ItemStack updated = toggleModule(holder, clicked);
             if (updated != null) {
                 e.setCurrentItem(updated);
@@ -666,6 +672,12 @@ public final class ModuleSocketHandler {
     private ItemStack toggleModule(BackpackMenuHolder holder, ItemStack moduleItem) {
         if (holder == null || moduleItem == null)
             return null;
+
+        String type = getModuleType(moduleItem);
+        var def = type == null ? null : plugin.cfg().findUpgrade(type);
+        if (def == null || !def.toggleable())
+            return null;
+
         Keys keys = plugin.keys();
         ItemMeta meta = moduleItem.getItemMeta();
         if (meta == null)

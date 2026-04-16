@@ -316,9 +316,11 @@ public final class BackpackEverlastingListener implements Listener {
             if (moduleType == null || !moduleType.equalsIgnoreCase("Everlasting"))
                 continue;
 
-            Byte en = meta.getPersistentDataContainer().get(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE);
-            if (en != null && en == 0)
-                return false;
+            if (def.toggleable()) {
+                Byte en = meta.getPersistentDataContainer().get(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE);
+                if (en != null && en == 0)
+                    return false;
+            }
 
             return true;
         }

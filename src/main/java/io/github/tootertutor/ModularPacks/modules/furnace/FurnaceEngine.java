@@ -133,13 +133,15 @@ public final class FurnaceEngine {
         if (upgradeId == null)
             return ScreenType.NONE;
 
-        Byte enabled = pdc.get(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE);
-        if (enabled != null && enabled == 0)
-            return ScreenType.NONE;
-
         var def = plugin.cfg().findUpgrade(upgradeId);
         if (def == null || !def.enabled())
             return ScreenType.NONE;
+
+        if (def.toggleable()) {
+            Byte enabled = pdc.get(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE);
+            if (enabled != null && enabled == 0)
+                return ScreenType.NONE;
+        }
 
         return def.screenType();
     }

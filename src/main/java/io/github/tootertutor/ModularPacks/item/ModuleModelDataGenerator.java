@@ -75,10 +75,17 @@ public final class ModuleModelDataGenerator {
                     continue;
                 }
 
-                Byte enabledByte = moduleMeta.getPersistentDataContainer().get(keys.MODULE_ENABLED,
-                        PersistentDataType.BYTE);
-                if (enabledByte != null && enabledByte == 0) {
+                var def = plugin.cfg().findUpgrade(moduleType);
+                if (def == null || !def.enabled()) {
                     continue;
+                }
+
+                if (def.toggleable()) {
+                    Byte enabledByte = moduleMeta.getPersistentDataContainer().get(keys.MODULE_ENABLED,
+                            PersistentDataType.BYTE);
+                    if (enabledByte != null && enabledByte == 0) {
+                        continue;
+                    }
                 }
 
                 // Set the string with module type explicitly tied to its slot
@@ -122,7 +129,6 @@ public final class ModuleModelDataGenerator {
 
         return encoding;
     }
-
 
     /**
      * Resolve a module's ItemStack snapshot from the backpack data.
