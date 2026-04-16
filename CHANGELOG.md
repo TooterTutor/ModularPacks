@@ -3,6 +3,38 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.5
+
+**Release Date:** 2026-04-16
+
+## Changes since 2.4.4
+
+### Features & Improvements
+- Added new backpack CMD rendering features (533ffb4)
+- Added small CMD Flags setter (a878e42)
+- Added hopefully dynamic backpack module models for the held backpack model (b4d1204)
+- Improved code quality (34844dd)
+- Added PDC (221179e)
+
+### Bug Fixes
+- Fixed module slots so they are now correctly indexed (e9c8261)
+- Fixed colors being also stored in strings CMD (ccd6813)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (22cbe85)
+- Added new backpack CMD rendering features (533ffb4)
+- Added small CMD Flags setter (a878e42)
+- Fixed module slots so they are now correctly indexed (e9c8261)
+- Added hopefully dynamic backpack module models for the held backpack model (b4d1204)
+- Fixed colors being also stored in strings CMD (ccd6813)
+- Improved code quality (34844dd)
+- Added PDC (221179e)
+---
+
+
 # ModularPacks 2.4.4
 
 **Release Date:** 2026-03-22
