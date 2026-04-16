@@ -3,6 +3,27 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.6
+
+**Release Date:** 2026-04-16
+
+## Changes since 2.4.5
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fixed a potential issue involving toggling normally untoggleable modules (345adc7)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (523921c)
+- Fixed a potential issue involving toggling normally untoggleable modules (345adc7)
+---
+
+
 # ModularPacks 2.4.5
 
 **Release Date:** 2026-04-16
