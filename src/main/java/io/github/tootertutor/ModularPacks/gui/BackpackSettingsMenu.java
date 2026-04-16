@@ -424,6 +424,8 @@ public final class BackpackSettingsMenu {
 
                 CustomModelDataUtil.setCustomModelDataStrings(previewMeta,
                         CustomModelDataUtil.getCustomModelDataStrings(sourceMeta));
+                CustomModelDataUtil.setCustomModelDataFlags(previewMeta,
+                        CustomModelDataUtil.getCustomModelDataFlags(sourceMeta));
                 CustomModelDataUtil.setCustomModelDataColors(previewMeta,
                         CustomModelDataUtil.getCustomModelDataColors(sourceMeta));
             }
