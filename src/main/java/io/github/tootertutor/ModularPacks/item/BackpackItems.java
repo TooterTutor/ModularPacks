@@ -67,9 +67,16 @@ public final class BackpackItems {
         BackpackData backpackData = plugin.repo().loadOrCreate(id, typeId);
         List<String> moduleModelDataStrings = ModuleModelDataGenerator.generateModuleModelDataStrings(plugin,
                 backpackData);
+
         if (!moduleModelDataStrings.isEmpty()) {
             CustomModelDataUtil.setCustomModelDataStrings(meta, moduleModelDataStrings);
+        } else {
+            CustomModelDataUtil.setCustomModelDataStrings(meta, List.of());
         }
+
+        // Slot strings are authoritative for module medallion placement.
+        // Clear flags to avoid stale type-indexed rendering behavior.
+        CustomModelDataUtil.setCustomModelDataFlags(meta, List.of());
 
         item.setItemMeta(meta);
         return item;
@@ -110,11 +117,16 @@ public final class BackpackItems {
 
         // Generate module-based CMD strings (color info is in the colors array)
         List<String> moduleModelDataStrings = ModuleModelDataGenerator.generateModuleModelDataStrings(plugin, data);
+
         if (!moduleModelDataStrings.isEmpty()) {
             CustomModelDataUtil.setCustomModelDataStrings(meta, moduleModelDataStrings);
         } else {
             CustomModelDataUtil.setCustomModelDataStrings(meta, java.util.List.of());
         }
+
+        // Slot strings are authoritative for module medallion placement.
+        // Clear flags to avoid stale type-indexed rendering behavior.
+        CustomModelDataUtil.setCustomModelDataFlags(meta, java.util.List.of());
 
         item.setItemMeta(meta);
         return true;

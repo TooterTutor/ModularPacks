@@ -1,11 +1,9 @@
 package io.github.tootertutor.ModularPacks.item;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.inventory.ItemStack;
@@ -19,12 +17,12 @@ import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 /**
  * Generates Custom Model Data strings based on installed modules in a backpack.
  * 
- * This allows resource packs to detect which modules are installed and render
- * additional models on top of the base backpack model.
+ * This allows resource packs to detect which module is installed in each slot
+ * and render additional models on top of the base backpack model.
  * 
- * Format: `modularpacks.module.<moduleType>:true`
- * Example: If an "Everlasting" module is installed, the string would be:
- * `modularpacks.module.everlasting:true`
+ * Format: `modularpacks.slot.<index>:<moduleType>`
+ * Example: If an "Everlasting" module is installed in slot 3, the string would
+ * be: `modularpacks.slot.3:everlasting`
  */
 public final class ModuleModelDataGenerator {
 
@@ -33,61 +31,98 @@ public final class ModuleModelDataGenerator {
 
     /**
      * Generate Custom Model Data strings for all installed modules in a backpack.
-     * 
+     *
+     * Format: "modularpacks.slot.<index>:<moduleType>" for occupied slots,
+     * "modularpacks.slot.<index>:" for empty slots.
+     * This explicitly defines both the slot number and what module (if any) is in
+     * it.
+     *
      * @param plugin       The plugin instance
      * @param backpackData The backpack data containing module information
-     * @return List of module-based CMD strings (e.g.,
-     *         "modularpacks.module.everlasting:true")
+     * @return List of exactly 5 CMD strings, indexed by slot position
      */
     public static List<String> generateModuleModelDataStrings(ModularPacksPlugin plugin, BackpackData backpackData) {
-        Set<String> moduleStrings = new LinkedHashSet<>();
-
-        if (backpackData == null) {
-            return List.of();
+        // Initialize array with 5 strings, one per slot
+        List<String> moduleStrings = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            moduleStrings.add("modularpacks.slot." + i + ":");
         }
 
-        Keys keys = plugin.keys();
-        Map<Integer, UUID> installedModules = backpackData.installedModules();
+        if (backpackData != null) {
+            Keys keys = plugin.keys();
+            Map<Integer, UUID> installedModules = backpackData.installedModules();
 
-        // Iterate through all installed modules
-        for (UUID moduleId : installedModules.values()) {
-            if (moduleId == null) {
-                continue;
+            // Iterate through slots 0-4 and set each module's string
+            for (int slot = 0; slot < 5; slot++) {
+                UUID moduleId = installedModules.get(slot);
+                if (moduleId == null) {
+                    continue;
+                }
+
+                ItemStack moduleSnapshot = resolveModuleSnapshot(backpackData, moduleId);
+                if (moduleSnapshot == null || !moduleSnapshot.hasItemMeta()) {
+                    continue;
+                }
+
+                ItemMeta moduleMeta = moduleSnapshot.getItemMeta();
+                if (moduleMeta == null) {
+                    continue;
+                }
+
+                String moduleType = moduleMeta.getPersistentDataContainer().get(keys.MODULE_TYPE,
+                        PersistentDataType.STRING);
+                if (moduleType == null || moduleType.isBlank()) {
+                    continue;
+                }
+
+                Byte enabledByte = moduleMeta.getPersistentDataContainer().get(keys.MODULE_ENABLED,
+                        PersistentDataType.BYTE);
+                if (enabledByte != null && enabledByte == 0) {
+                    continue;
+                }
+
+                // Set the string with module type explicitly tied to its slot
+                moduleStrings.set(slot, "modularpacks.slot." + slot + ":" + moduleType.toLowerCase(Locale.ROOT));
             }
-
-            // Resolve the module snapshot to get its type
-            ItemStack moduleSnapshot = resolveModuleSnapshot(backpackData, moduleId);
-            if (moduleSnapshot == null || !moduleSnapshot.hasItemMeta()) {
-                continue;
-            }
-
-            ItemMeta moduleMeta = moduleSnapshot.getItemMeta();
-            if (moduleMeta == null) {
-                continue;
-            }
-
-            // Get the module type from the PDC
-            String moduleType = moduleMeta.getPersistentDataContainer().get(keys.MODULE_TYPE,
-                    PersistentDataType.STRING);
-            if (moduleType == null || moduleType.isBlank()) {
-                continue;
-            }
-
-            // Check if the module is enabled (skip disabled modules)
-            Byte enabledByte = moduleMeta.getPersistentDataContainer().get(keys.MODULE_ENABLED,
-                    PersistentDataType.BYTE);
-            if (enabledByte != null && enabledByte == 0) {
-                // Module is disabled, skip it
-                continue;
-            }
-
-            // Generate the CMD string: modularpacks.module.<type>:true
-            String cmdString = "modularpacks.module." + moduleType.toLowerCase(Locale.ROOT) + ":true";
-            moduleStrings.add(cmdString);
         }
 
-        return new ArrayList<>(moduleStrings);
+        return moduleStrings;
     }
+
+    /**
+     * Generate a fallback integer encoding of the slot-to-module configuration.
+     *
+     * Uses a simple marker system where each slot gets a value 1 if occupied, 0 if
+     * empty.
+     * This is a fallback for when string matching isn't supported and should not be
+     * used to determine rendering order - the slot strings should be authoritative.
+     *
+     * Formula: slot0 + (slot1 × 2) + (slot2 × 4) + (slot3 × 8) + (slot4 × 16)
+     *
+     * @param moduleStrings The strings generated by generateModuleModelDataStrings
+     * @return An integer encoding of the module configuration
+     */
+    public static int generateModuleEncodingInteger(List<String> moduleStrings) {
+        int encoding = 0;
+        int multiplier = 1;
+
+        for (int slot = 0; slot < 5 && slot < moduleStrings.size(); slot++) {
+            String slotString = moduleStrings.get(slot);
+            int slotValue = 0;
+
+            // Each slot is either empty (ends with ":") or occupied (has module type after
+            // ":")
+            if (slotString.contains(":") && !slotString.endsWith(":")) {
+                slotValue = 1; // Slot has a module
+            }
+
+            encoding += slotValue * multiplier;
+            multiplier *= 2; // Use binary encoding instead of base-15
+        }
+
+        return encoding;
+    }
+
 
     /**
      * Resolve a module's ItemStack snapshot from the backpack data.
