@@ -3,6 +3,31 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.7
+
+**Release Date:** 2026-04-25
+
+## Changes since 2.4.6
+
+### Features & Improvements
+- Added autocrafting implementation (fea0f8e)
+- Added autocrafting module configs (a853cd2)
+
+### Bug Fixes
+- Fixed placed backpacks to properly update active modules through their Custom Model Data (5f9c225)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Added autocrafting implementation (fea0f8e)
+- Added autocrafting module configs (a853cd2)
+- Replaced `mp` with `backpack` in usage (334ac01)
+- Fixed placed backpacks to properly update active modules through their Custom Model Data (5f9c225)
+- Bump version (8777233)
+---
+
+
 # ModularPacks 2.4.6
 
 **Release Date:** 2026-04-16
