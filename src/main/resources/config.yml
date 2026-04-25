@@ -1,7 +1,8 @@
 # Modularpacks is an unofficial port of the Sophisticated Backpacks mod for Paper servers created by TooterTutor.
 modularpacks:
   Enabled: true
-  # ResuzeGUI: When false, keeps the backpack pages at a fixed GUI size. When true, makes the backpacks dynamically resize the GUI pages.
+
+  # ResizeGUI: When false, keeps the backpack pages at a fixed GUI size. When true, makes the backpacks dynamically resize the GUI pages.
   ResizeGUI: true
   AutoCloseOnTeleport: true
 
