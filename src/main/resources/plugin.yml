@@ -6,7 +6,7 @@ api-version: "1.21"
 commands:
   backpack:
     description: Main command for ModularPacks
-    usage: /mp <subcommand>
+    usage: /backpack <subcommand>
     aliases: [ backpack ]
     permission: modularpacks.command
 permissions:
