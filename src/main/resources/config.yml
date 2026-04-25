@@ -2,6 +2,21 @@
 modularpacks:
   Enabled: true
 
+  UpdateChecker:
+    Enabled: true
+    # When true, logs the changelog of the new version in console and to those who have permission in chat when an update is found.
+    ShowChangeLog: true
+    # When true, checks for updates on the Github repository page and logs a message in console if a new version is available.
+    CheckOnStartup: true
+    # When true, also checks for updates while the server is running.
+    PeriodicCheck: true
+    # If PeriodicCheck is true, the interval (in hours) between update checks.  Default is 24 for once-daily checks.
+    CheckIntervalHours: 24
+    # Players with this permission will be notified in chat when an update is found.
+    NotifyPermission: modularpacks.update.notify
+    # GitHub API endpoint used to fetch latest release metadata.
+    ReleaseApiUrl: https://api.github.com/repos/tootertutor/ModularPacks/releases/latest
+
   # ResizeGUI: When false, keeps the backpack pages at a fixed GUI size. When true, makes the backpacks dynamically resize the GUI pages.
   ResizeGUI: true
   AutoCloseOnTeleport: true

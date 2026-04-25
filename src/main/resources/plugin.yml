@@ -16,6 +16,8 @@ permissions:
     default: op
   modularpacks.admin:
     default: op
+  modularpacks.update.notify:
+    default: op
   modularpacks.recipe:
     default: true
 
