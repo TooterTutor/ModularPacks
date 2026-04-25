@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -46,6 +47,46 @@ public final class CraftingModuleLogic {
         ItemStack[] matrix = readMatrix(inv);
         CraftMatch match = findMatch(recipes, player, matrix);
         inv.setItem(RESULT_SLOT, match == null ? null : match.result.clone());
+    }
+
+    public static ItemStack previewCraftResult(RecipeManager recipes, Player player, Inventory inv) {
+        if (inv == null || inv.getSize() < MATRIX_FIRST_SLOT + MATRIX_SIZE)
+            return null;
+
+        ItemStack[] matrix = readMatrix(inv);
+        CraftMatch match = findMatch(recipes, player, matrix);
+        if (match == null)
+            return null;
+
+        ItemStack out = craftResult(recipes, player, match, matrix);
+        return ItemStacks.isAir(out) ? null : out;
+    }
+
+    public static ItemStack craftOnce(RecipeManager recipes, Player player, Inventory inv) {
+        return craftOnce(recipes, player, inv, null);
+    }
+
+    public static ItemStack craftOnce(RecipeManager recipes, Player player, Inventory inv,
+            Predicate<ItemStack> canAcceptOutput) {
+        if (inv == null || inv.getSize() < MATRIX_FIRST_SLOT + MATRIX_SIZE)
+            return null;
+
+        ItemStack[] matrix = readMatrix(inv);
+        CraftMatch match = findMatch(recipes, player, matrix);
+        if (match == null)
+            return null;
+
+        ItemStack out = craftResult(recipes, player, match, matrix);
+        if (ItemStacks.isAir(out))
+            return null;
+
+        if (canAcceptOutput != null && !canAcceptOutput.test(out.clone())) {
+            return null;
+        }
+
+        applyConsumption(inv, matrix, match.consumePerSlot);
+        updateResult(recipes, player, inv);
+        return out;
     }
 
     public static boolean handleResultClick(RecipeManager recipes, InventoryClickEvent e, Player player) {

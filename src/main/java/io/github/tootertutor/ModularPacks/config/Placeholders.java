@@ -207,7 +207,8 @@ public final class Placeholders {
         }
         if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
             String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
-            // Value placeholder used inside lang templates (e.g. {restockThreshold} -> "&7... {threshold}")
+            // Value placeholder used inside lang templates (e.g. {restockThreshold} ->
+            // "&7... {threshold}")
             overrides.put("threshold", Replacement.scalar(threshold));
             overrides.put("Threshold", Replacement.scalar(threshold));
             overrides.put("restockThresholdValue", Replacement.scalar(threshold));
@@ -276,6 +277,9 @@ public final class Placeholders {
         if (def.id() != null && def.id().equalsIgnoreCase("Jukebox")) {
             return langActionsJukebox(plugin);
         }
+        if (def.id() != null && def.id().equalsIgnoreCase("Autocrafting")) {
+            return langActionsAutocrafting(plugin);
+        }
         if (def.secondaryAction()) {
             return langActionsSecondary(plugin);
         }
@@ -328,6 +332,15 @@ public final class Placeholders {
         if (!out.isEmpty())
             return out;
         return langActionsSecondary(plugin);
+    }
+
+    private static List<String> langActionsAutocrafting(ModularPacksPlugin plugin) {
+        if (plugin == null || plugin.lang() == null)
+            return List.of();
+        List<String> out = plugin.lang().getList("moduleActionsAutocrafting");
+        if (!out.isEmpty())
+            return out;
+        return langActionsPrimary(plugin);
     }
 
     private static List<String> langActionsPassive(ModularPacksPlugin plugin) {
@@ -415,7 +428,8 @@ public final class Placeholders {
             return plugin.lang().get("feedingMode.candidateEffects", "&7Mode: &fBest Candidate: Prefer Effects");
         }
         if (!effects) {
-            return plugin.lang().get("feedingMode.whitelistNutrition", "&7Mode: &fFirst in Whitelist: Prefer Nutrition");
+            return plugin.lang().get("feedingMode.whitelistNutrition",
+                    "&7Mode: &fFirst in Whitelist: Prefer Nutrition");
         }
         return plugin.lang().get("feedingMode.whitelistEffects", "&7Mode: &fFirst in Whitelist: Prefer Effects");
     }

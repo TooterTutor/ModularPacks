@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -19,6 +20,10 @@ import io.github.tootertutor.ModularPacks.modules.crafting.CraftingModuleLogic;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class CraftingModuleListener implements Listener {
+
+    private static final int RESULT_SLOT = 0;
+    private static final int MATRIX_FIRST_SLOT = 1;
+    private static final int MATRIX_LAST_SLOT = 9;
 
     private final ModularPacksPlugin plugin;
     private final CraftingModule module;
@@ -69,6 +74,23 @@ public final class CraftingModuleListener implements Listener {
             }
         }
 
+        if (module.isAutocraftingSession(player)) {
+            if (handleAutocraftingMatrixClick(e, player, top)) {
+                return;
+            }
+
+            if (!clickedTop && e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+                e.setCancelled(true);
+                Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                return;
+            }
+        }
+
+        // Autocrafting module uses output slot clicks to adjust desired batch amount.
+        if (module.handleAutocraftingResultClick(e, player)) {
+            return;
+        }
+
         // Our custom crafting result handling (dynamic outputs, anti-dupe).
         if (CraftingModuleLogic.handleResultClick(plugin.recipes(), e, player)) {
             return;
@@ -96,6 +118,31 @@ public final class CraftingModuleListener implements Listener {
         // Prevent dragging into the output slot.
         if (e.getRawSlots().contains(0)) {
             e.setCancelled(true);
+            return;
+        }
+
+        if (module.isAutocraftingSession(player) && hasAutocraftingMatrixSlot(e.getRawSlots(), top.getSize())) {
+            e.setCancelled(true);
+
+            ItemStack cursor = e.getOldCursor();
+            if (ItemStacks.isNotAir(cursor)) {
+                if (!plugin.cfg().isAllowedInBackpack(cursor)) {
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    return;
+                }
+
+                ItemStack ghost = ghostCopy(cursor);
+                for (int raw : e.getRawSlots()) {
+                    if (isAutocraftingMatrixSlot(raw, top.getSize())) {
+                        top.setItem(raw, ghost.clone());
+                    }
+                }
+            }
+
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                CraftingModuleLogic.updateResult(plugin.recipes(), player, top);
+                player.updateInventory();
+            });
             return;
         }
 
@@ -147,5 +194,96 @@ public final class CraftingModuleListener implements Listener {
 
         // e.getInventory() is the top inventory being closed for crafting views.
         module.handleClose(plugin, player, e.getInventory());
+    }
+
+    private boolean handleAutocraftingMatrixClick(InventoryClickEvent e, Player player, Inventory top) {
+        int raw = e.getRawSlot();
+        if (raw == RESULT_SLOT) {
+            return false;
+        }
+
+        if (!isAutocraftingMatrixSlot(raw, top.getSize())) {
+            return false;
+        }
+
+        e.setCancelled(true);
+
+        InventoryAction action = e.getAction();
+        if (action == InventoryAction.NOTHING) {
+            return true;
+        }
+
+        ItemStack replacement = null;
+        boolean clearSlot = false;
+
+        if (action == InventoryAction.HOTBAR_SWAP) {
+            int button = e.getHotbarButton();
+            if (button >= 0 && button <= 8) {
+                ItemStack hotbar = player.getInventory().getItem(button);
+                if (ItemStacks.isNotAir(hotbar)) {
+                    if (!plugin.cfg().isAllowedInBackpack(hotbar)) {
+                        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                        return true;
+                    }
+                    replacement = ghostCopy(hotbar);
+                } else {
+                    clearSlot = true;
+                }
+            }
+        } else if (action == InventoryAction.PLACE_ALL
+                || action == InventoryAction.PLACE_ONE
+                || action == InventoryAction.PLACE_SOME
+                || action == InventoryAction.SWAP_WITH_CURSOR) {
+            ItemStack cursor = e.getCursor();
+            if (ItemStacks.isNotAir(cursor)) {
+                if (!plugin.cfg().isAllowedInBackpack(cursor)) {
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    return true;
+                }
+                replacement = ghostCopy(cursor);
+            } else {
+                clearSlot = true;
+            }
+        } else if (action == InventoryAction.PICKUP_ALL
+                || action == InventoryAction.PICKUP_HALF
+                || action == InventoryAction.PICKUP_ONE
+                || action == InventoryAction.PICKUP_SOME
+                || action == InventoryAction.MOVE_TO_OTHER_INVENTORY
+                || action == InventoryAction.DROP_ALL_SLOT
+                || action == InventoryAction.DROP_ONE_SLOT
+                || e.getClick() == ClickType.MIDDLE) {
+            clearSlot = true;
+        }
+
+        if (replacement != null) {
+            top.setItem(raw, replacement);
+        } else if (clearSlot) {
+            top.setItem(raw, null);
+        }
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            CraftingModuleLogic.updateResult(plugin.recipes(), player, top);
+            player.updateInventory();
+        });
+        return true;
+    }
+
+    private boolean hasAutocraftingMatrixSlot(java.util.Set<Integer> rawSlots, int topSize) {
+        for (int raw : rawSlots) {
+            if (isAutocraftingMatrixSlot(raw, topSize)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isAutocraftingMatrixSlot(int rawSlot, int topSize) {
+        return rawSlot >= MATRIX_FIRST_SLOT && rawSlot <= MATRIX_LAST_SLOT && rawSlot < topSize;
+    }
+
+    private ItemStack ghostCopy(ItemStack stack) {
+        ItemStack ghost = stack.clone();
+        ghost.setAmount(1);
+        return ghost;
     }
 }

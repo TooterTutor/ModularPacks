@@ -5,6 +5,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -25,6 +27,8 @@ import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.modules.crafting.AutocraftingStateCodec;
+import io.github.tootertutor.ModularPacks.modules.crafting.CraftingModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.feeding.FeedingEngine;
 import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceEngine;
 import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceModule;
@@ -50,6 +54,7 @@ public final class ModuleEngineService {
     private final FurnaceEngine furnaceEngine;
     private final RestockEngine restockEngine;
     private final ScreenRouter screenRouter;
+    private final ConcurrentMap<UUID, Integer> autocraftingCooldownTicks = new ConcurrentHashMap<>();
     private BukkitTask task;
 
     public ModuleEngineService(ModularPacksPlugin plugin, ScreenRouter screenRouter) {
@@ -233,6 +238,11 @@ public final class ModuleEngineService {
                 }
             }
 
+            UUID autocraftingId = findInstalledModuleId(data, "Autocrafting");
+            if (autocraftingId != null && (openModuleIds == null || !openModuleIds.contains(autocraftingId))) {
+                changedAny |= applyAutocrafting(player, data, autocraftingId, logical);
+            }
+
             if (changedAny) {
                 data.contentsBytes(ItemStackCodec.toBytes(logical));
             }
@@ -273,6 +283,314 @@ public final class ModuleEngineService {
         return magnetVoidEngine.applyMagnetAtLocation(placedBackpack.location(), logical,
                 readWhitelistFromState(data, findInstalledModuleId(data, "Magnet")),
                 magnetSnapshot, backpackId, data.backpackType(), voidId, voidWhitelist, voidSnapshot);
+    }
+
+    private boolean applyAutocrafting(Player player, BackpackData data, UUID moduleId, ItemStack[] logical) {
+        if (data == null || moduleId == null || logical == null)
+            return false;
+
+        byte[] rawState = data.moduleStates().get(moduleId);
+        AutocraftingStateCodec.State state = AutocraftingStateCodec.decode(rawState);
+
+        int intervalTicks = Math.max(10, plugin.getConfig().getInt("Upgrades.Autocrafting.CraftingIntervalTicks", 120));
+        int persistedCooldown = Math.max(0, state.cooldownTicks());
+        int cooldown = autocraftingCooldownTicks.compute(moduleId,
+                (id, existing) -> existing != null ? existing : persistedCooldown);
+        cooldown = Math.max(0, cooldown - ENGINE_DT_TICKS);
+
+        boolean changed = state.inventoryItems() != null && state.inventoryItems().length != 10;
+        ItemStack[] moduleInv = ensureCraftingInventorySize(state.inventoryItems());
+
+        if (cooldown <= 0) {
+            int desired = AutocraftingStateCodec.clampDesiredAmount(state.desiredAmount());
+            int craftedItems = craftAutocraftingBatch(player, moduleInv, logical, desired);
+            if (craftedItems > 0) {
+                changed = true;
+                cooldown = intervalTicks;
+            }
+        }
+
+        if (cooldown > 0) {
+            autocraftingCooldownTicks.put(moduleId, cooldown);
+        } else {
+            autocraftingCooldownTicks.remove(moduleId);
+        }
+
+        if (changed) {
+            data.moduleStates().put(moduleId,
+                    AutocraftingStateCodec.encode(
+                            new AutocraftingStateCodec.State(moduleInv,
+                                    AutocraftingStateCodec.clampDesiredAmount(state.desiredAmount()),
+                                    Math.max(0, cooldown))));
+        }
+
+        return changed;
+    }
+
+    private ItemStack[] ensureCraftingInventorySize(ItemStack[] items) {
+        int size = 10;
+        if (items != null && items.length == size) {
+            return items;
+        }
+
+        ItemStack[] normalized = new ItemStack[size];
+        if (items != null && items.length > 0) {
+            System.arraycopy(items, 0, normalized, 0, Math.min(items.length, size));
+        }
+        return normalized;
+    }
+
+    private int craftAutocraftingBatch(Player player, ItemStack[] moduleInv, ItemStack[] logical, int desiredAmount) {
+        if (moduleInv == null || moduleInv.length < 10 || logical == null || desiredAmount <= 0) {
+            return 0;
+        }
+
+        ItemStack[] template = buildAutocraftingTemplate(moduleInv);
+        if (template == null) {
+            return 0;
+        }
+
+        if (!canSatisfyTemplateOnce(template, logical)) {
+            return 0;
+        }
+
+        Inventory virtual = Bukkit.createInventory(null, 18);
+
+        int completedOperations = 0;
+        for (int operations = 0; operations < 64 && completedOperations < desiredAmount; operations++) {
+            virtual.clear();
+
+            if (!hydrateAutocraftingMatrixFromLogical(template, logical, virtual)) {
+                break;
+            }
+
+            ItemStack crafted = CraftingModuleLogic.craftOnce(plugin.recipes(), player, virtual,
+                    candidate -> canInsertIntoLogical(logical, candidate));
+            boolean leftoversStored = storeMatrixRemaindersInLogical(virtual, logical);
+            if (ItemStacks.isAir(crafted)) {
+                break;
+            }
+            if (!leftoversStored) {
+                break;
+            }
+
+            ItemStack remainder = insertIntoLogical(logical, crafted);
+            if (ItemStacks.isNotAir(remainder)) {
+                break;
+            }
+
+            completedOperations++;
+        }
+
+        return completedOperations;
+    }
+
+    private boolean canSatisfyTemplateOnce(ItemStack[] template, ItemStack[] logical) {
+        if (template == null || logical == null) {
+            return false;
+        }
+
+        ItemStack[] remaining = new ItemStack[logical.length];
+        for (int i = 0; i < logical.length; i++) {
+            ItemStack slot = logical[i];
+            if (ItemStacks.isNotAir(slot)) {
+                remaining[i] = slot.clone();
+            }
+        }
+
+        for (ItemStack marker : template) {
+            if (ItemStacks.isAir(marker)) {
+                continue;
+            }
+
+            boolean matched = false;
+            for (int i = 0; i < remaining.length; i++) {
+                ItemStack slot = remaining[i];
+                if (ItemStacks.isAir(slot) || !slot.isSimilar(marker)) {
+                    continue;
+                }
+
+                int nextAmount = slot.getAmount() - 1;
+                if (nextAmount > 0) {
+                    slot.setAmount(nextAmount);
+                } else {
+                    remaining[i] = null;
+                }
+                matched = true;
+                break;
+            }
+
+            if (!matched) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private ItemStack[] buildAutocraftingTemplate(ItemStack[] moduleInv) {
+        if (moduleInv == null || moduleInv.length < 10) {
+            return null;
+        }
+
+        ItemStack[] template = new ItemStack[9];
+        boolean hasAny = false;
+        for (int i = 0; i < 9; i++) {
+            ItemStack src = moduleInv[i + 1];
+            if (ItemStacks.isAir(src)) {
+                continue;
+            }
+
+            ItemStack marker = src.clone();
+            marker.setAmount(1);
+            template[i] = marker;
+            hasAny = true;
+        }
+
+        return hasAny ? template : null;
+    }
+
+    private boolean hydrateAutocraftingMatrixFromLogical(ItemStack[] template, ItemStack[] logical, Inventory working) {
+        if (template == null || logical == null || working == null) {
+            return false;
+        }
+
+        for (int i = 0; i < template.length; i++) {
+            ItemStack marker = template[i];
+            if (ItemStacks.isAir(marker)) {
+                working.setItem(i + 1, null);
+                continue;
+            }
+
+            ItemStack one = takeOneMatchingFromLogical(logical, marker);
+            if (ItemStacks.isAir(one)) {
+                storeMatrixRemaindersInLogical(working, logical);
+                return false;
+            }
+            working.setItem(i + 1, one);
+        }
+
+        working.setItem(0, null);
+        return true;
+    }
+
+    private ItemStack takeOneMatchingFromLogical(ItemStack[] logical, ItemStack marker) {
+        if (logical == null || ItemStacks.isAir(marker)) {
+            return null;
+        }
+
+        for (int i = 0; i < logical.length; i++) {
+            ItemStack slot = logical[i];
+            if (ItemStacks.isAir(slot) || !slot.isSimilar(marker)) {
+                continue;
+            }
+
+            ItemStack out = slot.clone();
+            out.setAmount(1);
+
+            int next = slot.getAmount() - 1;
+            if (next > 0) {
+                slot.setAmount(next);
+            } else {
+                logical[i] = null;
+            }
+
+            return out;
+        }
+
+        return null;
+    }
+
+    private boolean storeMatrixRemaindersInLogical(Inventory working, ItemStack[] logical) {
+        if (working == null || logical == null) {
+            return false;
+        }
+
+        for (int i = 1; i <= 9; i++) {
+            ItemStack slot = working.getItem(i);
+            if (ItemStacks.isAir(slot)) {
+                continue;
+            }
+
+            ItemStack remainder = insertIntoLogical(logical, slot.clone());
+            if (ItemStacks.isNotAir(remainder)) {
+                return false;
+            }
+            working.setItem(i, null);
+        }
+
+        working.setItem(0, null);
+        return true;
+    }
+
+    private boolean canInsertIntoLogical(ItemStack[] logical, ItemStack stack) {
+        if (ItemStacks.isAir(stack) || logical == null) {
+            return true;
+        }
+
+        int needed = stack.getAmount();
+        if (needed <= 0) {
+            return true;
+        }
+
+        for (ItemStack slot : logical) {
+            if (ItemStacks.isAir(slot)) {
+                return true;
+            }
+            if (!slot.isSimilar(stack)) {
+                continue;
+            }
+
+            int space = slot.getMaxStackSize() - slot.getAmount();
+            if (space <= 0) {
+                continue;
+            }
+
+            needed -= space;
+            if (needed <= 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private ItemStack insertIntoLogical(ItemStack[] logical, ItemStack stack) {
+        if (ItemStacks.isAir(stack) || logical == null) {
+            return null;
+        }
+
+        ItemStack moving = stack.clone();
+
+        for (int i = 0; i < logical.length; i++) {
+            ItemStack slot = logical[i];
+            if (ItemStacks.isAir(slot) || !slot.isSimilar(moving)) {
+                continue;
+            }
+
+            int maxStack = slot.getMaxStackSize();
+            int space = maxStack - slot.getAmount();
+            if (space <= 0) {
+                continue;
+            }
+
+            int toMove = Math.min(space, moving.getAmount());
+            slot.setAmount(slot.getAmount() + toMove);
+            moving.setAmount(moving.getAmount() - toMove);
+            if (moving.getAmount() <= 0) {
+                return null;
+            }
+        }
+
+        for (int i = 0; i < logical.length; i++) {
+            if (ItemStacks.isNotAir(logical[i])) {
+                continue;
+            }
+            logical[i] = moving.clone();
+            return null;
+        }
+
+        return moving;
     }
 
     private void refreshBackpackItemsFor(Player player, UUID backpackId, BackpackTypeDef typeDef,

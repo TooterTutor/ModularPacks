@@ -20,7 +20,7 @@ public final class DefaultScreenTypeResolver {
         String key = upgradeId.trim().toLowerCase(Locale.ROOT);
         return switch (key) {
             case "generic" -> ScreenType.GENERIC;
-            case "crafting" -> ScreenType.CRAFTING;
+            case "crafting", "autocrafting" -> ScreenType.CRAFTING;
             case "smithing" -> ScreenType.SMITHING;
             case "stonecutter" -> ScreenType.STONECUTTER;
             case "anvil" -> ScreenType.ANVIL;
