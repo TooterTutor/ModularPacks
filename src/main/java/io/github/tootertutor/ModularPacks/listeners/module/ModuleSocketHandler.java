@@ -117,6 +117,7 @@ public final class ModuleSocketHandler {
             saveManager.scheduleSave(player, holder);
             renderer.saveVisibleStorageToData(holder);
             renderer.render(holder);
+            refreshBackpackItemsFor(player, holder);
             return;
         }
 
@@ -234,6 +235,8 @@ public final class ModuleSocketHandler {
         if (changed) {
             Bukkit.getScheduler().runTask(plugin, player::updateInventory);
         }
+
+        plugin.placedBackpacks().syncModuleCmd(holder.backpackId(), holder.data());
     }
 
     private boolean isBackpack(ItemStack item) {

@@ -37,9 +37,11 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
+import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
+import io.github.tootertutor.ModularPacks.item.ModuleModelDataGenerator;
 import io.github.tootertutor.ModularPacks.item.SkullTextureUtil;
 import io.github.tootertutor.ModularPacks.util.Text;
 
@@ -189,6 +191,43 @@ public final class PlacedBackpackManager {
         spawnOrUpdateRender(updated);
         save();
         return true;
+    }
+
+    /**
+     * Update only the module-slot CMD strings on the live ItemDisplay entities for
+     * a placed backpack. Does not respawn the entity or touch persisted data.
+     */
+    public void syncModuleCmd(UUID backpackId, BackpackData data) {
+        Set<String> keys = backpackPlacements.get(backpackId);
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+        List<String> freshModuleStrings = ModuleModelDataGenerator.generateModuleModelDataStrings(plugin, data);
+        for (String key : keys) {
+            UUID entityId = renderEntities.get(key);
+            if (entityId == null) {
+                continue;
+            }
+            PlacedBackpack placed = placedBackpacks.get(key);
+            if (placed == null || placed.location().getWorld() == null) {
+                continue;
+            }
+            Entity entity = placed.location().getWorld().getEntity(entityId);
+            if (!(entity instanceof ItemDisplay display)) {
+                continue;
+            }
+            ItemStack current = display.getItemStack();
+            if (current == null || current.getType() == Material.AIR || !current.hasItemMeta()) {
+                continue;
+            }
+            ItemMeta meta = current.getItemMeta();
+            List<String> existing = new ArrayList<>(CustomModelDataUtil.getCustomModelDataStrings(meta));
+            existing.removeIf(s -> s.startsWith("modularpacks.slot."));
+            existing.addAll(freshModuleStrings);
+            CustomModelDataUtil.setCustomModelDataStrings(meta, existing);
+            current.setItemMeta(meta);
+            display.setItemStack(current);
+        }
     }
 
     /**
