@@ -1,5 +1,5 @@
 name: ModularPacks
-version: "1.21.10-2.4.6"
+version: "1.21.10-2.4.7"
 main: io.github.tootertutor.ModularPacks.ModularPacksPlugin
 api-version: "1.21"
 
@@ -7,7 +7,7 @@ commands:
   backpack:
     description: Main command for ModularPacks
     usage: /mp <subcommand>
-    aliases: [backpack]
+    aliases: [ backpack ]
     permission: modularpacks.command
 permissions:
   modularpacks.command:
