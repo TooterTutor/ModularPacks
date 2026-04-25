@@ -605,3 +605,29 @@ Upgrades:
       - "{jukeboxMode}"
       - "{moduleActionsJukebox}"
     CustomModelData: 2013
+
+  Autocrafting:
+    Enabled: true
+    Toggleable: true
+    SecondaryAction: false
+    # Autocrafting behavior tuning
+    CraftingIntervalTicks: 120
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " L "
+        - "RTR"
+        - " C "
+      Ingredients:
+        L: LEVER
+        R: REDSTONE
+        T: MODULE:Crafting
+        C: CRAFTER
+      OutputMaterial: CRAFTER
+      Glint: true
+    DisplayName: "&eAutocrafter Upgrade"
+    Lore:
+      - "&7A portable autocrafter."
+      - "{toggleState}"
+      - "{moduleActionsAutocrafting}"
+    CustomModelData: 2015

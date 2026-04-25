@@ -2,6 +2,7 @@ moduleActions:
   - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
 moduleActionsFeeding:
   - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit Whitelist/Blacklist."
   - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Cycle Feeding Mode."
@@ -28,6 +29,11 @@ moduleActionsRestock:
 
 moduleActionsEverlasting:
   - "&8[&6ᴘᴀꜱꜱɪᴠᴇ&8]&7 Always active."
+  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
+moduleActionsAutocrafting:
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Edit Recipe."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
 toggleState:
