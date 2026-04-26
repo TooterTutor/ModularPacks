@@ -11,6 +11,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.BackpackSummary;
+import io.github.tootertutor.ModularPacks.gui.AdminBackpackListMenu;
 
 /**
  * List backpacks in the database by player or show unowned backpacks.
@@ -18,9 +19,11 @@ import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.Backpack
 public final class ListSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
+    private final AdminBackpackListMenu listMenu;
 
     public ListSubcommand(ModularPacksPlugin plugin) {
         this.plugin = plugin;
+        this.listMenu = new AdminBackpackListMenu(plugin);
     }
 
     @Override
@@ -40,7 +43,7 @@ public final class ListSubcommand extends AbstractSubcommand {
 
     @Override
     public String getUsage() {
-        return "backpack list [playerName | unowned]";
+        return "backpack list [playerName [menu] | unowned]";
     }
 
     @Override
@@ -55,7 +58,8 @@ public final class ListSubcommand extends AbstractSubcommand {
             return;
         }
 
-        listPlayerBackpacks(ctx, arg0);
+        boolean openMenu = "menu".equalsIgnoreCase(ctx.arg(1));
+        listPlayerBackpacks(ctx, arg0, openMenu);
     }
 
     private void listUnownedBackpacks(CommandContext ctx) {
@@ -75,7 +79,7 @@ public final class ListSubcommand extends AbstractSubcommand {
         }
     }
 
-    private void listPlayerBackpacks(CommandContext ctx, String playerName) {
+    private void listPlayerBackpacks(CommandContext ctx, String playerName, boolean openMenu) {
         OfflinePlayer target = null;
 
         if (playerName == null) {
@@ -106,6 +110,15 @@ public final class ListSubcommand extends AbstractSubcommand {
             return;
         }
 
+        if (openMenu) {
+            Player viewer = ctx.requirePlayer();
+            if (viewer == null) {
+                return;
+            }
+            listMenu.openMenu(viewer, target, rows);
+            return;
+        }
+
         ctx.sendInfo("Backpacks in DB for " + target.getName() + " (" + ownerUuid + "):");
 
         java.util.Map<String, Integer> perTypeCount = new java.util.HashMap<>();
@@ -130,6 +143,15 @@ public final class ListSubcommand extends AbstractSubcommand {
             }
             return players;
         }
+
+        if (ctx.size() == 2 && !"unowned".equalsIgnoreCase(ctx.arg(0))) {
+            String prefix = safeLower(ctx.arg(1));
+            if ("menu".startsWith(prefix)) {
+                return List.of("menu");
+            }
+            return List.of();
+        }
+
         return List.of();
     }
 

@@ -21,6 +21,7 @@ import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.listeners.backpack.AdminBackpackListMenuListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackEverlastingListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackMenuListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackPlacementListener;
@@ -105,6 +106,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new BackpackUseListener(this), this);
         Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, backpackMenuRenderer, screenRouter),
                 this);
+        Bukkit.getPluginManager().registerEvents(new AdminBackpackListMenuListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ModuleRecipeListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ModuleFilterScreenListener(this), this);
         Bukkit.getPluginManager().registerEvents(new RestockModuleListener(this), this);
