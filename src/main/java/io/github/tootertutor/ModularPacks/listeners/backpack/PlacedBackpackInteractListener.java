@@ -73,7 +73,7 @@ public final class PlacedBackpackInteractListener implements Listener {
     private void openPlacedBackpack(Player player, PlacedBackpack placed) {
         // Check if player has permission to open
         if (!player.hasPermission("modularpacks.open")) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.open.no_permission",
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.open.no_permission",
                     "&cYou don't have permission to open backpacks.")));
             return;
         }
@@ -82,7 +82,7 @@ public final class PlacedBackpackInteractListener implements Listener {
         BackpackData data = plugin.repo().loadOrCreate(placed.backpackId(), placed.backpackType());
         if (data == null) {
             player.sendMessage(
-                    Text.c(plugin.lang().get("backpack.open.error", "&cFailed to load backpack data.")));
+                    Text.c(plugin.lang().get(player, "backpack.open.error", "&cFailed to load backpack data.")));
             return;
         }
 
@@ -92,10 +92,12 @@ public final class PlacedBackpackInteractListener implements Listener {
             String lockedToName = plugin.sessions().lockedToName(placed.backpackId());
             if (lockedToName != null) {
                 player.sendMessage(Text
-                        .c(plugin.lang().get("backpack.open.locked", "&cThis backpack is currently open by {player}.")
+                        .c(plugin.lang()
+                                .get(player, "backpack.open.locked", "&cThis backpack is currently open by {player}.")
                                 .replace("{player}", lockedToName)));
             } else {
-                player.sendMessage(Text.c(plugin.lang().get("backpack.open.failed", "&cCannot open backpack.")));
+                player.sendMessage(
+                        Text.c(plugin.lang().get(player, "backpack.open.failed", "&cCannot open backpack.")));
             }
             return;
         }
@@ -103,7 +105,8 @@ public final class PlacedBackpackInteractListener implements Listener {
         // Get backpack type definition
         BackpackTypeDef typeDef = plugin.cfg().findType(placed.backpackType());
         if (typeDef == null) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.open.invalid_type", "&cInvalid backpack type.")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.open.invalid_type", "&cInvalid backpack type.")));
             plugin.sessions().onRelatedInventoryClose(player, placed.backpackId());
             return;
         }
@@ -116,7 +119,7 @@ public final class PlacedBackpackInteractListener implements Listener {
     private void pickupBackpack(Player player, PlacedBackpack placed, Block block) {
         // Check if player has permission to pick up
         if (!player.hasPermission("modularpacks.pickup")) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.pickup.no_permission",
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.pickup.no_permission",
                     "&cYou don't have permission to pick up backpacks.")));
             return;
         }
@@ -125,7 +128,7 @@ public final class PlacedBackpackInteractListener implements Listener {
         if (plugin.sessions().lockedTo(placed.backpackId()) != null) {
             String lockedToName = plugin.sessions().lockedToName(placed.backpackId());
             player.sendMessage(Text.c(plugin.lang()
-                    .get("backpack.pickup.in_use", "&cCannot pick up - backpack is being used by {player}.")
+                    .get(player, "backpack.pickup.in_use", "&cCannot pick up - backpack is being used by {player}.")
                     .replace("{player}", lockedToName != null ? lockedToName : "someone")));
             return;
         }
@@ -133,14 +136,16 @@ public final class PlacedBackpackInteractListener implements Listener {
         // Load backpack data
         BackpackData data = plugin.repo().loadOrCreate(placed.backpackId(), placed.backpackType());
         if (data == null) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.pickup.error", "&cFailed to load backpack data.")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.pickup.error", "&cFailed to load backpack data.")));
             return;
         }
 
         // Get backpack type definition
         BackpackTypeDef typeDef = plugin.cfg().findType(placed.backpackType());
         if (typeDef == null) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.pickup.invalid_type", "&cInvalid backpack type.")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.pickup.invalid_type", "&cInvalid backpack type.")));
             return;
         }
 
@@ -167,7 +172,8 @@ public final class PlacedBackpackInteractListener implements Listener {
         if (!player.getInventory().addItem(backpackItem).isEmpty()) {
             // Inventory full - drop at player's location
             player.getWorld().dropItemNaturally(player.getLocation(), backpackItem);
-            player.sendMessage(Text.c(plugin.lang().get("backpack.pickup.inventory_full", "&eInventory full!")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.pickup.inventory_full", "&eInventory full!")));
         }
 
         // Remove the block

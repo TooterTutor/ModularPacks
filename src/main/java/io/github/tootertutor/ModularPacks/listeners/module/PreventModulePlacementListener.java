@@ -39,7 +39,7 @@ public final class PreventModulePlacementListener implements Listener {
     }
 
     private void cancel(Player player) {
-        player.sendMessage(Text.c(plugin.lang().get("errors.modulePlaceBlocked",
+        player.sendMessage(Text.c(plugin.lang().get(player, "errors.modulePlaceBlocked",
                 "&cYou can't place modules in the world.")));
     }
 

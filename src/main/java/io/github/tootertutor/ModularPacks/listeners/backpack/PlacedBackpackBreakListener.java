@@ -58,7 +58,9 @@ public final class PlacedBackpackBreakListener implements Listener {
         if (plugin.sessions().lockedTo(placed.backpackId()) != null) {
             String lockedToName = plugin.sessions().lockedToName(placed.backpackId());
             player.sendMessage(Text.c(
-                    plugin.lang().get("backpack.break.in_use", "&cCannot break - backpack is being used by {player}.")
+                    plugin.lang()
+                            .get(player, "backpack.break.in_use",
+                                    "&cCannot break - backpack is being used by {player}.")
                             .replace("{player}", lockedToName != null ? lockedToName : "someone")));
             event.setCancelled(true);
             return;
@@ -67,7 +69,8 @@ public final class PlacedBackpackBreakListener implements Listener {
         // Load backpack data
         BackpackData data = plugin.repo().loadOrCreate(placed.backpackId(), placed.backpackType());
         if (data == null) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.break.error", "&cFailed to load backpack data.")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.break.error", "&cFailed to load backpack data.")));
             event.setCancelled(true);
             return;
         }
@@ -75,7 +78,8 @@ public final class PlacedBackpackBreakListener implements Listener {
         // Get backpack type definition
         BackpackTypeDef typeDef = plugin.cfg().findType(placed.backpackType());
         if (typeDef == null) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.break.invalid_type", "&cInvalid backpack type.")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.break.invalid_type", "&cInvalid backpack type.")));
             event.setCancelled(true);
             return;
         }

@@ -83,13 +83,14 @@ public final class BackpackPlacementListener implements Listener {
         // Check if placeable feature is enabled
         if (!plugin.cfg().isPlaceableEnabled()) {
             player.sendMessage(
-                    Text.c(plugin.lang().get("backpack.placement.disabled", "&cPlaceable backpacks are disabled")));
+                    Text.c(plugin.lang().get(player, "backpack.placement.disabled",
+                            "&cPlaceable backpacks are disabled")));
             return;
         }
 
         // Check permissions
         if (!player.hasPermission("modularpacks.place")) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.no_permission",
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.placement.no_permission",
                     "&cYou don't have permission to place backpacks.")));
             return;
         }
@@ -99,7 +100,8 @@ public final class BackpackPlacementListener implements Listener {
         String backpackType = meta.getPersistentDataContainer().get(keys.BACKPACK_TYPE, PersistentDataType.STRING);
 
         if (backpackIdStr == null || backpackType == null) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.invalid", "&cInvalid backpack data.")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.placement.invalid", "&cInvalid backpack data.")));
             return;
         }
 
@@ -108,7 +110,8 @@ public final class BackpackPlacementListener implements Listener {
         // Check if backpack is already open
         if (plugin.sessions().lockedTo(backpackId) != null) {
             player.sendMessage(
-                    Text.c(plugin.lang().get("backpack.placement.in_use", "&cThis backpack is currently in use.")));
+                    Text.c(plugin.lang().get(player, "backpack.placement.in_use",
+                            "&cThis backpack is currently in use.")));
             return;
         }
 
@@ -132,14 +135,14 @@ public final class BackpackPlacementListener implements Listener {
         Material targetMat = targetBlock.getType();
         if (targetMat == Material.WATER || targetMat == Material.LAVA
                 || targetMat == Material.BUBBLE_COLUMN) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.blocked",
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.placement.blocked",
                     "&cCannot place backpack there - space is occupied.")));
             return;
         }
 
         // Check if the target location is free
         if (!targetBlock.getType().isAir() && !targetBlock.isReplaceable()) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.blocked",
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.placement.blocked",
                     "&cCannot place backpack there - space is occupied.")));
             return;
         }
@@ -148,7 +151,7 @@ public final class BackpackPlacementListener implements Listener {
         // physics will pop it off immediately and can desync backpack tracking.
         BlockData headData = Material.PLAYER_HEAD.createBlockData();
         if (!targetBlock.canPlace(headData)) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.blocked",
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.placement.blocked",
                     "&cCannot place backpack there - space is occupied.")));
             return;
         }
@@ -158,7 +161,7 @@ public final class BackpackPlacementListener implements Listener {
 
         // Check if another backpack is already at this location
         if (plugin.placedBackpacks().isPlacedAt(placementLoc)) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.occupied",
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.placement.occupied",
                     "&cA backpack is already placed at this location.")));
             return;
         }
@@ -166,7 +169,8 @@ public final class BackpackPlacementListener implements Listener {
         // Load backpack data to ensure it exists
         BackpackData data = plugin.repo().loadOrCreate(backpackId, backpackType);
         if (data == null) {
-            player.sendMessage(Text.c(plugin.lang().get("backpack.placement.error", "&cFailed to place backpack.")));
+            player.sendMessage(
+                    Text.c(plugin.lang().get(player, "backpack.placement.error", "&cFailed to place backpack.")));
             return;
         }
 
@@ -174,7 +178,8 @@ public final class BackpackPlacementListener implements Listener {
         boolean success = plugin.placedBackpacks().place(placementLoc, backpackId, backpackType, player, item);
         if (!success) {
             player.sendMessage(Text.c(
-                    plugin.lang().get("backpack.placement.failed", "&cAn error occurred while placing the backpack.")));
+                    plugin.lang().get(player, "backpack.placement.failed",
+                            "&cAn error occurred while placing the backpack.")));
             return;
         }
 
