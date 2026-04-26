@@ -3,6 +3,31 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.9
+
+**Release Date:** 2026-04-25
+
+## Changes since 2.4.8
+
+### Features & Improvements
+- Changed sorting button for list menu to be visually similar to the backpack sort button (2af9c5f)
+- Added new `menu` option under `backpack list` (2acc898)
+
+### Bug Fixes
+- Fixed backpack type sorting (03ffb8a)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (b109ba7)
+- One less file to edit when bumping version (1c5db58)
+- Fixed backpack type sorting (03ffb8a)
+- Changed sorting button for list menu to be visually similar to the backpack sort button (2af9c5f)
+- Added new `menu` option under `backpack list` (2acc898)
+---
+
+
 # ModularPacks 2.4.8
 
 **Release Date:** 2026-04-25
