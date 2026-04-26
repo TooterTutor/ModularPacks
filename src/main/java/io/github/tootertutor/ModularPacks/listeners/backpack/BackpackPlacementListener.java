@@ -9,6 +9,7 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event.Result;
@@ -16,6 +17,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -156,6 +158,13 @@ public final class BackpackPlacementListener implements Listener {
             return;
         }
 
+        // Respect external claim/protection plugins that validate block placement.
+        if (!canPlaceHere(event, player, item, clickedBlock, targetBlock, headData)) {
+            player.sendMessage(Text.c(plugin.lang().get(player, "backpack.placement.blocked",
+                    "&cCannot place backpack there - space is occupied.")));
+            return;
+        }
+
         // Get the placement location
         Location placementLoc = targetBlock.getLocation();
 
@@ -190,6 +199,26 @@ public final class BackpackPlacementListener implements Listener {
         }
 
         // Already cancelled above to block vanilla fallback placement.
+    }
+
+    /**
+     * Runs build/place checks so protection plugins (claims, regions, etc.) can
+     * veto backpack placement the same way they veto normal block placement.
+     */
+    private boolean canPlaceHere(PlayerInteractEvent interactEvent, Player player, ItemStack item, Block clickedBlock,
+            Block targetBlock, BlockData headData) {
+        // Run a synthetic BlockPlaceEvent so protection plugins can cancel.
+        BlockState replacedState = targetBlock.getState();
+        BlockPlaceEvent placeEvent = new BlockPlaceEvent(
+                targetBlock,
+                replacedState,
+                clickedBlock,
+                item,
+                player,
+                true,
+                interactEvent.getHand());
+        plugin.getServer().getPluginManager().callEvent(placeEvent);
+        return placeEvent.canBuild() && !placeEvent.isCancelled();
     }
 
     /**
