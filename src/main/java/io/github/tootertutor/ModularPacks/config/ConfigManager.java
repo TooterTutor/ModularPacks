@@ -236,13 +236,27 @@ public final class ConfigManager {
      */
     private void loadExternalModuleDefinitions() {
         int loadedCount = 0;
-        for (Plugin plugin : Bukkit.getPluginManager().getPlugins()) {
+        for (Plugin externalPlugin : Bukkit.getPluginManager().getPlugins()) {
             // Skip ModularPacks itself
-            if (plugin.getName().equals("ModularPacks")) {
+            if (externalPlugin.getName().equals("ModularPacks")) {
                 continue;
             }
 
-            FileConfiguration pluginConfig = plugin.getConfig();
+            // Only inspect enabled plugins, and guard against plugins whose config
+            // systems are not fully initialized yet.
+            if (!externalPlugin.isEnabled()) {
+                continue;
+            }
+
+            FileConfiguration pluginConfig;
+            try {
+                pluginConfig = externalPlugin.getConfig();
+            } catch (Throwable t) {
+                this.plugin.getLogger().fine("[ModularPacks] Skipping external module scan for "
+                        + externalPlugin.getName() + " (config unavailable during startup): " + t.getMessage());
+                continue;
+            }
+
             if (pluginConfig == null) {
                 continue;
             }
@@ -252,7 +266,7 @@ public final class ConfigManager {
                 continue;
             }
 
-            plugin.getLogger().info("[ModularPacks] Discovering module definitions...");
+            externalPlugin.getLogger().info("[ModularPacks] Discovering module definitions...");
 
             for (String id : modulesSection.getKeys(false)) {
                 ConfigurationSection s = modulesSection.getConfigurationSection(id);
@@ -262,7 +276,7 @@ public final class ConfigManager {
                 // Skip if already registered (config.yml takes precedence)
                 String key = id.toLowerCase(Locale.ROOT);
                 if (upgrades.containsKey(key)) {
-                    plugin.getLogger().warning(
+                    externalPlugin.getLogger().warning(
                             "[ModularPacks] Module '" + id
                                     + "' already registered, skipping (config.yml has priority)");
                     continue;
@@ -290,10 +304,11 @@ public final class ConfigManager {
                             enabled, toggleable, secondaryAction, screenType);
                     upgrades.put(key, upgradeDef);
                     loadedCount++;
-                    plugin.getLogger()
-                            .info("[ModularPacks] Registered module definition: " + id + " (" + plugin.getName() + ")");
+                    externalPlugin.getLogger().info(
+                            "[ModularPacks] Registered module definition: " + id + " (" + externalPlugin.getName()
+                                    + ")");
                 } catch (Exception e) {
-                    plugin.getLogger().warning("[ModularPacks] Failed to load module definition '" + id + "': "
+                    externalPlugin.getLogger().warning("[ModularPacks] Failed to load module definition '" + id + "': "
                             + e.getMessage());
                 }
             }
