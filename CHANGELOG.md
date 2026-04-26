@@ -3,6 +3,27 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.0
+
+**Release Date:** 2026-04-25
+
+## Changes since 2.4.9
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fixed ConfigManager to be more hardy with plugins (858592a)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (c54bcc1)
+- Fixed ConfigManager to be more hardy with plugins (858592a)
+---
+
+
 # ModularPacks 2.4.9
 
 **Release Date:** 2026-04-25
