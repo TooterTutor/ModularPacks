@@ -22,6 +22,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.BackpackSummary;
@@ -258,7 +259,8 @@ public final class AdminBackpackListMenu {
     private List<AdminBackpackListEntry> sortedEntries(AdminBackpackListMenuHolder holder) {
         List<AdminBackpackListEntry> sorted = new ArrayList<>(holder.entries());
         Comparator<AdminBackpackListEntry> cmp = switch (holder.sortField()) {
-            case TYPE -> Comparator.comparing(AdminBackpackListEntry::typeKey)
+            case TYPE -> Comparator.comparingInt((AdminBackpackListEntry e) -> typeTierRank(e.backpackType()))
+                    .thenComparing(AdminBackpackListEntry::typeKey)
                     .thenComparing(AdminBackpackListEntry::nameKey)
                     .thenComparing(AdminBackpackListEntry::backpackId);
             case NAME -> Comparator.comparing(AdminBackpackListEntry::nameKey)
@@ -283,6 +285,19 @@ public final class AdminBackpackListMenu {
 
         sorted.sort(cmp);
         return sorted;
+    }
+
+    private int typeTierRank(String typeId) {
+        BackpackTypeDef def = plugin.cfg().findType(typeId);
+        if (def == null) {
+            return Integer.MAX_VALUE;
+        }
+
+        if (def.customModelData() > 0) {
+            return def.customModelData();
+        }
+
+        return (def.rows() * 100) + def.upgradeSlots();
     }
 
     private ItemStack namedItemWithGuiMarker(Material mat, String name, String guiValue) {
