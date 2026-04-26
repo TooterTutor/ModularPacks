@@ -44,6 +44,7 @@ import io.github.tootertutor.ModularPacks.listeners.module.SmithingModuleListene
 import io.github.tootertutor.ModularPacks.listeners.module.StonecutterModuleListener;
 import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
+import io.github.tootertutor.ModularPacks.update.UpdateCheckerService;
 
 public final class ModularPacksPlugin extends JavaPlugin {
 
@@ -58,6 +59,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private ModuleFactory moduleFactory;
     private PlacedBackpackManager placedBackpacks;
     private BackpackMenuRenderer backpackMenuRenderer;
+    private UpdateCheckerService updateCheckerService;
 
     @Override
     public void onEnable() {
@@ -73,6 +75,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.configManager = new ConfigManager(this);
         this.configManager.reload();
+
+        this.updateCheckerService = new UpdateCheckerService(this);
+        this.updateCheckerService.start();
 
         this.langManager = new LangManager(this);
         this.langManager.reload();
@@ -164,6 +169,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
         if (placedBackpacks != null)
             placedBackpacks.shutdown();
 
+        if (updateCheckerService != null)
+            updateCheckerService.stop();
+
         getLogger().info("modularpacks disabled.");
     }
 
@@ -220,5 +228,14 @@ public final class ModularPacksPlugin extends JavaPlugin {
             clickDebug.stop();
             clickDebug = null;
         }
+
+        refreshUpdateChecker();
+    }
+
+    public void refreshUpdateChecker() {
+        if (updateCheckerService == null) {
+            updateCheckerService = new UpdateCheckerService(this);
+        }
+        updateCheckerService.start();
     }
 }

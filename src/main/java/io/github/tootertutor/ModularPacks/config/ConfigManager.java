@@ -42,6 +42,15 @@ public final class ConfigManager {
     // Debug
     private boolean debugClickLog = false;
 
+    // Update checker settings
+    private boolean updateCheckerEnabled = true;
+    private boolean updateCheckerShowChangeLog = true;
+    private boolean updateCheckerCheckOnStartup = true;
+    private boolean updateCheckerPeriodicCheck = true;
+    private int updateCheckerIntervalHours = 24;
+    private String updateCheckerNotifyPermission = "modularpacks.update.notify";
+    private String updateCheckerReleaseApiUrl = "https://api.github.com/repos/tootertutor/ModularPacks/releases/latest";
+
     // Container rules
     private boolean allowShulkerBoxes = false;
     private boolean allowBundles = false;
@@ -88,6 +97,23 @@ public final class ConfigManager {
 
         resizeGui = cfg.getBoolean("modularpacks.ResizeGUI", false);
         debugClickLog = cfg.getBoolean("modularpacks.Debug.ClickLog", false);
+
+        String updateRoot = resolveUpdateCheckerRoot(cfg);
+        updateCheckerEnabled = cfg.getBoolean(updateRoot + ".Enabled", true);
+        updateCheckerShowChangeLog = cfg.getBoolean(updateRoot + ".ShowChangeLog", true);
+        updateCheckerCheckOnStartup = cfg.getBoolean(updateRoot + ".CheckOnStartup", true);
+        updateCheckerPeriodicCheck = cfg.getBoolean(updateRoot + ".PeriodicCheck", true);
+        updateCheckerIntervalHours = Math.max(1, cfg.getInt(updateRoot + ".CheckIntervalHours", 24));
+        updateCheckerNotifyPermission = cfg.getString(updateRoot + ".NotifyPermission", "modularpacks.update.notify");
+        if (updateCheckerNotifyPermission == null || updateCheckerNotifyPermission.isBlank()) {
+            updateCheckerNotifyPermission = "modularpacks.update.notify";
+        }
+
+        updateCheckerReleaseApiUrl = cfg.getString(updateRoot + ".ReleaseApiUrl",
+                "https://api.github.com/repos/tootertutor/ModularPacks/releases/latest");
+        if (updateCheckerReleaseApiUrl == null || updateCheckerReleaseApiUrl.isBlank()) {
+            updateCheckerReleaseApiUrl = "https://api.github.com/repos/tootertutor/ModularPacks/releases/latest";
+        }
 
         allowShulkerBoxes = cfg.getBoolean("modularpacks.AllowShulkerBoxes", false);
         allowBundles = cfg.getBoolean("modularpacks.AllowBundles", false);
@@ -293,6 +319,34 @@ public final class ConfigManager {
 
     public boolean debugClickLog() {
         return debugClickLog;
+    }
+
+    public boolean updateCheckerEnabled() {
+        return updateCheckerEnabled;
+    }
+
+    public boolean updateCheckerShowChangeLog() {
+        return updateCheckerShowChangeLog;
+    }
+
+    public boolean updateCheckerCheckOnStartup() {
+        return updateCheckerCheckOnStartup;
+    }
+
+    public boolean updateCheckerPeriodicCheck() {
+        return updateCheckerPeriodicCheck;
+    }
+
+    public int updateCheckerIntervalHours() {
+        return updateCheckerIntervalHours;
+    }
+
+    public String updateCheckerNotifyPermission() {
+        return updateCheckerNotifyPermission;
+    }
+
+    public String updateCheckerReleaseApiUrl() {
+        return updateCheckerReleaseApiUrl;
     }
 
     public boolean allowShulkerBoxes() {
@@ -658,5 +712,12 @@ public final class ConfigManager {
 
     public int getMaxSharedUsers() {
         return maxSharedUsers;
+    }
+
+    private static String resolveUpdateCheckerRoot(FileConfiguration cfg) {
+        if (cfg.isConfigurationSection("modularpacks.UpdateChecker")) {
+            return "modularpacks.UpdateChecker";
+        }
+        return "modularpacks.UpdateChecker";
     }
 }
