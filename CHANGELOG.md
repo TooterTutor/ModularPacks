@@ -3,6 +3,30 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.4.8
+
+**Release Date:** 2026-04-25
+
+## Changes since 2.4.7
+
+### Features & Improvements
+- Added update checker (70e1ff8)
+- Added update checker config values (d8f52a8)
+
+### Bug Fixes
+- Fixed typo in config (260972c)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Added update checker (70e1ff8)
+- Bump version (5f4ed06)
+- Added update checker config values (d8f52a8)
+- Fixed typo in config (260972c)
+---
+
+
 # ModularPacks 2.4.7
 
 **Release Date:** 2026-04-25
