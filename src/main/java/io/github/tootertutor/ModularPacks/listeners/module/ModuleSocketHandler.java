@@ -25,6 +25,7 @@ import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackSaveManager;
+import io.github.tootertutor.ModularPacks.modules.tank.TankExperience;
 import io.github.tootertutor.ModularPacks.modules.tank.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.tank.TankStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
@@ -269,7 +270,7 @@ public final class ModuleSocketHandler {
 
     private boolean isTankModule(ItemStack moduleItem) {
         String type = getModuleType(moduleItem);
-        return type != null && type.equalsIgnoreCase("Tank");
+        return TankModuleLogic.isTankModuleType(type);
     }
 
     private boolean isFeedingModule(ItemStack moduleItem) {
@@ -368,14 +369,18 @@ public final class ModuleSocketHandler {
         if (moduleId == null)
             return null;
 
+        String moduleType = getModuleType(moduleItem);
+        if (!TankModuleLogic.isFluidTankType(moduleType))
+            return null;
+
         TankStateCodec.State state = TankStateCodec.decode(readModuleState(holder, moduleId, moduleItem));
 
         Material cursorMat = cursor.getType();
         if (TankModuleLogic.isSupportedFluidBucket(cursorMat)) {
-            return tankDepositFluid(player, holder, moduleId, moduleItem, cursor, state, cursorMat);
+            return tankDepositFluid(player, holder, moduleId, moduleItem, cursor, state, cursorMat, moduleType);
         }
         if (cursorMat == Material.BUCKET) {
-            return tankWithdrawFluid(player, holder, moduleId, moduleItem, cursor, state);
+            return tankWithdrawFluid(player, holder, moduleId, moduleItem, cursor, state, moduleType);
         }
         return null;
     }
@@ -389,34 +394,52 @@ public final class ModuleSocketHandler {
         if (moduleId == null)
             return null;
 
+        String moduleType = getModuleType(moduleItem);
+        boolean legacyTank = TankModuleLogic.isLegacyTankType(moduleType);
+        boolean expTank = moduleType != null && moduleType.equalsIgnoreCase("ExperienceTank");
+        if (!legacyTank && !expTank)
+            return null;
+
         TankStateCodec.State state = TankStateCodec.decode(readModuleState(holder, moduleId, moduleItem));
 
         if (click == ClickType.RIGHT) {
-            if (state.fluidBuckets <= 0 && state.expLevels <= 0) {
+            if (legacyTank && state.fluidBuckets <= 0 && state.expTotalPoints <= 0) {
                 state.expMode = !state.expMode;
-                return persistTankState(holder, moduleId, moduleItem, state);
+                return persistTankState(holder, moduleId, moduleItem, state, moduleType);
             }
 
-            if (state.expMode && state.expLevels > 0) {
-                state.expLevels--;
-                player.giveExpLevels(1);
-                return persistTankState(holder, moduleId, moduleItem, state);
+            if ((state.expMode || expTank) && state.expTotalPoints > 0) {
+                int pointsForOneLevel = pointsForOneDisplayedLevelGain(player);
+                if (pointsForOneLevel <= 0)
+                    return null;
+
+                int grantedPoints = Math.min(state.expTotalPoints, pointsForOneLevel);
+                state.expTotalPoints -= grantedPoints;
+                player.giveExp(grantedPoints);
+                return persistTankState(holder, moduleId, moduleItem, state, moduleType);
             }
 
             return null;
         }
 
         if (click == ClickType.LEFT) {
-            if (!state.expMode)
+            if (!state.expMode && !expTank)
                 return null;
-            if (state.expLevels >= TankModuleLogic.MAX_EXP_LEVELS)
-                return null;
-            if (player.getLevel() <= 0)
+            if (state.expTotalPoints >= TankModuleLogic.MAX_EXP_POINTS)
                 return null;
 
-            state.expLevels++;
-            player.giveExpLevels(-1);
-            return persistTankState(holder, moduleId, moduleItem, state);
+            int pointsForOneLevel = pointsForOneDisplayedLevelLoss(player);
+            if (pointsForOneLevel <= 0)
+                return null;
+
+            int room = TankModuleLogic.MAX_EXP_POINTS - state.expTotalPoints;
+            int transferred = Math.min(room, pointsForOneLevel);
+            if (transferred <= 0)
+                return null;
+
+            state.expTotalPoints += transferred;
+            player.giveExp(-transferred);
+            return persistTankState(holder, moduleId, moduleItem, state, moduleType);
         }
 
         return null;
@@ -429,8 +452,9 @@ public final class ModuleSocketHandler {
             ItemStack moduleItem,
             ItemStack cursor,
             TankStateCodec.State state,
-            Material fluidBucket) {
-        if (state.expMode || state.expLevels > 0)
+            Material fluidBucket,
+            String moduleType) {
+        if (state.expMode || state.expTotalPoints > 0)
             return null;
         if (state.fluidBuckets >= TankModuleLogic.MAX_FLUID_BUCKETS)
             return null;
@@ -451,7 +475,7 @@ public final class ModuleSocketHandler {
             giveOrDrop(player, new ItemStack(Material.BUCKET, 1));
         }
 
-        ItemStack updated = persistTankState(holder, moduleId, moduleItem, state);
+        ItemStack updated = persistTankState(holder, moduleId, moduleItem, state, moduleType);
         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
         return updated;
     }
@@ -462,8 +486,9 @@ public final class ModuleSocketHandler {
             UUID moduleId,
             ItemStack moduleItem,
             ItemStack cursor,
-            TankStateCodec.State state) {
-        if (state.expMode || state.expLevels > 0)
+            TankStateCodec.State state,
+            String moduleType) {
+        if (state.expMode || state.expTotalPoints > 0)
             return null;
         if (state.fluidBuckets <= 0)
             return null;
@@ -488,7 +513,7 @@ public final class ModuleSocketHandler {
             state.fluidBucketMaterial = null;
         }
 
-        ItemStack updated = persistTankState(holder, moduleId, moduleItem, state);
+        ItemStack updated = persistTankState(holder, moduleId, moduleItem, state, moduleType);
         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
         return updated;
     }
@@ -517,19 +542,28 @@ public final class ModuleSocketHandler {
     }
 
     private ItemStack persistTankState(BackpackMenuHolder holder, UUID moduleId, ItemStack moduleItem,
-            TankStateCodec.State state) {
-        if (state.expLevels > 0) {
+            TankStateCodec.State state, String moduleType) {
+        if (moduleType != null && moduleType.equalsIgnoreCase("FluidTank")) {
+            state.expMode = false;
+            state.expTotalPoints = 0;
+        } else if (moduleType != null && moduleType.equalsIgnoreCase("ExperienceTank")) {
             state.expMode = true;
             state.fluidBuckets = 0;
             state.fluidBucketMaterial = null;
-        }
-        if (state.fluidBuckets > 0) {
-            state.expMode = false;
-            state.expLevels = 0;
+        } else {
+            if (state.expTotalPoints > 0) {
+                state.expMode = true;
+                state.fluidBuckets = 0;
+                state.fluidBucketMaterial = null;
+            }
+            if (state.fluidBuckets > 0) {
+                state.expMode = false;
+                state.expTotalPoints = 0;
+            }
         }
 
         state.fluidBuckets = Math.max(0, Math.min(TankModuleLogic.MAX_FLUID_BUCKETS, state.fluidBuckets));
-        state.expLevels = Math.max(0, Math.min(TankModuleLogic.MAX_EXP_LEVELS, state.expLevels));
+        state.expTotalPoints = Math.max(0, Math.min(TankModuleLogic.MAX_EXP_POINTS, state.expTotalPoints));
 
         byte[] bytes = TankStateCodec.encode(state);
         holder.data().moduleStates().put(moduleId, bytes);
@@ -537,6 +571,26 @@ public final class ModuleSocketHandler {
         writeModuleStateToItem(moduleItem, bytes);
 
         return TankModuleLogic.applyVisuals(plugin, moduleItem, state);
+    }
+
+    private int pointsForOneDisplayedLevelGain(Player player) {
+        if (player == null)
+            return 0;
+
+        int oldTotal = TankExperience.totalFromLevelAndProgress(player.getLevel(), player.getExp());
+        int newTotal = TankExperience.totalFromLevelAndProgress(player.getLevel() + 1, player.getExp());
+        return Math.max(0, newTotal - oldTotal);
+    }
+
+    private int pointsForOneDisplayedLevelLoss(Player player) {
+        if (player == null)
+            return 0;
+        if (player.getLevel() <= 0)
+            return 0;
+
+        int oldTotal = TankExperience.totalFromLevelAndProgress(player.getLevel(), player.getExp());
+        int newTotal = TankExperience.totalFromLevelAndProgress(player.getLevel() - 1, player.getExp());
+        return Math.max(0, oldTotal - newTotal);
     }
 
     private void giveOrDrop(Player player, ItemStack item) {
@@ -588,18 +642,18 @@ public final class ModuleSocketHandler {
         holder.data().installedModules().put(socketIndex, moduleId);
 
         byte[] importedState = readModuleStateFromItem(cursor);
-        if (moduleType.equalsIgnoreCase("Tank") && importedState == null) {
+        if (TankModuleLogic.isTankModuleType(moduleType) && importedState == null) {
             importedState = TankStateCodec.encode(new TankStateCodec.State());
         }
         if (importedState != null) {
             holder.data().moduleStates().put(moduleId, importedState);
-            if (moduleType.equalsIgnoreCase("Tank")) {
+            if (TankModuleLogic.isTankModuleType(moduleType)) {
                 TankStateCodec.State tankState = TankStateCodec.decode(importedState);
                 cursor = TankModuleLogic.applyVisuals(plugin, cursor, tankState);
             }
         }
 
-        if (!moduleType.equalsIgnoreCase("Tank")) {
+        if (!TankModuleLogic.isTankModuleType(moduleType)) {
             applyModuleLore(cursor);
         }
 
@@ -703,7 +757,7 @@ public final class ModuleSocketHandler {
         if (type == null)
             return null;
 
-        if (type.equalsIgnoreCase("Tank")) {
+        if (TankModuleLogic.isTankModuleType(type)) {
             UUID moduleId = readModuleId(moduleItem);
             if (moduleId != null) {
                 TankStateCodec.State state = TankStateCodec.decode(readModuleState(holder, moduleId, moduleItem));
@@ -802,6 +856,9 @@ public final class ModuleSocketHandler {
         if (moduleType == null)
             return false;
 
+        boolean requestedFluid = TankModuleLogic.isFluidTankType(moduleType);
+        boolean requestedExp = TankModuleLogic.isExperienceTankType(moduleType);
+
         for (UUID moduleId : holder.data().installedModules().values()) {
             byte[] snap = holder.data().installedSnapshots().get(moduleId);
             if (snap == null)
@@ -812,8 +869,21 @@ public final class ModuleSocketHandler {
                 continue;
 
             String type = getModuleType(arr[0]);
-            if (type != null && type.equalsIgnoreCase(moduleType))
+            if (type == null)
+                continue;
+
+            if (type.equalsIgnoreCase(moduleType))
                 return true;
+
+            // Legacy "Tank" conflicts with both split tank types.
+            if (requestedFluid && TankModuleLogic.isLegacyTankType(type))
+                return true;
+            if (requestedExp && TankModuleLogic.isLegacyTankType(type))
+                return true;
+            if (TankModuleLogic.isLegacyTankType(moduleType)
+                    && (TankModuleLogic.isFluidTankType(type) || TankModuleLogic.isExperienceTankType(type))) {
+                return true;
+            }
         }
         return false;
     }

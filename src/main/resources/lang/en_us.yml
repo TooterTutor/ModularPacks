@@ -10,8 +10,20 @@ moduleActionsFeeding:
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
 moduleActionsTank:
-  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Activate (+1 level)."
-  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Action (-1 level / toggle EXP mode when empty)."
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Activate (+XP, uses player leveling math)."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Action (-XP / toggle EXP mode when empty)."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
+  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
+moduleActionsFluidTank:
+  - "&8[&6ᴄᴜʀꜱᴏʀ: ꜰʟᴜɪᴅ ʙᴜᴄᴋᴇᴛ&8]&7 Deposit fluid."
+  - "&8[&6ᴄᴜʀꜱᴏʀ: ᴇᴍᴘᴛʏ ʙᴜᴄᴋᴇᴛ&8]&7 Withdraw fluid."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
+  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
+moduleActionsExperienceTank:
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Deposit XP."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Withdraw XP."
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
@@ -70,6 +82,7 @@ tankContainedFluid:
 # Used when the Tank is in EXP mode (or contains XP)
 tankContainedExp:
   - "&7Stored XP: &f{levels}/{maxLevels} &7levels"
+  - "&7Progress: &f{levelProgress}/{levelProgressMax} &7(&f{points} pts&7)"
 
 restockThreshold:
   - "&7Restock Threshold: &f{threshold}"

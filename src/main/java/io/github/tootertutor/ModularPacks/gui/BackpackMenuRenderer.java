@@ -443,7 +443,7 @@ public final class BackpackMenuRenderer {
             ItemMeta meta2 = display.getItemMeta();
             if (meta2 != null) {
                 String moduleType = meta2.getPersistentDataContainer().get(keys.MODULE_TYPE, PersistentDataType.STRING);
-                if (moduleType != null && moduleType.equalsIgnoreCase("Tank")) {
+                if (TankModuleLogic.isTankModuleType(moduleType)) {
                     display = TankModuleLogic.applyVisuals(plugin, display, holder.data().moduleStates().get(moduleId));
                 } else if (moduleType != null) {
                     var def = plugin.cfg().findUpgrade(moduleType);

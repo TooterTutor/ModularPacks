@@ -51,8 +51,9 @@ public final class UpgradeItems {
         meta.getPersistentDataContainer().set(plugin.keys().MODULE_TYPE, PersistentDataType.STRING, upgradeId);
         meta.getPersistentDataContainer().set(plugin.keys().MODULE_ENABLED, PersistentDataType.BYTE, (byte) 1);
 
-        // Tank has dynamic visuals; initialize empty state so the placeholder renders.
-        if ("Tank".equalsIgnoreCase(upgradeId)) {
+        // Tank variants have dynamic visuals; initialize empty state so placeholders
+        // render.
+        if (TankModuleLogic.isTankModuleType(upgradeId)) {
             byte[] state = TankStateCodec.encode(new TankStateCodec.State());
             meta.getPersistentDataContainer().set(plugin.keys().MODULE_STATE_B64, PersistentDataType.STRING,
                     java.util.Base64.getEncoder().encodeToString(state));

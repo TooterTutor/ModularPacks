@@ -21,17 +21,20 @@ public final class TankStateCodec {
         /** Number of buckets stored for current fluid type (0..capacity). */
         public int fluidBuckets;
 
-        /** Stored experience, in whole player levels (0..max). */
-        public int expLevels;
+        /** Stored experience, in total raw XP points (0..max). */
+        public int expTotalPoints;
     }
 
     public static byte[] encode(State s) {
         YamlConfiguration yaml = new YamlConfiguration();
-        yaml.set("v", 2);
+        yaml.set("v", 3);
         yaml.set("expMode", s.expMode);
         yaml.set("fluidBucketMaterial", s.fluidBucketMaterial);
         yaml.set("fluidBuckets", Math.max(0, s.fluidBuckets));
-        yaml.set("expLevels", Math.max(0, s.expLevels));
+        int expPoints = Math.max(0, s.expTotalPoints);
+        yaml.set("expTotalPoints", expPoints);
+        // Keep writing expLevels for downgrade compatibility.
+        yaml.set("expLevels", TankExperience.levelFromTotal(expPoints));
         return yaml.saveToString().getBytes(StandardCharsets.UTF_8);
     }
 
@@ -52,7 +55,15 @@ public final class TankStateCodec {
         s.expMode = yaml.getBoolean("expMode", false);
         s.fluidBucketMaterial = yaml.getString("fluidBucketMaterial");
         s.fluidBuckets = Math.max(0, yaml.getInt("fluidBuckets", 0));
-        s.expLevels = Math.max(0, yaml.getInt("expLevels", 0));
+
+        int expPoints = yaml.getInt("expTotalPoints", -1);
+        if (expPoints >= 0) {
+            s.expTotalPoints = expPoints;
+        } else {
+            // Migrate legacy level-only storage to exact total points at that level.
+            int legacyLevels = Math.max(0, yaml.getInt("expLevels", 0));
+            s.expTotalPoints = TankExperience.totalForLevel(legacyLevels);
+        }
 
         // v1 compatibility (waterBuckets/lavaBuckets)
         int water = Math.max(0, yaml.getInt("waterBuckets", 0));
@@ -66,15 +77,17 @@ public final class TankStateCodec {
         }
 
         // sanitize impossible mixed states
-        if (s.expLevels > 0) {
+        if (s.expTotalPoints > 0) {
             s.expMode = true;
             s.fluidBuckets = 0;
             s.fluidBucketMaterial = null;
         }
         if (s.fluidBuckets > 0) {
-            s.expLevels = 0;
+            s.expTotalPoints = 0;
             s.expMode = false;
         }
+
+        s.expTotalPoints = Math.max(0, Math.min(TankModuleLogic.MAX_EXP_POINTS, s.expTotalPoints));
 
         if (s.fluidBucketMaterial != null && s.fluidBucketMaterial.isBlank()) {
             s.fluidBucketMaterial = null;

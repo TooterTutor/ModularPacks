@@ -322,8 +322,33 @@ Upgrades:
       - "{magnetRange}"
     CustomModelData: 2002
 
-  Tank:
+  FluidTank:
     Enabled: true
+    Toggleable: true
+    SecondaryAction: false
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " B "
+        - "WTL"
+        - " B "
+      Ingredients:
+        W: WATER_BUCKET
+        T: MODULE:CraftingTemplate
+        L: LAVA_BUCKET
+        B: BUCKET
+      OutputMaterial: BUCKET
+      Glint: true
+    DisplayName: "&bFluid Tank Upgrade"
+    Lore:
+      - "&7Allows fluids to be stored."
+      - "{toggleState}"
+      - "{moduleActionsFluidTank}"
+      - "{containedFluid}"
+    CustomModelData: 2003
+
+  Tank:
+    Enabled: false
     Toggleable: true
     SecondaryAction: true
     CraftingRecipe:
@@ -340,9 +365,9 @@ Upgrades:
         B: BUCKET
       OutputMaterial: BUCKET
       Glint: true
-    DisplayName: "&bFluid Upgrade"
+    DisplayName: "&bTank Upgrade (Legacy)"
     Lore:
-      - "&7Allows Fluids or Experience to be stored."
+      - "&7Legacy mixed tank module."
       - "{toggleState}"
       - "{moduleActionsTank}"
       - "{containedFluid}"
@@ -406,32 +431,6 @@ Upgrades:
       - "{toggleState}"
       - "{moduleActions}"
     CustomModelData: 2005
-
-  Restock:
-    Enabled: true
-    Toggleable: true
-    SecondaryAction: true
-    # Restock behavior tuning
-    RestockThreshold: 16
-    CraftingRecipe:
-      Type: Crafting
-      Pattern:
-        - " E "
-        - "RTR"
-        - " E "
-      Ingredients:
-        E: EMERALD
-        R: REDSTONE
-        T: MODULE:CraftingTemplate
-      OutputMaterial: EMERALD
-      Glint: true
-    DisplayName: "&aRestock Upgrade"
-    Lore:
-      - "&7Automatically restocks the Player's inventory."
-      - "{toggleState}"
-      - "{restockThreshold}"
-      - "{moduleActionsRestock}"
-    CustomModelData: 2014
 
   # Workstation upgrades allow opening various crafting/smelting/etc., interfaces directly from the backpack.
   Crafting:
@@ -622,6 +621,32 @@ Upgrades:
       - "{moduleActionsJukebox}"
     CustomModelData: 2013
 
+  Restock:
+    Enabled: true
+    Toggleable: true
+    SecondaryAction: true
+    # Restock behavior tuning
+    RestockThreshold: 16
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " E "
+        - "RTR"
+        - " E "
+      Ingredients:
+        E: EMERALD
+        R: REDSTONE
+        T: MODULE:CraftingTemplate
+      OutputMaterial: EMERALD
+      Glint: true
+    DisplayName: "&aRestock Upgrade"
+    Lore:
+      - "&7Automatically restocks the Player's inventory."
+      - "{toggleState}"
+      - "{restockThreshold}"
+      - "{moduleActionsRestock}"
+    CustomModelData: 2014
+
   Autocrafting:
     Enabled: true
     Toggleable: true
@@ -647,3 +672,27 @@ Upgrades:
       - "{toggleState}"
       - "{moduleActionsAutocrafting}"
     CustomModelData: 2015
+
+  ExperienceTank:
+    Enabled: true
+    Toggleable: true
+    SecondaryAction: true
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " E "
+        - "BTT"
+        - " E "
+      Ingredients:
+        E: EXPERIENCE_BOTTLE
+        B: GLASS_BOTTLE
+        T: MODULE:CraftingTemplate
+      OutputMaterial: EXPERIENCE_BOTTLE
+      Glint: true
+    DisplayName: "&aExperience Tank Upgrade"
+    Lore:
+      - "&7Stores and dispenses player experience."
+      - "{toggleState}"
+      - "{moduleActionsExperienceTank}"
+      - "{containedFluid}"
+    CustomModelData: 2016

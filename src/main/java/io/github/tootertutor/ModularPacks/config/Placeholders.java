@@ -268,6 +268,12 @@ public final class Placeholders {
         if (plugin == null || def == null)
             return List.of();
 
+        if (def.id() != null && def.id().equalsIgnoreCase("FluidTank")) {
+            return langActionsFluidTank(plugin);
+        }
+        if (def.id() != null && def.id().equalsIgnoreCase("ExperienceTank")) {
+            return langActionsExperienceTank(plugin);
+        }
         if (def.id() != null && def.id().equalsIgnoreCase("Tank")) {
             return langActionsTank(plugin);
         }
@@ -323,6 +329,24 @@ public final class Placeholders {
         if (!tank.isEmpty())
             return tank;
         return langActionsSecondary(plugin);
+    }
+
+    private static List<String> langActionsFluidTank(ModularPacksPlugin plugin) {
+        if (plugin == null || plugin.lang() == null)
+            return List.of();
+        List<String> out = plugin.lang().getList("moduleActionsFluidTank");
+        if (!out.isEmpty())
+            return out;
+        return langActionsTank(plugin);
+    }
+
+    private static List<String> langActionsExperienceTank(ModularPacksPlugin plugin) {
+        if (plugin == null || plugin.lang() == null)
+            return List.of();
+        List<String> out = plugin.lang().getList("moduleActionsExperienceTank");
+        if (!out.isEmpty())
+            return out;
+        return langActionsTank(plugin);
     }
 
     private static List<String> langActionsJukebox(ModularPacksPlugin plugin) {

@@ -18,8 +18,40 @@ public final class TankModuleLogic {
 
     public static final int MAX_FLUID_BUCKETS = 16;
     public static final int MAX_EXP_LEVELS = 100;
+    public static final int MAX_EXP_POINTS = TankExperience.totalForLevel(MAX_EXP_LEVELS);
 
     private TankModuleLogic() {
+    }
+
+    public static boolean isLegacyTankType(String moduleType) {
+        return moduleType != null && moduleType.equalsIgnoreCase("Tank");
+    }
+
+    public static boolean isFluidTankType(String moduleType) {
+        return moduleType != null
+                && (moduleType.equalsIgnoreCase("FluidTank") || moduleType.equalsIgnoreCase("Tank"));
+    }
+
+    public static boolean isExperienceTankType(String moduleType) {
+        return moduleType != null
+                && (moduleType.equalsIgnoreCase("ExperienceTank") || moduleType.equalsIgnoreCase("Tank"));
+    }
+
+    public static boolean isTankModuleType(String moduleType) {
+        return isFluidTankType(moduleType) || isExperienceTankType(moduleType);
+    }
+
+    public static String resolveVisualUpgradeId(String moduleType, TankStateCodec.State s) {
+        if (moduleType != null && moduleType.equalsIgnoreCase("FluidTank"))
+            return "FluidTank";
+        if (moduleType != null && moduleType.equalsIgnoreCase("ExperienceTank"))
+            return "ExperienceTank";
+        if (moduleType != null && moduleType.equalsIgnoreCase("Tank")) {
+            if (s != null && (s.expMode || s.expTotalPoints > 0))
+                return "ExperienceTank";
+            return "FluidTank";
+        }
+        return "Tank";
     }
 
     public static boolean isSupportedFluidBucket(Material mat) {
@@ -32,7 +64,7 @@ public final class TankModuleLogic {
     public static Material iconMaterial(TankStateCodec.State s, Material fallback) {
         if (s == null)
             return fallback;
-        if (s.expMode || s.expLevels > 0)
+        if (s.expMode || s.expTotalPoints > 0)
             return Material.EXPERIENCE_BOTTLE;
         if (s.fluidBuckets > 0 && s.fluidBucketMaterial != null) {
             Material m = Material.matchMaterial(s.fluidBucketMaterial);
@@ -53,7 +85,20 @@ public final class TankModuleLogic {
         if (plugin == null || moduleItem == null || s == null)
             return moduleItem;
 
-        UpgradeDef def = plugin.cfg().findUpgrade("Tank");
+        String moduleType = null;
+        ItemMeta typeMeta = moduleItem.getItemMeta();
+        if (typeMeta != null) {
+            moduleType = typeMeta.getPersistentDataContainer().get(plugin.keys().MODULE_TYPE,
+                    org.bukkit.persistence.PersistentDataType.STRING);
+        }
+
+        UpgradeDef def = plugin.cfg().findUpgrade(resolveVisualUpgradeId(moduleType, s));
+        if (def == null && moduleType != null) {
+            def = plugin.cfg().findUpgrade(moduleType);
+        }
+        if (def == null) {
+            def = plugin.cfg().findUpgrade("Tank");
+        }
         Material fallback = (def != null ? def.material() : Material.BUCKET);
 
         Material icon = iconMaterial(s, fallback);
@@ -107,14 +152,14 @@ public final class TankModuleLogic {
         if (lore == null || lore.isEmpty())
             return List.of();
 
-        List<String> injected = (s.expMode || s.expLevels > 0)
+        List<String> injected = (s.expMode || s.expTotalPoints > 0)
                 ? plugin.lang().getList("tankContainedExp")
                 : plugin.lang().getList("tankContainedFluid");
 
         // fallbacks if lang entries are missing
         if (injected.isEmpty()) {
-            if (s.expMode || s.expLevels > 0) {
-                injected = List.of("&7Stored XP: &f{levels}/{maxLevels} &7levels");
+            if (s.expMode || s.expTotalPoints > 0) {
+                injected = List.of("&7Stored XP: &f{levels}/{maxLevels} &7levels &8(&f{points} pts&8)");
             } else {
                 injected = List.of("&7Stored: &f{amount}/{max} &7buckets (&f{fluid}&7)");
             }
@@ -151,13 +196,20 @@ public final class TankModuleLogic {
             return "";
 
         String fluid = formatFluidName(s.fluidBucketMaterial);
+        int totalPoints = Math.max(0, s.expTotalPoints);
+        int levels = TankExperience.levelFromTotal(totalPoints);
+        int progress = TankExperience.progressInCurrentLevel(totalPoints);
+        int toNext = TankExperience.pointsToNextLevel(levels);
         String out = line;
         out = out.replace("{amount}", Integer.toString(Math.max(0, s.fluidBuckets)));
         out = out.replace("{max}", Integer.toString(MAX_FLUID_BUCKETS));
         out = out.replace("{fluid}", fluid);
-        out = out.replace("{levels}", Integer.toString(Math.max(0, s.expLevels)));
+        out = out.replace("{levels}", Integer.toString(levels));
         out = out.replace("{maxLevels}", Integer.toString(MAX_EXP_LEVELS));
-        out = out.replace("{mode}", (s.expMode || s.expLevels > 0) ? "EXP" : "FLUID");
+        out = out.replace("{points}", Integer.toString(totalPoints));
+        out = out.replace("{levelProgress}", Integer.toString(progress));
+        out = out.replace("{levelProgressMax}", Integer.toString(toNext));
+        out = out.replace("{mode}", (s.expMode || s.expTotalPoints > 0) ? "EXP" : "FLUID");
         return out;
     }
 
