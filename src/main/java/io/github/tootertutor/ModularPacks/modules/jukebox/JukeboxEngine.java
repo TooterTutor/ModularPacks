@@ -164,9 +164,7 @@ public final class JukeboxEngine {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // Jukebox module implementation
-    // ------------------------------------------------------------------------
+    /** Playback modes supported by the jukebox module. */
     private enum JukeboxMode {
         SHUFFLE,
         REPEAT_ONE,

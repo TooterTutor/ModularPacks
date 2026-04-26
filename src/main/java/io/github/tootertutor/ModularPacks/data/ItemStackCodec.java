@@ -20,17 +20,24 @@ public final class ItemStackCodec {
     private ItemStackCodec() {
     }
 
-    /*
-     * ======================================================
-     * Public API
-     * ======================================================
+    /**
+     * Serializes an inventory array to a gzipped UTF-8 YAML payload.
+     *
+     * @param contents item contents to encode
+     * @return compressed serialized bytes
      */
-
     public static byte[] toBytes(ItemStack[] contents) {
         String yaml = toYaml(contents);
         return gzip(yaml.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Deserializes an inventory array from a gzipped UTF-8 YAML payload.
+     *
+     * @param bytes compressed serialized bytes
+     * @return decoded item contents, or an empty array when the payload is absent
+     *         or invalid
+     */
     public static ItemStack[] fromBytes(byte[] bytes) {
         if (bytes == null || bytes.length == 0)
             return new ItemStack[0];
@@ -48,20 +55,32 @@ public final class ItemStackCodec {
         return fromYaml(yamlStr);
     }
 
+    /**
+     * Base64-encodes a serialized payload.
+     *
+     * @param bytes bytes to encode
+     * @return Base64 representation of the payload
+     */
     public static String toBase64(byte[] bytes) {
         return Base64.getEncoder().encodeToString(bytes);
     }
 
+    /**
+     * Base64-decodes a serialized payload.
+     *
+     * @param s Base64 string to decode
+     * @return decoded bytes
+     */
     public static byte[] fromBase64(String s) {
         return Base64.getDecoder().decode(s);
     }
 
-    /*
-     * ======================================================
-     * YAML serialization
-     * ======================================================
+    /**
+     * Serializes the provided inventory contents into a YAML string.
+     *
+     * @param contents item contents to serialize
+     * @return YAML representation of the contents
      */
-
     private static String toYaml(ItemStack[] contents) {
         YamlConfiguration yaml = new YamlConfiguration();
 
@@ -81,6 +100,12 @@ public final class ItemStackCodec {
         }
     }
 
+    /**
+     * Deserializes inventory contents from a YAML string.
+     *
+     * @param yamlStr YAML representation of item contents
+     * @return decoded inventory contents
+     */
     private static ItemStack[] fromYaml(String yamlStr) {
         YamlConfiguration yaml = new YamlConfiguration();
         try {
@@ -118,12 +143,12 @@ public final class ItemStackCodec {
         return items;
     }
 
-    /*
-     * ======================================================
-     * GZIP helpers
-     * ======================================================
+    /**
+     * Compresses the provided bytes with GZIP.
+     *
+     * @param input bytes to compress
+     * @return compressed bytes
      */
-
     private static byte[] gzip(byte[] input) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 GZIPOutputStream gzip = new GZIPOutputStream(baos)) {
@@ -137,6 +162,12 @@ public final class ItemStackCodec {
         }
     }
 
+    /**
+     * Decompresses the provided GZIP payload.
+     *
+     * @param input compressed bytes to decompress
+     * @return decompressed bytes
+     */
     private static byte[] gunzip(byte[] input) {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(input);
                 GZIPInputStream gzip = new GZIPInputStream(bais);
