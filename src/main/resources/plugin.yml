@@ -1,5 +1,5 @@
 name: ModularPacks
-version: "1.21.10-2.4.8"
+version: "1.21.10-${version}"
 main: io.github.tootertutor.ModularPacks.ModularPacksPlugin
 api-version: "1.21"
 
