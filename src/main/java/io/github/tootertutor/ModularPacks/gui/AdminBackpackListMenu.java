@@ -156,12 +156,17 @@ public final class AdminBackpackListMenu {
         String modeName = holder.mode() == InteractionMode.VIEW ? "&bMode: View" : "&dMode: Recover";
         inv.setItem(NAV_MODE_SLOT, namedItemWithGuiMarker(Material.COMPARATOR, modeName, modeLore, GUI_MODE));
 
-        List<String> sortLore = List.of(
-                "&7Field: &f" + holder.sortField().label(),
-                "&7Direction: &f" + (holder.ascending() ? "Ascending" : "Descending"),
-                "&eLeft-click: next field",
-                "&eRight-click: toggle direction");
-        inv.setItem(NAV_SORT_SLOT, namedItemWithGuiMarker(Material.HOPPER, "&bSort", sortLore, GUI_SORT));
+        List<String> sortLore = new ArrayList<>();
+        sortLore.add("&7Left-click: &fChange field");
+        sortLore.add("&7Right-click: &fToggle direction");
+        sortLore.add("&7Direction: " + (holder.ascending() ? "&aAscending" : "&cDescending"));
+        sortLore.add("&7");
+        sortLore.add("&7Field:");
+        for (AdminBackpackListMenuHolder.SortField field : AdminBackpackListMenuHolder.SortField.values()) {
+            String color = (field == holder.sortField()) ? "&a" : "&7";
+            sortLore.add(color + field.label());
+        }
+        inv.setItem(NAV_SORT_SLOT, namedItemWithGuiMarker(Material.HOPPER, "&eSort", sortLore, GUI_SORT));
 
         if (holder.page() > 0) {
             List<String> lore = List.of(
