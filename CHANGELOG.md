@@ -3,6 +3,37 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.1
+
+**Release Date:** 2026-04-26
+
+## Changes since 2.5.0
+
+### Features & Improvements
+- Added Pump and Experience Pump modules (e5accb7)
+- Changed Tank module to now be separate modules. One for EXP, and one for Fluids (4174ef1)
+
+### Bug Fixes
+- Fixed FluidTank and ExpTank to allow both being active in the backpack at the same time (86fd596)
+- Fixed plugin.yml versioning (439c74c)
+- Fixed backpack placement disregarding claims (6141226)
+- Fixed LangManager to read other lang files (0f0991d)
+
+### Refactoring & Code Quality
+- Refactored some comments to use Javadoc standards (b3c167c)
+
+### All Commits
+- Bump version (1048900)
+- Added Pump and Experience Pump modules (e5accb7)
+- Fixed FluidTank and ExpTank to allow both being active in the backpack at the same time (86fd596)
+- Changed Tank module to now be separate modules. One for EXP, and one for Fluids (4174ef1)
+- Fixed plugin.yml versioning (439c74c)
+- Fixed backpack placement disregarding claims (6141226)
+- Refactored some comments to use Javadoc standards (b3c167c)
+- Fixed LangManager to read other lang files (0f0991d)
+---
+
+
 # ModularPacks 2.5.0
 
 **Release Date:** 2026-04-25
