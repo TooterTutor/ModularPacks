@@ -696,3 +696,62 @@ Upgrades:
       - "{moduleActionsExperienceTank}"
       - "{containedFluid}"
     CustomModelData: 2016
+
+  Pump:
+    Enabled: true
+    Toggleable: true
+    SecondaryAction: true
+    # Mode: Deposit or Withdraw
+    Mode: Deposit
+    IntervalTicks: 10
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " C "
+        - "PTP"
+        - " R "
+      Ingredients:
+        C: COPPER_INGOT
+        P: PISTON
+        T: MODULE:CraftingTemplate
+        R: REDSTONE
+      OutputMaterial: PISTON
+      Glint: true
+    DisplayName: "&bPump Upgrade"
+    Lore:
+      - "&7Pumps fluids between your inventory and Fluid Tank."
+      - "{toggleState}"
+      - "{pumpMode}"
+      - "{moduleActionsPump}"
+    CustomModelData: 2017
+
+  ExpPump:
+    Enabled: true
+    Toggleable: true
+    SecondaryAction: true
+    # Mode: Deposit or Withdraw
+    Mode: Deposit
+    # When true, withdrawn XP repairs equipped Mending items before giving leftover XP to levels.
+    MendEquippedItems: false
+    IntervalTicks: 40
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " E "
+        - "PTP"
+        - " R "
+      Ingredients:
+        E: EXPERIENCE_BOTTLE
+        P: PISTON
+        T: MODULE:CraftingTemplate
+        R: REDSTONE
+      OutputMaterial: EXPERIENCE_BOTTLE
+      Glint: true
+    DisplayName: "&aExp Pump Upgrade"
+    Lore:
+      - "&7Pumps XP between player and Experience Tank."
+      - "{toggleState}"
+      - "{pumpMode}"
+      - "{expPumpMending}"
+      - "{moduleActionsExpPump}"
+    CustomModelData: 2018

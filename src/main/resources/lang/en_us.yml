@@ -48,6 +48,20 @@ moduleActionsAutocrafting:
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
+moduleActionsPump:
+  - "&8[&6ᴘᴀꜱꜱɪᴠᴇ&8]&7 Moves buckets between inventory and Fluid Tank."
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open Pump Settings."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Quick-cycle Pump Direction."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
+  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
+moduleActionsExpPump:
+  - "&8[&6ᴘᴀꜱꜱɪᴠᴇ&8]&7 Moves XP between player and Experience Tank."
+  - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open Exp Pump Settings."
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Quick-toggle Mending Repair."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
+  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
 toggleState:
   enabled: "&7State: &aᴇɴᴀʙʟᴇᴅ"
   disabled: "&7State: &cᴅɪѕᴀʙʟᴇᴅ"
@@ -62,6 +76,14 @@ feedingMode:
   candidateEffects: "&7Mode: &fBest Candidate: Prefer Effects"
   whitelistNutrition: "&7Mode: &fFirst in Whitelist: Prefer Nutrition"
   whitelistEffects: "&7Mode: &fFirst in Whitelist: Prefer Effects"
+
+pumpMode:
+  deposit: "&7Mode: &fDeposit"
+  withdraw: "&7Mode: &fWithdraw"
+
+expPumpMending:
+  enabled: "&7Mending: &aEnabled"
+  disabled: "&7Mending: &cDisabled"
 
 magnetRange:
   - "&7Range: &f{Range} &7blocks"

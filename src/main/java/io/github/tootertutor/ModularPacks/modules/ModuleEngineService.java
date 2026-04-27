@@ -10,9 +10,12 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
@@ -35,6 +38,9 @@ import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceModule;
 import io.github.tootertutor.ModularPacks.modules.jukebox.JukeboxEngine;
 import io.github.tootertutor.ModularPacks.modules.magnet.MagnetVoidEngine;
 import io.github.tootertutor.ModularPacks.modules.restock.RestockEngine;
+import io.github.tootertutor.ModularPacks.modules.tank.TankExperience;
+import io.github.tootertutor.ModularPacks.modules.tank.TankModuleLogic;
+import io.github.tootertutor.ModularPacks.modules.tank.TankStateCodec;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
@@ -55,6 +61,8 @@ public final class ModuleEngineService {
     private final RestockEngine restockEngine;
     private final ScreenRouter screenRouter;
     private final ConcurrentMap<UUID, Integer> autocraftingCooldownTicks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, Integer> pumpCooldownTicks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, Integer> expPumpCooldownTicks = new ConcurrentHashMap<>();
     private BukkitTask task;
 
     public ModuleEngineService(ModularPacksPlugin plugin, ScreenRouter screenRouter) {
@@ -236,6 +244,16 @@ public final class ModuleEngineService {
                     java.util.List<ItemStack> whitelist = readRestockWhitelistFromState(data, restockId);
                     changedAny |= restockEngine.applyRestock(player, logical, threshold, whitelist);
                 }
+
+                UUID pumpId = findInstalledModuleId(data, "Pump");
+                if (pumpId != null) {
+                    changedAny |= applyFluidPump(player, data, pumpId);
+                }
+
+                UUID expPumpId = findInstalledModuleId(data, "ExpPump");
+                if (expPumpId != null) {
+                    changedAny |= applyExpPump(player, data, expPumpId);
+                }
             }
 
             UUID autocraftingId = findInstalledModuleId(data, "Autocrafting");
@@ -325,6 +343,359 @@ public final class ModuleEngineService {
         }
 
         return changed;
+    }
+
+    private boolean applyFluidPump(Player player, BackpackData data, UUID pumpModuleId) {
+        if (player == null || data == null || pumpModuleId == null)
+            return false;
+
+        int interval = Math.max(10, plugin.getConfig().getInt("Upgrades.Pump.IntervalTicks", 40));
+        int cooldown = pumpCooldownTicks.getOrDefault(pumpModuleId, 0);
+        cooldown = Math.max(0, cooldown - ENGINE_DT_TICKS);
+        if (cooldown > 0) {
+            pumpCooldownTicks.put(pumpModuleId, cooldown);
+            return false;
+        }
+
+        UUID tankModuleId = findFluidTankModuleId(data);
+        if (tankModuleId == null)
+            return false;
+
+        TankStateCodec.State state = TankStateCodec.decode(data.moduleStates().get(tankModuleId));
+        if (state == null)
+            return false;
+
+        // Legacy mixed tank cannot be pumped as fluid while currently in EXP mode.
+        if (state.expMode || state.expTotalPoints > 0)
+            return false;
+
+        String mode = resolvePumpMode(data, pumpModuleId, "Pump");
+        boolean changed = false;
+        if ("WITHDRAW".equals(mode)) {
+            changed = withdrawFluidToInventory(player, state);
+        } else {
+            changed = depositFluidFromInventory(player, state);
+        }
+
+        if (!changed)
+            return false;
+
+        state.fluidBuckets = Math.max(0, Math.min(TankModuleLogic.MAX_FLUID_BUCKETS, state.fluidBuckets));
+        if (state.fluidBuckets <= 0) {
+            state.fluidBuckets = 0;
+            state.fluidBucketMaterial = null;
+        }
+        state.expMode = false;
+        state.expTotalPoints = 0;
+
+        data.moduleStates().put(tankModuleId, TankStateCodec.encode(state));
+        updateTankSnapshot(data, tankModuleId, state);
+
+        pumpCooldownTicks.put(pumpModuleId, interval);
+        return true;
+    }
+
+    private boolean applyExpPump(Player player, BackpackData data, UUID expPumpModuleId) {
+        if (player == null || data == null || expPumpModuleId == null)
+            return false;
+
+        int interval = Math.max(10, plugin.getConfig().getInt("Upgrades.ExpPump.IntervalTicks", 40));
+        int cooldown = expPumpCooldownTicks.getOrDefault(expPumpModuleId, 0);
+        cooldown = Math.max(0, cooldown - ENGINE_DT_TICKS);
+        if (cooldown > 0) {
+            expPumpCooldownTicks.put(expPumpModuleId, cooldown);
+            return false;
+        }
+
+        UUID tankModuleId = findExperienceTankModuleId(data);
+        if (tankModuleId == null)
+            return false;
+
+        TankStateCodec.State state = TankStateCodec.decode(data.moduleStates().get(tankModuleId));
+        if (state == null)
+            return false;
+
+        String mode = resolvePumpMode(data, expPumpModuleId, "ExpPump");
+        boolean changed = false;
+        if ("WITHDRAW".equals(mode)) {
+            int pointsForOneLevel = pointsForOneDisplayedLevelGain(player);
+            if (pointsForOneLevel > 0 && state.expTotalPoints > 0) {
+                int granted = Math.min(pointsForOneLevel, state.expTotalPoints);
+                if (granted > 0) {
+                    state.expTotalPoints -= granted;
+                    int remaining = granted;
+                    if (isExpPumpMendingEnabled(data, expPumpModuleId)) {
+                        remaining = applyMendingToEquippedItems(player, granted);
+                    }
+                    if (remaining > 0) {
+                        player.giveExp(remaining);
+                    }
+                    changed = true;
+                }
+            }
+        } else {
+            int pointsForOneLevel = pointsForOneDisplayedLevelLoss(player);
+            if (pointsForOneLevel > 0 && state.expTotalPoints < TankModuleLogic.MAX_EXP_POINTS) {
+                int room = TankModuleLogic.MAX_EXP_POINTS - state.expTotalPoints;
+                int moved = Math.min(room, pointsForOneLevel);
+                if (moved > 0) {
+                    state.expTotalPoints += moved;
+                    player.giveExp(-moved);
+                    changed = true;
+                }
+            }
+        }
+
+        if (!changed)
+            return false;
+
+        state.expTotalPoints = Math.max(0, Math.min(TankModuleLogic.MAX_EXP_POINTS, state.expTotalPoints));
+        state.expMode = true;
+        state.fluidBuckets = 0;
+        state.fluidBucketMaterial = null;
+
+        data.moduleStates().put(tankModuleId, TankStateCodec.encode(state));
+        updateTankSnapshot(data, tankModuleId, state);
+
+        expPumpCooldownTicks.put(expPumpModuleId, interval);
+        return true;
+    }
+
+    private boolean isExpPumpMendingEnabled(BackpackData data, UUID expPumpModuleId) {
+        if (data == null || expPumpModuleId == null)
+            return plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+
+        boolean fallback = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        ItemStack moduleItem = resolveModuleSnapshotItem(data, expPumpModuleId);
+        if (moduleItem == null || !moduleItem.hasItemMeta())
+            return fallback;
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return fallback;
+
+        Byte b = meta.getPersistentDataContainer().get(plugin.keys().MODULE_EXP_PUMP_MENDING,
+                PersistentDataType.BYTE);
+        if (b == null)
+            return fallback;
+        return b == 1;
+    }
+
+    private int applyMendingToEquippedItems(Player player, int xpPoints) {
+        if (player == null || xpPoints <= 0)
+            return Math.max(0, xpPoints);
+
+        int remaining = xpPoints;
+        PlayerInventory inv = player.getInventory();
+
+        remaining = mendEquippedSlot(inv, inv.getItemInMainHand(), remaining, slot -> inv.setItemInMainHand(slot));
+        if (remaining <= 0)
+            return 0;
+
+        remaining = mendEquippedSlot(inv, inv.getItemInOffHand(), remaining, slot -> inv.setItemInOffHand(slot));
+        if (remaining <= 0)
+            return 0;
+
+        ItemStack[] armor = inv.getArmorContents();
+        for (int i = 0; i < armor.length && remaining > 0; i++) {
+            final int idx = i;
+            remaining = mendEquippedSlot(inv, armor[i], remaining, repaired -> {
+                ItemStack[] updated = inv.getArmorContents();
+                if (idx >= 0 && idx < updated.length) {
+                    updated[idx] = repaired;
+                    inv.setArmorContents(updated);
+                }
+            });
+        }
+
+        return Math.max(0, remaining);
+    }
+
+    private int mendEquippedSlot(PlayerInventory inv, ItemStack item, int xpPoints,
+            java.util.function.Consumer<ItemStack> applySlot) {
+        if (xpPoints <= 0 || ItemStacks.isAir(item) || applySlot == null)
+            return xpPoints;
+
+        ItemMeta meta = item.getItemMeta();
+        if (!(meta instanceof Damageable dmg))
+            return xpPoints;
+        if (!meta.hasEnchant(Enchantment.MENDING))
+            return xpPoints;
+
+        int damage = Math.max(0, dmg.getDamage());
+        if (damage <= 0)
+            return xpPoints;
+
+        int maxRepair = xpPoints * 2;
+        int repairedDurability = Math.min(damage, maxRepair);
+        if (repairedDurability <= 0)
+            return xpPoints;
+
+        int xpUsed = (repairedDurability + 1) / 2;
+        dmg.setDamage(damage - repairedDurability);
+
+        ItemStack clone = item.clone();
+        clone.setItemMeta((ItemMeta) dmg);
+        applySlot.accept(clone);
+
+        return Math.max(0, xpPoints - xpUsed);
+    }
+
+    private String resolvePumpMode(BackpackData data, UUID moduleId, String upgradeId) {
+        String fallback = plugin.getConfig().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
+        ItemStack moduleItem = resolveModuleSnapshotItem(data, moduleId);
+        if (moduleItem == null || !moduleItem.hasItemMeta())
+            return normalizePumpMode(fallback);
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return normalizePumpMode(fallback);
+
+        String raw = meta.getPersistentDataContainer().get(plugin.keys().MODULE_PUMP_MODE, PersistentDataType.STRING);
+        return normalizePumpMode(raw == null || raw.isBlank() ? fallback : raw);
+    }
+
+    private String normalizePumpMode(String raw) {
+        if (raw == null)
+            return "DEPOSIT";
+        String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
+        if (s.contains("WITHDRAW") || s.contains("OUT"))
+            return "WITHDRAW";
+        return "DEPOSIT";
+    }
+
+    private UUID findFluidTankModuleId(BackpackData data) {
+        UUID fluid = findInstalledModuleId(data, "FluidTank");
+        if (fluid != null)
+            return fluid;
+        return findInstalledModuleId(data, "Tank");
+    }
+
+    private UUID findExperienceTankModuleId(BackpackData data) {
+        UUID exp = findInstalledModuleId(data, "ExperienceTank");
+        if (exp != null)
+            return exp;
+        return findInstalledModuleId(data, "Tank");
+    }
+
+    private boolean depositFluidFromInventory(Player player, TankStateCodec.State state) {
+        if (player == null || state == null)
+            return false;
+        if (state.fluidBuckets >= TankModuleLogic.MAX_FLUID_BUCKETS)
+            return false;
+
+        ItemStack[] contents = player.getInventory().getContents();
+        if (contents == null)
+            return false;
+
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemStack stack = contents[slot];
+            if (ItemStacks.isAir(stack))
+                continue;
+            Material mat = stack.getType();
+            if (!TankModuleLogic.isSupportedFluidBucket(mat))
+                continue;
+            if (state.fluidBuckets > 0 && state.fluidBucketMaterial != null
+                    && !state.fluidBucketMaterial.equalsIgnoreCase(mat.name())) {
+                continue;
+            }
+
+            ItemStack newStack = stack.clone();
+            if (newStack.getAmount() <= 1) {
+                player.getInventory().setItem(slot, new ItemStack(Material.BUCKET, 1));
+            } else {
+                newStack.setAmount(newStack.getAmount() - 1);
+                player.getInventory().setItem(slot, newStack);
+                var leftovers = player.getInventory().addItem(new ItemStack(Material.BUCKET, 1));
+                if (!leftovers.isEmpty()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), new ItemStack(Material.BUCKET, 1));
+                }
+            }
+
+            state.fluidBucketMaterial = mat.name();
+            state.fluidBuckets++;
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean withdrawFluidToInventory(Player player, TankStateCodec.State state) {
+        if (player == null || state == null)
+            return false;
+        if (state.fluidBuckets <= 0 || state.fluidBucketMaterial == null)
+            return false;
+
+        Material fluidBucket = Material.matchMaterial(state.fluidBucketMaterial);
+        if (fluidBucket == null || !TankModuleLogic.isSupportedFluidBucket(fluidBucket))
+            return false;
+
+        ItemStack[] contents = player.getInventory().getContents();
+        if (contents == null)
+            return false;
+
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemStack stack = contents[slot];
+            if (ItemStacks.isAir(stack) || stack.getType() != Material.BUCKET)
+                continue;
+
+            ItemStack newStack = stack.clone();
+            if (newStack.getAmount() <= 1) {
+                player.getInventory().setItem(slot, new ItemStack(fluidBucket, 1));
+            } else {
+                newStack.setAmount(newStack.getAmount() - 1);
+                player.getInventory().setItem(slot, newStack);
+                var leftovers = player.getInventory().addItem(new ItemStack(fluidBucket, 1));
+                if (!leftovers.isEmpty()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), new ItemStack(fluidBucket, 1));
+                }
+            }
+
+            state.fluidBuckets--;
+            if (state.fluidBuckets <= 0) {
+                state.fluidBuckets = 0;
+                state.fluidBucketMaterial = null;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private void updateTankSnapshot(BackpackData data, UUID moduleId, TankStateCodec.State state) {
+        ItemStack snapshot = resolveModuleSnapshotItem(data, moduleId);
+        if (snapshot == null)
+            return;
+
+        byte[] encoded = TankStateCodec.encode(state);
+        ItemMeta meta = snapshot.getItemMeta();
+        if (meta != null) {
+            meta.getPersistentDataContainer().set(plugin.keys().MODULE_STATE_B64,
+                    PersistentDataType.STRING,
+                    java.util.Base64.getEncoder().encodeToString(encoded));
+            snapshot.setItemMeta(meta);
+        }
+
+        ItemStack updated = TankModuleLogic.applyVisuals(plugin, snapshot, state);
+        data.installedSnapshots().put(moduleId, ItemStackCodec.toBytes(new ItemStack[] { updated }));
+    }
+
+    private int pointsForOneDisplayedLevelGain(Player player) {
+        if (player == null)
+            return 0;
+
+        int oldTotal = TankExperience.totalFromLevelAndProgress(player.getLevel(), player.getExp());
+        int newTotal = TankExperience.totalFromLevelAndProgress(player.getLevel() + 1, player.getExp());
+        return Math.max(0, newTotal - oldTotal);
+    }
+
+    private int pointsForOneDisplayedLevelLoss(Player player) {
+        if (player == null || player.getLevel() <= 0)
+            return 0;
+
+        int oldTotal = TankExperience.totalFromLevelAndProgress(player.getLevel(), player.getExp());
+        int newTotal = TankExperience.totalFromLevelAndProgress(player.getLevel() - 1, player.getExp());
+        return Math.max(0, oldTotal - newTotal);
     }
 
     private ItemStack[] ensureCraftingInventorySize(ItemStack[] items) {

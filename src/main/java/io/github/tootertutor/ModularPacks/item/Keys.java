@@ -18,6 +18,8 @@ public final class Keys {
     public final NamespacedKey MODULE_FEEDING_SELECTION_MODE; // string enum
     public final NamespacedKey MODULE_FEEDING_PREFERENCE; // string enum
     public final NamespacedKey MODULE_JUKEBOX_MODE; // string enum
+    public final NamespacedKey MODULE_PUMP_MODE; // string enum
+    public final NamespacedKey MODULE_EXP_PUMP_MENDING; // byte 0/1
 
     public Keys(JavaPlugin plugin) {
         BACKPACK_ID = new NamespacedKey(plugin, "backpack_id");
@@ -33,6 +35,8 @@ public final class Keys {
         MODULE_FEEDING_SELECTION_MODE = new NamespacedKey(plugin, "module_feeding_selection_mode");
         MODULE_FEEDING_PREFERENCE = new NamespacedKey(plugin, "module_feeding_preference");
         MODULE_JUKEBOX_MODE = new NamespacedKey(plugin, "module_jukebox_mode");
+        MODULE_PUMP_MODE = new NamespacedKey(plugin, "module_pump_mode");
+        MODULE_EXP_PUMP_MENDING = new NamespacedKey(plugin, "module_exp_pump_mending");
 
     }
 

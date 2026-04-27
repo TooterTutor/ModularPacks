@@ -9,6 +9,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BundleMeta;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -21,6 +22,7 @@ import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
+import io.github.tootertutor.ModularPacks.gui.PumpSettingsHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
@@ -33,7 +35,7 @@ import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Handles all module socket interactions: installation, removal, toggling,
- * and module-specific actions (Tank, Feeding, Jukebox, Restock).
+ * and module-specific actions (Tank, Feeding, Jukebox, Pump, Restock).
  */
 public final class ModuleSocketHandler {
 
@@ -176,6 +178,40 @@ public final class ModuleSocketHandler {
             return;
         }
 
+        // SECONDARY ACTION (Pump: cycle transfer direction)
+        if (click == ClickType.RIGHT && isPumpModule(clicked)) {
+            String type = getModuleType(clicked);
+            var def = plugin.cfg().findUpgrade(type);
+            if (def == null || !def.secondaryAction())
+                return;
+
+            if (cyclePumpMode(clicked, type)) {
+                refreshModuleVisuals(holder, clicked);
+                updateModuleSnapshot(holder, clicked);
+                saveManager.scheduleSave(player, holder);
+                renderer.saveVisibleStorageToData(holder);
+                renderer.render(holder);
+            }
+            return;
+        }
+
+        // SECONDARY ACTION (ExpPump: toggle XP->Mending behavior)
+        if (click == ClickType.RIGHT && isExpPumpModule(clicked)) {
+            String type = getModuleType(clicked);
+            var def = plugin.cfg().findUpgrade(type);
+            if (def == null || !def.secondaryAction())
+                return;
+
+            if (toggleExpPumpMending(clicked)) {
+                refreshModuleVisuals(holder, clicked);
+                updateModuleSnapshot(holder, clicked);
+                saveManager.scheduleSave(player, holder);
+                renderer.saveVisibleStorageToData(holder);
+                renderer.render(holder);
+            }
+            return;
+        }
+
         // Restock: Primary=Whitelist (Dropper), Secondary=Threshold (Hopper)
         if (isRestockModule(clicked)) {
             if (click == ClickType.LEFT) {
@@ -191,6 +227,12 @@ public final class ModuleSocketHandler {
                 openRestockScreen(player, holder, clicked, ScreenType.HOPPER);
                 return;
             }
+        }
+
+        // Pump/ExpPump: Primary opens settings UI
+        if (click == ClickType.LEFT && (isPumpModule(clicked) || isExpPumpModule(clicked))) {
+            openPumpSettingsScreen(player, holder, clicked);
+            return;
         }
 
         // OPEN MODULE UI
@@ -288,6 +330,16 @@ public final class ModuleSocketHandler {
         return type != null && type.equalsIgnoreCase("Restock");
     }
 
+    private boolean isPumpModule(ItemStack moduleItem) {
+        String type = getModuleType(moduleItem);
+        return type != null && type.equalsIgnoreCase("Pump");
+    }
+
+    private boolean isExpPumpModule(ItemStack moduleItem) {
+        String type = getModuleType(moduleItem);
+        return type != null && type.equalsIgnoreCase("ExpPump");
+    }
+
     private void openRestockScreen(Player player, BackpackMenuHolder holder, ItemStack moduleItem, ScreenType screen) {
         if (player == null || holder == null || moduleItem == null || screen == null)
             return;
@@ -310,6 +362,43 @@ public final class ModuleSocketHandler {
 
         saveManager.flushSaveNow(player, holder);
         screens.open(player, holder.backpackId(), holder.type().id(), moduleId, screen);
+    }
+
+    private void openPumpSettingsScreen(Player player, BackpackMenuHolder holder, ItemStack moduleItem) {
+        if (player == null || holder == null || moduleItem == null)
+            return;
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return;
+
+        Keys keys = plugin.keys();
+        String moduleType = meta.getPersistentDataContainer().get(keys.MODULE_TYPE, PersistentDataType.STRING);
+        if (moduleType == null)
+            return;
+
+        String idStr = meta.getPersistentDataContainer().get(keys.MODULE_ID, PersistentDataType.STRING);
+        if (idStr == null)
+            return;
+
+        UUID moduleId;
+        try {
+            moduleId = UUID.fromString(idStr);
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+
+        saveManager.flushSaveNow(player, holder);
+
+        String title = moduleType.equalsIgnoreCase("ExpPump") ? "Exp Pump Settings" : "Pump Settings";
+        PumpSettingsHolder settingsHolder = new PumpSettingsHolder(
+                holder.backpackId(),
+                holder.type().id(),
+                moduleId,
+                moduleType);
+        var inv = plugin.getServer().createInventory(settingsHolder, InventoryType.HOPPER,
+                Text.c("&8" + title));
+        player.openInventory(inv);
     }
 
     private boolean cycleJukeboxMode(ItemStack moduleItem) {
@@ -356,6 +445,53 @@ public final class ModuleSocketHandler {
         pdc.set(keys.MODULE_FEEDING_SELECTION_MODE, PersistentDataType.STRING, next.mode().name());
         pdc.set(keys.MODULE_FEEDING_PREFERENCE, PersistentDataType.STRING, next.preference().name());
 
+        moduleItem.setItemMeta(meta);
+        return true;
+    }
+
+    private boolean cyclePumpMode(ItemStack moduleItem, String moduleType) {
+        if (moduleItem == null || !moduleItem.hasItemMeta())
+            return false;
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return false;
+
+        Keys keys = plugin.keys();
+        var pdc = meta.getPersistentDataContainer();
+
+        String defaultMode = "DEPOSIT";
+        if (moduleType != null) {
+            defaultMode = plugin.getConfig().getString("Upgrades." + moduleType + ".Mode", "Deposit");
+        }
+
+        PumpMode current = PumpMode.fromString(
+                pdc.get(keys.MODULE_PUMP_MODE, PersistentDataType.STRING),
+                defaultMode);
+        PumpMode next = current.next();
+
+        pdc.set(keys.MODULE_PUMP_MODE, PersistentDataType.STRING, next.name());
+        moduleItem.setItemMeta(meta);
+        return true;
+    }
+
+    private boolean toggleExpPumpMending(ItemStack moduleItem) {
+        if (moduleItem == null || !moduleItem.hasItemMeta())
+            return false;
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return false;
+
+        Keys keys = plugin.keys();
+        var pdc = meta.getPersistentDataContainer();
+
+        boolean fallback = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        Byte stored = pdc.get(keys.MODULE_EXP_PUMP_MENDING, PersistentDataType.BYTE);
+        boolean current = stored == null ? fallback : stored == 1;
+        boolean next = !current;
+
+        pdc.set(keys.MODULE_EXP_PUMP_MENDING, PersistentDataType.BYTE, (byte) (next ? 1 : 0));
         moduleItem.setItemMeta(meta);
         return true;
     }
@@ -1051,6 +1187,36 @@ public final class ModuleSocketHandler {
                 return new FeedingSettings(FeedingSelectionMode.WHITELIST_ORDER, FeedingPreference.EFFECTS);
             }
             return new FeedingSettings(FeedingSelectionMode.BEST_CANDIDATE, FeedingPreference.NUTRITION);
+        }
+    }
+
+    private enum PumpMode {
+        DEPOSIT,
+        WITHDRAW;
+
+        static PumpMode fromString(String raw, String fallbackRaw) {
+            PumpMode parsed = parse(raw);
+            if (parsed != null)
+                return parsed;
+            parsed = parse(fallbackRaw);
+            if (parsed != null)
+                return parsed;
+            return DEPOSIT;
+        }
+
+        private static PumpMode parse(String raw) {
+            if (raw == null || raw.isBlank())
+                return null;
+            String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
+            if (s.contains("WITHDRAW") || s.contains("OUT"))
+                return WITHDRAW;
+            if (s.contains("DEPOSIT") || s.contains("IN"))
+                return DEPOSIT;
+            return null;
+        }
+
+        PumpMode next() {
+            return this == DEPOSIT ? WITHDRAW : DEPOSIT;
         }
     }
 }

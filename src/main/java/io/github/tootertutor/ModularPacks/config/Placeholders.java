@@ -205,6 +205,16 @@ public final class Placeholders {
         } else {
             overrides.put("feedingMode", Replacement.scalar(""));
         }
+        if (def.id() != null && (def.id().equalsIgnoreCase("Pump") || def.id().equalsIgnoreCase("ExpPump"))) {
+            overrides.put("pumpMode", Replacement.scalar(resolvePumpMode(plugin, moduleItem, def.id())));
+        } else {
+            overrides.put("pumpMode", Replacement.scalar(""));
+        }
+        if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
+            overrides.put("expPumpMending", Replacement.scalar(resolveExpPumpMending(plugin, moduleItem)));
+        } else {
+            overrides.put("expPumpMending", Replacement.scalar(""));
+        }
         if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
             String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
             // Value placeholder used inside lang templates (e.g. {restockThreshold} ->
@@ -243,6 +253,16 @@ public final class Placeholders {
                 overrides.put("feedingMode", Replacement.scalar(resolveFeedingMode(plugin, moduleItem)));
             } else {
                 overrides.put("feedingMode", Replacement.scalar(""));
+            }
+            if (def.id() != null && (def.id().equalsIgnoreCase("Pump") || def.id().equalsIgnoreCase("ExpPump"))) {
+                overrides.put("pumpMode", Replacement.scalar(resolvePumpMode(plugin, moduleItem, def.id())));
+            } else {
+                overrides.put("pumpMode", Replacement.scalar(""));
+            }
+            if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
+                overrides.put("expPumpMending", Replacement.scalar(resolveExpPumpMending(plugin, moduleItem)));
+            } else {
+                overrides.put("expPumpMending", Replacement.scalar(""));
             }
             if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
                 String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
@@ -285,6 +305,12 @@ public final class Placeholders {
         }
         if (def.id() != null && def.id().equalsIgnoreCase("Autocrafting")) {
             return langActionsAutocrafting(plugin);
+        }
+        if (def.id() != null && def.id().equalsIgnoreCase("Pump")) {
+            return langActionsPump(plugin);
+        }
+        if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
+            return langActionsExpPump(plugin);
         }
         if (def.secondaryAction()) {
             return langActionsSecondary(plugin);
@@ -365,6 +391,24 @@ public final class Placeholders {
         if (!out.isEmpty())
             return out;
         return langActionsPrimary(plugin);
+    }
+
+    private static List<String> langActionsPump(ModularPacksPlugin plugin) {
+        if (plugin == null || plugin.lang() == null)
+            return List.of();
+        List<String> out = plugin.lang().getList("moduleActionsPump");
+        if (!out.isEmpty())
+            return out;
+        return langActionsSecondary(plugin);
+    }
+
+    private static List<String> langActionsExpPump(ModularPacksPlugin plugin) {
+        if (plugin == null || plugin.lang() == null)
+            return List.of();
+        List<String> out = plugin.lang().getList("moduleActionsExpPump");
+        if (!out.isEmpty())
+            return out;
+        return langActionsSecondary(plugin);
     }
 
     private static List<String> langActionsPassive(ModularPacksPlugin plugin) {
@@ -456,6 +500,53 @@ public final class Placeholders {
                     "&7Mode: &fFirst in Whitelist: Prefer Nutrition");
         }
         return plugin.lang().get("feedingMode.whitelistEffects", "&7Mode: &fFirst in Whitelist: Prefer Effects");
+    }
+
+    private static String resolvePumpMode(ModularPacksPlugin plugin, ItemStack moduleItem, String upgradeId) {
+        if (plugin == null)
+            return "";
+
+        String fallback = "Deposit";
+        if (upgradeId != null) {
+            fallback = plugin.getConfig().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
+        }
+
+        String raw = null;
+        if (moduleItem != null && moduleItem.hasItemMeta()) {
+            ItemMeta meta = moduleItem.getItemMeta();
+            if (meta != null) {
+                raw = meta.getPersistentDataContainer().get(plugin.keys().MODULE_PUMP_MODE, PersistentDataType.STRING);
+            }
+        }
+
+        String source = raw == null || raw.isBlank() ? fallback : raw;
+        String normalized = source.trim().toUpperCase(java.util.Locale.ROOT);
+        if (normalized.contains("WITHDRAW") || normalized.contains("OUT")) {
+            return plugin.lang().get("pumpMode.withdraw", "&7Mode: &fWithdraw");
+        }
+        return plugin.lang().get("pumpMode.deposit", "&7Mode: &fDeposit");
+    }
+
+    private static String resolveExpPumpMending(ModularPacksPlugin plugin, ItemStack moduleItem) {
+        if (plugin == null)
+            return "";
+
+        boolean enabled = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        if (moduleItem != null && moduleItem.hasItemMeta()) {
+            ItemMeta meta = moduleItem.getItemMeta();
+            if (meta != null) {
+                Byte b = meta.getPersistentDataContainer().get(plugin.keys().MODULE_EXP_PUMP_MENDING,
+                        PersistentDataType.BYTE);
+                if (b != null) {
+                    enabled = (b == 1);
+                }
+            }
+        }
+
+        if (enabled) {
+            return plugin.lang().get("expPumpMending.enabled", "&7Mending: &aEnabled");
+        }
+        return plugin.lang().get("expPumpMending.disabled", "&7Mending: &cDisabled");
     }
 
     private static int resolveRestockThreshold(ModularPacksPlugin plugin, ItemStack moduleItem, UpgradeDef def) {

@@ -40,6 +40,7 @@ import io.github.tootertutor.ModularPacks.listeners.module.ModuleFilterScreenLis
 import io.github.tootertutor.ModularPacks.listeners.module.ModuleRecipeListener;
 import io.github.tootertutor.ModularPacks.listeners.module.PreventModulePlacementListener;
 import io.github.tootertutor.ModularPacks.listeners.module.PreventModuleUseListener;
+import io.github.tootertutor.ModularPacks.listeners.module.PumpSettingsListener;
 import io.github.tootertutor.ModularPacks.listeners.module.RestockModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.module.SmithingModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.module.StonecutterModuleListener;
@@ -111,6 +112,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ModuleFilterScreenListener(this), this);
         Bukkit.getPluginManager().registerEvents(new RestockModuleListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventNestingListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PumpSettingsListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventModulePlacementListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PreventModuleUseListener(this), this);
         Bukkit.getPluginManager().registerEvents(new BackpackEverlastingListener(this), this);
