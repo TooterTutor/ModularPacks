@@ -856,9 +856,6 @@ public final class ModuleSocketHandler {
         if (moduleType == null)
             return false;
 
-        boolean requestedFluid = TankModuleLogic.isFluidTankType(moduleType);
-        boolean requestedExp = TankModuleLogic.isExperienceTankType(moduleType);
-
         for (UUID moduleId : holder.data().installedModules().values()) {
             byte[] snap = holder.data().installedSnapshots().get(moduleId);
             if (snap == null)
@@ -875,13 +872,7 @@ public final class ModuleSocketHandler {
             if (type.equalsIgnoreCase(moduleType))
                 return true;
 
-            // Legacy "Tank" conflicts with both split tank types.
-            if (requestedFluid && TankModuleLogic.isLegacyTankType(type))
-                return true;
-            if (requestedExp && TankModuleLogic.isLegacyTankType(type))
-                return true;
-            if (TankModuleLogic.isLegacyTankType(moduleType)
-                    && (TankModuleLogic.isFluidTankType(type) || TankModuleLogic.isExperienceTankType(type))) {
+            if (TankModuleLogic.tankTypesConflictForInstall(moduleType, type)) {
                 return true;
             }
         }

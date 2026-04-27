@@ -41,6 +41,22 @@ public final class TankModuleLogic {
         return isFluidTankType(moduleType) || isExperienceTankType(moduleType);
     }
 
+    public static boolean tankTypesConflictForInstall(String requestedType, String installedType) {
+        if (!isTankModuleType(requestedType) || !isTankModuleType(installedType))
+            return false;
+
+        // Same exact type always conflicts.
+        if (requestedType != null && installedType != null && requestedType.equalsIgnoreCase(installedType))
+            return true;
+
+        // Legacy mixed tank conflicts with either split type.
+        if (isLegacyTankType(requestedType) || isLegacyTankType(installedType))
+            return true;
+
+        // FluidTank and ExperienceTank are intentionally allowed together.
+        return false;
+    }
+
     public static String resolveVisualUpgradeId(String moduleType, TankStateCodec.State s) {
         if (moduleType != null && moduleType.equalsIgnoreCase("FluidTank"))
             return "FluidTank";
