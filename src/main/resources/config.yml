@@ -681,7 +681,7 @@ Upgrades:
       Type: Crafting
       Pattern:
         - " E "
-        - "BTT"
+        - "BTB"
         - " E "
       Ingredients:
         E: EXPERIENCE_BOTTLE
