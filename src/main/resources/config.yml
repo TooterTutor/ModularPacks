@@ -729,10 +729,15 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: true
-    # Mode: Deposit or Withdraw
+    # Mode: Deposit, Withdraw, or KeepLevel
     Mode: Deposit
+    TargetLevel: 30
     # When true, withdrawn XP repairs equipped Mending items before giving leftover XP to levels.
     MendEquippedItems: false
+    # Max XP points spent on mending per ExpPump cycle to keep repairs gradual.
+    MendingXpPerTick: 2
+    # Max displayed levels moved toward target per ExpPump cycle in KeepLevel mode.
+    KeepLevelLevelsPerTick: 1
     IntervalTicks: 40
     CraftingRecipe:
       Type: Crafting

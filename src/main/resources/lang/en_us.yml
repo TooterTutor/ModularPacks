@@ -80,10 +80,50 @@ feedingMode:
 pumpMode:
   deposit: "&7Mode: &fDeposit"
   withdraw: "&7Mode: &fWithdraw"
+  keepLevel: "&7Mode: &fKeep Player at Level {level}"
+  selected: "&7(&aSelected&7)"
+  unselected: "&7(&cClick to select&7)"
+  standardTitle: "&eMode: Standard"
+  standardLore: "Fluid pump uses standard bucket transfer behavior."
+
+expPumpLevels:
+  targetLevel: "&6Target Level: &f{level}"
+  levelUp1: "&8[&6Left-click&8]&7 +1 Level"
+  levelDown1: "&8[&6Right-click&8]&7 -1 Level"
+  levelUp5: "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 +5 Levels"
+  levelDown5: "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 -5 Levels"
 
 expPumpMending:
   enabled: "&7Mending: &aEnabled"
   disabled: "&7Mending: &cDisabled"
+  enabledLore: "Withdrawn tank XP can repair equipped Mending items."
+  disabledLore: "Tank XP will not auto-repair equipped items."
+
+expPumpModeLore:
+  withdraw:
+    - "Pull XP from the tank and give it to the player."
+    - "Mending uses withdrawn XP first when enabled."
+  keepLevel:
+    - "Keep the player at level {level}."
+    - "Excess XP is stored, missing XP is restored from the tank."
+  deposit:
+    - "Move player XP into the tank."
+    - "Good for banking levels before they are lost."
+
+pumpDirection:
+  fromPlayer:
+    title: "&eFrom Player"
+    description: "Move resources from player inventory/XP to the tank."
+  toPlayer:
+    title: "&eTo Player"
+    description: "Move resources from the tank to player inventory/XP."
+
+pumpSettingsActionHint:
+  toggleMending: "&7Click to toggle mending."
+  modeCycle:
+    - "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Next Mode"
+    - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Previous Mode"
+  standard: "&8No alternate mode."
 
 magnetRange:
   - "&7Range: &f{Range} &7blocks"

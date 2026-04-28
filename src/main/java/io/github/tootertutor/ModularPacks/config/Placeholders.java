@@ -212,8 +212,17 @@ public final class Placeholders {
         }
         if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
             overrides.put("expPumpMending", Replacement.scalar(resolveExpPumpMending(plugin, moduleItem)));
+            String targetLevel = Integer.toString(resolveExpPumpTargetLevel(plugin, moduleItem));
+            overrides.put("level", Replacement.scalar(targetLevel));
+            overrides.put("Level", Replacement.scalar(targetLevel));
+            overrides.put("targetLevel", Replacement.scalar(targetLevel));
+            overrides.put("TargetLevel", Replacement.scalar(targetLevel));
         } else {
             overrides.put("expPumpMending", Replacement.scalar(""));
+            overrides.put("level", Replacement.scalar(""));
+            overrides.put("Level", Replacement.scalar(""));
+            overrides.put("targetLevel", Replacement.scalar(""));
+            overrides.put("TargetLevel", Replacement.scalar(""));
         }
         if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
             String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
@@ -261,8 +270,17 @@ public final class Placeholders {
             }
             if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
                 overrides.put("expPumpMending", Replacement.scalar(resolveExpPumpMending(plugin, moduleItem)));
+                String targetLevel = Integer.toString(resolveExpPumpTargetLevel(plugin, moduleItem));
+                overrides.put("level", Replacement.scalar(targetLevel));
+                overrides.put("Level", Replacement.scalar(targetLevel));
+                overrides.put("targetLevel", Replacement.scalar(targetLevel));
+                overrides.put("TargetLevel", Replacement.scalar(targetLevel));
             } else {
                 overrides.put("expPumpMending", Replacement.scalar(""));
+                overrides.put("level", Replacement.scalar(""));
+                overrides.put("Level", Replacement.scalar(""));
+                overrides.put("targetLevel", Replacement.scalar(""));
+                overrides.put("TargetLevel", Replacement.scalar(""));
             }
             if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
                 String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
@@ -282,6 +300,33 @@ public final class Placeholders {
         }
 
         return expandString(plugin, def, moduleItem, text, overrides);
+    }
+
+    public static String expandLangText(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+            String langKey, String fallback) {
+        if (plugin == null)
+            return fallback;
+
+        String text = plugin.lang().get(langKey, fallback);
+        return expandText(plugin, def, moduleItem, text);
+    }
+
+    public static List<String> expandLangList(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+            String langKey, List<String> fallback) {
+        if (plugin == null) {
+            return fallback == null ? List.of() : fallback;
+        }
+
+        List<String> lines = plugin.lang().getList(langKey);
+        if (lines == null || lines.isEmpty()) {
+            lines = fallback == null ? List.of() : fallback;
+        }
+
+        List<String> out = new ArrayList<>(lines.size());
+        for (String line : lines) {
+            out.add(expandText(plugin, def, moduleItem, line));
+        }
+        return out;
     }
 
     private static List<String> resolveActions(ModularPacksPlugin plugin, UpgradeDef def) {
@@ -521,6 +566,24 @@ public final class Placeholders {
 
         String source = raw == null || raw.isBlank() ? fallback : raw;
         String normalized = source.trim().toUpperCase(java.util.Locale.ROOT);
+        if (upgradeId != null && upgradeId.equalsIgnoreCase("ExpPump")
+                && (normalized.contains("KEEP") || normalized.contains("LEVEL"))) {
+            int targetLevel = plugin.getConfig().getInt("Upgrades.ExpPump.TargetLevel", 30);
+            if (moduleItem != null && moduleItem.hasItemMeta()) {
+                ItemMeta meta = moduleItem.getItemMeta();
+                if (meta != null) {
+                    Integer stored = meta.getPersistentDataContainer().get(plugin.keys().MODULE_EXP_PUMP_TARGET_LEVEL,
+                            PersistentDataType.INTEGER);
+                    if (stored != null) {
+                        targetLevel = stored.intValue();
+                    }
+                }
+            }
+
+            targetLevel = Math.max(0, Math.min(100, targetLevel));
+            return plugin.lang().get("pumpMode.keepLevel", "&7Mode: &fKeep Player at Level {level}")
+                    .replace("{level}", Integer.toString(targetLevel));
+        }
         if (normalized.contains("WITHDRAW") || normalized.contains("OUT")) {
             return plugin.lang().get("pumpMode.withdraw", "&7Mode: &fWithdraw");
         }
@@ -547,6 +610,25 @@ public final class Placeholders {
             return plugin.lang().get("expPumpMending.enabled", "&7Mending: &aEnabled");
         }
         return plugin.lang().get("expPumpMending.disabled", "&7Mending: &cDisabled");
+    }
+
+    private static int resolveExpPumpTargetLevel(ModularPacksPlugin plugin, ItemStack moduleItem) {
+        if (plugin == null)
+            return 30;
+
+        int targetLevel = plugin.getConfig().getInt("Upgrades.ExpPump.TargetLevel", 30);
+        if (moduleItem != null && moduleItem.hasItemMeta()) {
+            ItemMeta meta = moduleItem.getItemMeta();
+            if (meta != null) {
+                Integer stored = meta.getPersistentDataContainer().get(plugin.keys().MODULE_EXP_PUMP_TARGET_LEVEL,
+                        PersistentDataType.INTEGER);
+                if (stored != null) {
+                    targetLevel = stored.intValue();
+                }
+            }
+        }
+
+        return Math.max(0, Math.min(100, targetLevel));
     }
 
     private static int resolveRestockThreshold(ModularPacksPlugin plugin, ItemStack moduleItem, UpgradeDef def) {

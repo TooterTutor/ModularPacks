@@ -51,6 +51,7 @@ public final class ModuleEngineService {
 
     private static final long ENGINE_PERIOD_TICKS = 10L;
     private static final int ENGINE_DT_TICKS = 10;
+    private static final int MAX_EXP_PUMP_TARGET_LEVEL = 100;
 
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
@@ -415,7 +416,7 @@ public final class ModuleEngineService {
         if (state == null)
             return false;
 
-        String mode = resolvePumpMode(data, expPumpModuleId, "ExpPump");
+        String mode = resolvePumpMode(data, expPumpModuleId, "ExpPump", true);
         boolean changed = false;
         if ("WITHDRAW".equals(mode)) {
             int pointsForOneLevel = pointsForOneDisplayedLevelGain(player);
@@ -425,7 +426,9 @@ public final class ModuleEngineService {
                     state.expTotalPoints -= granted;
                     int remaining = granted;
                     if (isExpPumpMendingEnabled(data, expPumpModuleId)) {
-                        remaining = applyMendingToEquippedItems(player, granted);
+                        int mendingBudget = Math.min(granted, resolveExpPumpMendingBudgetPerCycle());
+                        int mendingLeftover = applyMendingToEquippedItems(player, mendingBudget);
+                        remaining = (granted - mendingBudget) + mendingLeftover;
                     }
                     if (remaining > 0) {
                         player.giveExp(remaining);
@@ -433,6 +436,8 @@ public final class ModuleEngineService {
                     changed = true;
                 }
             }
+        } else if ("KEEP_LEVEL".equals(mode)) {
+            changed = maintainPlayerLevel(player, data, expPumpModuleId, state);
         } else {
             int pointsForOneLevel = pointsForOneDisplayedLevelLoss(player);
             if (pointsForOneLevel > 0 && state.expTotalPoints < TankModuleLogic.MAX_EXP_POINTS) {
@@ -542,26 +547,169 @@ public final class ModuleEngineService {
     }
 
     private String resolvePumpMode(BackpackData data, UUID moduleId, String upgradeId) {
+        return resolvePumpMode(data, moduleId, upgradeId, false);
+    }
+
+    private String resolvePumpMode(BackpackData data, UUID moduleId, String upgradeId, boolean allowKeepLevel) {
         String fallback = plugin.getConfig().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
         ItemStack moduleItem = resolveModuleSnapshotItem(data, moduleId);
         if (moduleItem == null || !moduleItem.hasItemMeta())
-            return normalizePumpMode(fallback);
+            return normalizePumpMode(fallback, allowKeepLevel);
 
         ItemMeta meta = moduleItem.getItemMeta();
         if (meta == null)
-            return normalizePumpMode(fallback);
+            return normalizePumpMode(fallback, allowKeepLevel);
 
         String raw = meta.getPersistentDataContainer().get(plugin.keys().MODULE_PUMP_MODE, PersistentDataType.STRING);
-        return normalizePumpMode(raw == null || raw.isBlank() ? fallback : raw);
+        return normalizePumpMode(raw == null || raw.isBlank() ? fallback : raw, allowKeepLevel);
     }
 
-    private String normalizePumpMode(String raw) {
+    private String normalizePumpMode(String raw, boolean allowKeepLevel) {
         if (raw == null)
             return "DEPOSIT";
         String s = raw.trim().toUpperCase(java.util.Locale.ROOT);
+        if (allowKeepLevel && (s.contains("KEEP") || s.contains("LEVEL")))
+            return "KEEP_LEVEL";
         if (s.contains("WITHDRAW") || s.contains("OUT"))
             return "WITHDRAW";
         return "DEPOSIT";
+    }
+
+    private boolean maintainPlayerLevel(Player player, BackpackData data, UUID expPumpModuleId,
+            TankStateCodec.State state) {
+        if (player == null || data == null || expPumpModuleId == null || state == null)
+            return false;
+
+        int targetLevel = resolveExpPumpTargetLevel(data, expPumpModuleId);
+        int keepLevelStepBudget = resolveExpPumpKeepLevelStepBudgetPerCycle();
+        if (keepLevelStepBudget <= 0)
+            return false;
+
+        // Move the player's displayed level toward target in discrete level steps.
+        if (player.getLevel() > targetLevel) {
+            int room = TankModuleLogic.MAX_EXP_POINTS - state.expTotalPoints;
+            if (room <= 0)
+                return false;
+
+            int movedTotal = 0;
+            for (int i = 0; i < keepLevelStepBudget && player.getLevel() > targetLevel; i++) {
+                int pointsForOneLevel = pointsForOneDisplayedLevelLoss(player);
+                if (pointsForOneLevel <= 0 || pointsForOneLevel > room)
+                    break;
+
+                player.giveExp(-pointsForOneLevel);
+                state.expTotalPoints += pointsForOneLevel;
+                room -= pointsForOneLevel;
+                movedTotal += pointsForOneLevel;
+            }
+
+            return movedTotal > 0;
+        }
+
+        if (player.getLevel() < targetLevel) {
+            int grantedTotal = 0;
+            int available = state.expTotalPoints;
+            for (int i = 0; i < keepLevelStepBudget && player.getLevel() < targetLevel; i++) {
+                int pointsForOneLevel = pointsForOneDisplayedLevelGain(player);
+                if (pointsForOneLevel <= 0 || pointsForOneLevel > available)
+                    break;
+
+                player.giveExp(pointsForOneLevel);
+                available -= pointsForOneLevel;
+                grantedTotal += pointsForOneLevel;
+            }
+
+            if (grantedTotal <= 0)
+                return false;
+
+            state.expTotalPoints -= grantedTotal;
+            return true;
+        }
+
+        // When exactly at target level, optionally consume a small budget for passive
+        // mending.
+        if (!isExpPumpMendingEnabled(data, expPumpModuleId))
+            return false;
+
+        int repairDemand = estimateMendingXpDemand(player);
+        if (repairDemand <= 0 || state.expTotalPoints <= 0)
+            return false;
+
+        int toMend = Math.min(repairDemand, Math.min(resolveExpPumpMendingBudgetPerCycle(), state.expTotalPoints));
+        if (toMend <= 0)
+            return false;
+
+        int leftover = applyMendingToEquippedItems(player, toMend);
+        int used = Math.max(0, toMend - leftover);
+        if (used <= 0)
+            return false;
+
+        state.expTotalPoints -= used;
+
+        return true;
+    }
+
+    private int resolveExpPumpTargetLevel(BackpackData data, UUID expPumpModuleId) {
+        int fallback = plugin.getConfig().getInt("Upgrades.ExpPump.TargetLevel", 30);
+        ItemStack moduleItem = resolveModuleSnapshotItem(data, expPumpModuleId);
+        if (moduleItem == null || !moduleItem.hasItemMeta())
+            return clampExpPumpTargetLevel(fallback);
+
+        ItemMeta meta = moduleItem.getItemMeta();
+        if (meta == null)
+            return clampExpPumpTargetLevel(fallback);
+
+        Integer stored = meta.getPersistentDataContainer().get(plugin.keys().MODULE_EXP_PUMP_TARGET_LEVEL,
+                PersistentDataType.INTEGER);
+        return clampExpPumpTargetLevel(stored == null ? fallback : stored.intValue());
+    }
+
+    private int clampExpPumpTargetLevel(int level) {
+        return Math.max(0, Math.min(MAX_EXP_PUMP_TARGET_LEVEL, level));
+    }
+
+    private int estimateMendingXpDemand(Player player) {
+        if (player == null)
+            return 0;
+
+        int total = 0;
+        PlayerInventory inv = player.getInventory();
+        total += estimateMendingXpDemand(inv.getItemInMainHand());
+        total += estimateMendingXpDemand(inv.getItemInOffHand());
+        for (ItemStack armor : inv.getArmorContents()) {
+            total += estimateMendingXpDemand(armor);
+        }
+        return Math.max(0, total);
+    }
+
+    private int resolveExpPumpMendingBudgetPerCycle() {
+        int fallback = 2;
+        int configured = plugin.getConfig().getInt("Upgrades.ExpPump.MendingXpPerTick", fallback);
+        return Math.max(1, Math.min(100, configured));
+    }
+
+    private int resolveExpPumpKeepLevelStepBudgetPerCycle() {
+        int fallback = 1;
+        int configured = plugin.getConfig().getInt("Upgrades.ExpPump.KeepLevelLevelsPerTick",
+                plugin.getConfig().getInt("Upgrades.ExpPump.KeepLevelXpPerTick", fallback));
+        return Math.max(1, Math.min(10, configured));
+    }
+
+    private int estimateMendingXpDemand(ItemStack item) {
+        if (ItemStacks.isAir(item))
+            return 0;
+
+        ItemMeta meta = item.getItemMeta();
+        if (!(meta instanceof Damageable dmg))
+            return 0;
+        if (!meta.hasEnchant(Enchantment.MENDING))
+            return 0;
+
+        int damage = Math.max(0, dmg.getDamage());
+        if (damage <= 0)
+            return 0;
+
+        return (damage + 1) / 2;
     }
 
     private UUID findFluidTankModuleId(BackpackData data) {

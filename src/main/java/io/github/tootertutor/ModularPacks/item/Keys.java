@@ -20,6 +20,7 @@ public final class Keys {
     public final NamespacedKey MODULE_JUKEBOX_MODE; // string enum
     public final NamespacedKey MODULE_PUMP_MODE; // string enum
     public final NamespacedKey MODULE_EXP_PUMP_MENDING; // byte 0/1
+    public final NamespacedKey MODULE_EXP_PUMP_TARGET_LEVEL; // int
 
     public Keys(JavaPlugin plugin) {
         BACKPACK_ID = new NamespacedKey(plugin, "backpack_id");
@@ -37,6 +38,7 @@ public final class Keys {
         MODULE_JUKEBOX_MODE = new NamespacedKey(plugin, "module_jukebox_mode");
         MODULE_PUMP_MODE = new NamespacedKey(plugin, "module_pump_mode");
         MODULE_EXP_PUMP_MENDING = new NamespacedKey(plugin, "module_exp_pump_mending");
+        MODULE_EXP_PUMP_TARGET_LEVEL = new NamespacedKey(plugin, "module_exp_pump_target_level");
 
     }
 
