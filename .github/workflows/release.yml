@@ -29,8 +29,11 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Reset Maven local repo (robust)
+        run: rm -rf ~/.m2/repository
+
       - name: Build with Maven
-        run: mvn -B clean package --file pom.xml
+        run: mvn -B -U clean package --file pom.xml
 
       - name: Generate Changelog
         id: changelog
