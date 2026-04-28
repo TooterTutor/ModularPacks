@@ -3,6 +3,28 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.2
+
+**Release Date:** 2026-04-27
+
+## Changes since 2.5.1
+
+### Features & Improvements
+- Added new `Keep at Level` setting for exp pump (a027830)
+
+### Bug Fixes
+- Fixed typo in config (12a7660)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (6f88300)
+- Added new `Keep at Level` setting for exp pump (a027830)
+- Fixed typo in config (12a7660)
+---
+
+
 # ModularPacks 2.5.1
 
 **Release Date:** 2026-04-26
