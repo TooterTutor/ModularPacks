@@ -3,6 +3,28 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.3
+
+**Release Date:** 2026-04-28
+
+## Changes since 2.5.2
+
+### Features & Improvements
+
+
+### Bug Fixes
+- Fixed RecipeManager to discover all plugin recipes for player on join (5d77c11)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Patched release workflow (1823600)
+- Bump version minor change (44b9472)
+- Fixed RecipeManager to discover all plugin recipes for player on join (5d77c11)
+---
+
+
 # ModularPacks 2.5.2
 
 **Release Date:** 2026-04-27
