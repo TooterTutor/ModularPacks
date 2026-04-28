@@ -23,6 +23,7 @@ import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.inventory.PrepareSmithingEvent;
 import org.bukkit.event.inventory.SmithItemEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.RecipeChoice;
@@ -81,6 +82,9 @@ public final class RecipeManager implements Listener {
                     "Failed to update recipes; clients may not see new recipes until relog.",
                     t);
         }
+
+        // Ensure online players discover the plugin recipes after reload.
+        Bukkit.getScheduler().runTask(plugin, this::discoverAllForOnlinePlayers);
     }
 
     public boolean isDynamicRecipe(Recipe recipe) {
@@ -747,6 +751,37 @@ public final class RecipeManager implements Listener {
         plugin.sessions().refreshLinkedBackpacksThrottled(parsed.uuid(), data);
 
         plugin.repo().ensureBackpackExists(parsed.uuid(), newType, player.getUniqueId(), player.getName());
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent e) {
+        discoverRecipesFor(e.getPlayer());
+    }
+
+    private void discoverAllForOnlinePlayers() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            discoverRecipesFor(player);
+        }
+    }
+
+    private void discoverRecipesFor(Player player) {
+        if (player == null)
+            return;
+
+        for (NamespacedKey key : registeredKeys) {
+            if (key == null)
+                continue;
+            Recipe recipe = Bukkit.getRecipe(key);
+            if (recipe == null)
+                continue;
+            try {
+                player.discoverRecipe(key);
+            } catch (Throwable t) {
+                plugin.getLogger().log(Level.FINE,
+                        "Failed to discover recipe " + key + " for " + player.getName(),
+                        t);
+            }
+        }
     }
 
     private static NamespacedKey recipeKey(Recipe recipe) {
