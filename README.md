@@ -7,6 +7,41 @@
 ![Status](https://img.shields.io/badge/status-active_development-purple?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
 
+## Table of Contents
+
+* [Features](#features)
+* [Requirements and installation](#requirements-and-installation)
+
+  * [Requirements](#requirements)
+  * [Installation](#installation)
+* [Design goals and backpack behavior](#design-goals-and-backpack-behavior)
+
+  * [What makes ModularPacks different?](#what-makes-modularpacks-different)
+  * [How backpacks work](#how-backpacks-work)
+  * [Default backpack tiers](#default-backpack-tiers)
+  * [Default modules](#default-modules)
+  * [Basic usage](#basic-usage)
+* [Commands and permissions](#commands-and-permissions)
+
+  * [Commands](#commands)
+  * [Permissions](#permissions)
+* [Configuration and data](#configuration-and-data)
+
+  * [Configuration](#configuration)
+  * [Backpack type configuration](#backpack-type-configuration)
+  * [Recipe ingredient tokens](#recipe-ingredient-tokens)
+  * [Upgrade configuration](#upgrade-configuration)
+  * [Language file](#language-file)
+  * [Data storage](#data-storage)
+  * [Resource pack support](#resource-pack-support)
+* [Developer API](#developer-api)
+* [Building, publishing, and project status](#building-publishing-and-project-status)
+
+  * [Building from source](#building-from-source)
+  * [Publishing notes](#publishing-notes)
+  * [Project status](#project-status)
+  * [Credits](#credits)
+
 **ModularPacks** is a Paper plugin that adds physical, upgradeable backpacks to Minecraft servers.
 
 Instead of treating backpacks like another command-based player vault, ModularPacks makes the backpack an actual item. Players carry it, open it, upgrade it, place it, share it, and build around it like a real part of the world. The goal is to bring a modded-style backpack experience to Paper servers while keeping the server playable for vanilla clients.
@@ -26,6 +61,9 @@ ModularPacks was heavily inspired by the feel of modded backpack systems, especi
 * Optional update checker with in-game and console notifications
 * Optional resource pack support through `CustomModelData`
 * Public API for registering custom modules from other plugins
+
+<details>
+<summary><strong id="requirements-and-installation">Requirements and installation</strong></summary>
 
 ## Requirements
 
@@ -51,6 +89,11 @@ ModularPacks is built against the Paper API and is intended for Paper-based serv
 ```text
 /backpack reload
 ```
+
+</details>
+
+<details>
+<summary><strong id="design-goals-and-backpack-behavior">Design goals and backpack behavior</strong></summary>
 
 ## What makes ModularPacks different?
 
@@ -134,6 +177,11 @@ Common module interactions include:
 * Shift + right-click to remove a module
 
 The exact behavior depends on the module.
+
+</details>
+
+<details>
+<summary><strong id="commands-and-permissions">Commands and permissions</strong></summary>
 
 ## Commands
 
@@ -278,6 +326,11 @@ The void recovery commands work with the `voided_items` database table. When the
 | `modularpacks.update.notify` | `op`    | Receives update notifications when enabled     |
 
 Server owners should review these defaults before publishing a server. The player-facing permissions are enabled by default, while administrative permissions are restricted to operators.
+
+</details>
+
+<details>
+<summary><strong id="configuration-and-data">Configuration and data</strong></summary>
 
 ## Configuration
 
@@ -662,6 +715,11 @@ Useful config fields for visuals:
 
 This means the plugin can work as a server-side storage system first, then be visually upgraded later without changing the core backpack data.
 
+</details>
+
+<details>
+<summary><strong id="developer-api">Developer API</strong></summary>
+
 ## API
 
 ModularPacks includes a public API for other plugins.
@@ -777,6 +835,11 @@ softdepend: [ModularPacks]
 
 Then check `ModularPacksAPI.getAPI()` before using the integration.
 
+</details>
+
+<details>
+<summary><strong id="building-publishing-and-project-status">Building, publishing, and project status</strong></summary>
+
 ## Building from source
 
 Clone the repository and build with Maven:
@@ -801,4 +864,6 @@ ModularPacks is actively being developed. Configuration keys, module behavior, a
 
 Created by **TooterTutor**.
 
-Inspired by the idea of modded, upgradeable backpacks, but built as a Paper plugin with its own storage model, admin tools, configuration system, and extension API
+Inspired by the idea of modded, upgradeable backpacks, but built as a Paper plugin with its own storage model, admin tools, configuration system, and extension API.
+
+</details>
