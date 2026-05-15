@@ -3,6 +3,26 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.4
+
+**Release Date:** 2026-05-14
+
+## Changes since 2.5.3
+
+### Features & Improvements
+- Added Curios Compatiblity (628dcb4)
+- Added distribution management (e964032)
+- Added Table of Contents (d3a6b6e)
+
+### All Commits
+- Bump version and added artifactSet shading (674305c)
+- Added Curios Compatiblity (628dcb4)
+- Added distribution management (e964032)
+- Added Table of Contents (d3a6b6e)
+- Updated README (f1d5b72)
+---
+
+
 # ModularPacks 2.5.3
 
 **Release Date:** 2026-04-28
