@@ -286,6 +286,15 @@ public final class ModuleEngineService {
         }
     }
 
+    public void tickBackpackFromBridge(
+            Player player,
+            UUID backpackId,
+            String backpackType,
+            Set<UUID> openModuleIds,
+            Set<UUID> openBackpackIds) {
+        tickBackpack(player, backpackId, backpackType, openModuleIds, openBackpackIds);
+    }
+
     private boolean applyPlacedBackpackMagnet(UUID backpackId, ItemStack[] logical, ItemStack magnetSnapshot,
             UUID voidId, Set<Material> voidWhitelist, ItemStack voidSnapshot, BackpackData data) {
         // Get the placed backpack location

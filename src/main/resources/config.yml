@@ -2,6 +2,11 @@
 modularpacks:
   Enabled: true
 
+  CuriosIntegration:
+    Enabled: true
+    # When true, automatically adds backpack integration to Curios when present.
+    AutoAddCuriosSlots: true
+
   UpdateChecker:
     Enabled: true
     # When true, logs the changelog of the new version in console and to those who have permission in chat when an update is found.

@@ -42,6 +42,10 @@ public final class ConfigManager {
     // Debug
     private boolean debugClickLog = false;
 
+    // Curios integration
+    private boolean curiosIntegrationEnabled = true;
+    private boolean curiosAutoAddSlots = true;
+
     // Update checker settings
     private boolean updateCheckerEnabled = true;
     private boolean updateCheckerShowChangeLog = true;
@@ -97,6 +101,9 @@ public final class ConfigManager {
 
         resizeGui = cfg.getBoolean("modularpacks.ResizeGUI", false);
         debugClickLog = cfg.getBoolean("modularpacks.Debug.ClickLog", false);
+
+        curiosIntegrationEnabled = cfg.getBoolean("modularpacks.CuriosIntegration.Enabled", true);
+        curiosAutoAddSlots = cfg.getBoolean("modularpacks.CuriosIntegration.AutoAddCuriosSlots", true);
 
         String updateRoot = resolveUpdateCheckerRoot(cfg);
         updateCheckerEnabled = cfg.getBoolean(updateRoot + ".Enabled", true);
@@ -334,6 +341,14 @@ public final class ConfigManager {
 
     public boolean debugClickLog() {
         return debugClickLog;
+    }
+
+    public boolean curiosIntegrationEnabled() {
+        return curiosIntegrationEnabled;
+    }
+
+    public boolean curiosAutoAddSlots() {
+        return curiosAutoAddSlots;
     }
 
     public boolean updateCheckerEnabled() {
