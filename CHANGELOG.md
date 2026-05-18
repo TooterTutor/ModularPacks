@@ -3,6 +3,26 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.5
+
+**Release Date:** 2026-05-17
+
+## Changes since 2.5.4
+
+### Features & Improvements
+- Added built-in backpack rendering on players (ae32fe3)
+
+### Bug Fixes
+- Fixed issue where backpacks could break when placed from offhand (66ec180)
+
+### All Commits
+- Bump version (27e4c7d)
+- Added built-in backpack rendering on players (ae32fe3)
+- Fixed issue where backpacks could break when placed from offhand (66ec180)
+- Reverted CuriosPaper integration (ca1f209)
+---
+
+
 # ModularPacks 2.5.4
 
 **Release Date:** 2026-05-14
