@@ -42,6 +42,9 @@ public final class ConfigManager {
     // Debug
     private boolean debugClickLog = false;
 
+    // Model rendering
+    private boolean renderModel = true;
+
     // Curios integration
     private boolean curiosIntegrationEnabled = true;
     private boolean curiosAutoAddSlots = true;
@@ -101,6 +104,7 @@ public final class ConfigManager {
 
         resizeGui = cfg.getBoolean("modularpacks.ResizeGUI", false);
         debugClickLog = cfg.getBoolean("modularpacks.Debug.ClickLog", false);
+        renderModel = cfg.getBoolean("modularpacks.RenderModel", true);
 
         curiosIntegrationEnabled = cfg.getBoolean("modularpacks.CuriosIntegration.Enabled", true);
         curiosAutoAddSlots = cfg.getBoolean("modularpacks.CuriosIntegration.AutoAddCuriosSlots", true);
@@ -341,6 +345,10 @@ public final class ConfigManager {
 
     public boolean debugClickLog() {
         return debugClickLog;
+    }
+
+    public boolean renderModel() {
+        return renderModel;
     }
 
     public boolean curiosIntegrationEnabled() {

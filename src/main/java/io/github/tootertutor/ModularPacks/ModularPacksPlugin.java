@@ -44,6 +44,7 @@ import io.github.tootertutor.ModularPacks.listeners.module.PumpSettingsListener;
 import io.github.tootertutor.ModularPacks.listeners.module.RestockModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.module.SmithingModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.module.StonecutterModuleListener;
+import io.github.tootertutor.ModularPacks.model.ModelManager;
 import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
 import io.github.tootertutor.ModularPacks.update.UpdateCheckerService;
@@ -62,6 +63,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private PlacedBackpackManager placedBackpacks;
     private BackpackMenuRenderer backpackMenuRenderer;
     private UpdateCheckerService updateCheckerService;
+    private ModelManager modelManager;
 
     @Override
     public void onEnable() {
@@ -90,6 +92,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         this.sessions = new BackpackSessionManager(this);
 
         this.placedBackpacks = new PlacedBackpackManager(this);
+        this.modelManager = new ModelManager(this);
 
         // Create module instances
         ScreenRouter screenRouter = new ScreenRouter(
@@ -131,6 +134,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager()
                 .registerEvents(new StonecutterModuleListener(this, screenRouter.getStonecutterModule()), this);
         Bukkit.getPluginManager().registerEvents(new RecipePreviewListener(), this);
+        Bukkit.getPluginManager().registerEvents(modelManager, this);
 
         if (cfg().debugClickLog()) {
             this.clickDebug = new ClickDebugListener(this);
@@ -172,6 +176,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         if (placedBackpacks != null)
             placedBackpacks.shutdown();
+
+        if (modelManager != null)
+            modelManager.shutdown();
 
         if (updateCheckerService != null)
             updateCheckerService.stop();
@@ -217,6 +224,10 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
     public ModuleEngineService engines() {
         return engines;
+    }
+
+    public ModelManager modelManager() {
+        return modelManager;
     }
 
     public void reloadAll() {

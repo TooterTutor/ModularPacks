@@ -7,37 +7,70 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
+import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 
 public final class BackpackUseListener implements Listener {
 
     private final ModularPacksPlugin plugin;
     private final BackpackMenuRenderer renderer;
+    private final BackpackItems backpackItems;
 
     public BackpackUseListener(ModularPacksPlugin plugin) {
         this.plugin = plugin;
         this.renderer = new BackpackMenuRenderer(plugin);
+        this.backpackItems = new BackpackItems(plugin);
     }
 
     @EventHandler
     public void onUse(PlayerInteractEvent e) {
+        if (e.getHand() != EquipmentSlot.HAND)
+            return;
+
         Action a = e.getAction();
         if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK)
             return;
 
         Player p = e.getPlayer();
+
+        if (a == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null
+                && plugin.placedBackpacks().getAt(e.getClickedBlock().getLocation()) != null) {
+            return;
+        }
+
         ItemStack item = e.getItem();
+
+        if (p.isSneaking()) {
+            if (a == Action.RIGHT_CLICK_BLOCK && backpackItems.isBackpack(item)) {
+                return;
+            }
+
+            ItemStack equippedBackpack = p.getInventory().getChestplate();
+            if (backpackItems.isBackpack(equippedBackpack)) {
+                openBackpackFromItem(p, e, equippedBackpack);
+                return;
+            }
+        }
+
         if (item == null || !item.hasItemMeta())
             return;
 
-        // Skip if player is sneaking with a backpack - they're trying to place it, not
-        // open it
-        if (p.isSneaking())
+        ItemStack backpackItem = p.getInventory().getItemInMainHand();
+        if (backpackItems.ensureWearableTag(backpackItem)) {
+            p.getInventory().setItemInMainHand(backpackItem);
+        }
+
+        openBackpackFromItem(p, e, item);
+    }
+
+    private void openBackpackFromItem(Player player, PlayerInteractEvent event, ItemStack item) {
+        if (item == null || !item.hasItemMeta())
             return;
 
         Keys keys = plugin.keys();
@@ -55,8 +88,8 @@ public final class BackpackUseListener implements Listener {
             return;
         }
 
-        e.setCancelled(true);
-        plugin.repo().ensureBackpackExists(backpackId, typeId, p.getUniqueId(), p.getName());
+        event.setCancelled(true);
+        plugin.repo().ensureBackpackExists(backpackId, typeId, player.getUniqueId(), player.getName());
 
         // Load backpack data early to check share validity
         var data = plugin.repo().loadOrCreate(backpackId, typeId);
@@ -101,27 +134,27 @@ public final class BackpackUseListener implements Listener {
         boolean locked;
         if (data != null && data.isShared()) {
             // Shared backpack: always allow takeover to ensure exclusive view
-            locked = plugin.sessions().tryLock(p, backpackId, true);
+            locked = plugin.sessions().tryLock(player, backpackId, true);
             if (locked && !data.isShareHost()) {
                 // We're a joiner taking over
-                p.sendMessage("You have taken over the shared backpack session.");
+                player.sendMessage("You have taken over the shared backpack session.");
             }
         } else {
             // Normal lock first
-            locked = plugin.sessions().tryLock(p, backpackId, false);
+            locked = plugin.sessions().tryLock(player, backpackId, false);
         }
 
         if (!locked) {
             String lockedTo = plugin.sessions().lockedToName(backpackId);
             if (lockedTo == null)
                 lockedTo = "someone else";
-            p.sendMessage("That backpack is currently open by " + lockedTo + ".");
+            player.sendMessage("That backpack is currently open by " + lockedTo + ".");
             return;
         }
 
-        if (renderer.openMenu(p, backpackId, typeId) == null) {
+        if (renderer.openMenu(player, backpackId, typeId) == null) {
             // If the GUI can't open (missing type config), don't leave a stale lock behind.
-            plugin.sessions().onRelatedInventoryClose(p, backpackId);
+            plugin.sessions().onRelatedInventoryClose(player, backpackId);
         }
     }
 }

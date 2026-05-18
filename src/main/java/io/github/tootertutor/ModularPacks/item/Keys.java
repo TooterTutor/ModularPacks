@@ -21,6 +21,9 @@ public final class Keys {
     public final NamespacedKey MODULE_PUMP_MODE; // string enum
     public final NamespacedKey MODULE_EXP_PUMP_MENDING; // byte 0/1
     public final NamespacedKey MODULE_EXP_PUMP_TARGET_LEVEL; // int
+    public final NamespacedKey WEARABLE_MODEL; // byte 1
+    public final NamespacedKey WEARABLE_MODEL_OWNER; // UUID string
+    public final NamespacedKey WEARABLE_MODEL_BACKPACK_ID; // UUID string
 
     public Keys(JavaPlugin plugin) {
         BACKPACK_ID = new NamespacedKey(plugin, "backpack_id");
@@ -39,6 +42,9 @@ public final class Keys {
         MODULE_PUMP_MODE = new NamespacedKey(plugin, "module_pump_mode");
         MODULE_EXP_PUMP_MENDING = new NamespacedKey(plugin, "module_exp_pump_mending");
         MODULE_EXP_PUMP_TARGET_LEVEL = new NamespacedKey(plugin, "module_exp_pump_target_level");
+        WEARABLE_MODEL = new NamespacedKey(plugin, "wearable_model");
+        WEARABLE_MODEL_OWNER = new NamespacedKey(plugin, "wearable_model_owner");
+        WEARABLE_MODEL_BACKPACK_ID = new NamespacedKey(plugin, "wearable_model_backpack_id");
 
     }
 

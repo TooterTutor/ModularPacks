@@ -2,6 +2,11 @@
 modularpacks:
   Enabled: true
 
+  # When enabled, ModularPacks will mount an invisible armor stand with the Backpack model on the player's back when
+  # they are wearing a backpack, allowing for a custom 3D model to be rendered in place of the player's chestplate.
+  # This may have a small performance impact, but allows for much greater visual customization of backpacks.
+  RenderModel: true
+
   UpdateChecker:
     Enabled: true
     # When true, logs the changelog of the new version in console and to those who have permission in chat when an update is found.
