@@ -49,14 +49,17 @@ public final class BackpackPlacementListener implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK)
             return;
 
-        if (event.getHand() != EquipmentSlot.HAND)
+        EquipmentSlot hand = event.getHand();
+        if (hand != EquipmentSlot.HAND && hand != EquipmentSlot.OFF_HAND)
             return;
 
         Player player = event.getPlayer();
         if (!player.isSneaking())
             return;
 
-        ItemStack item = player.getInventory().getItemInMainHand();
+        ItemStack item = hand == EquipmentSlot.OFF_HAND
+                ? player.getInventory().getItemInOffHand()
+                : player.getInventory().getItemInMainHand();
         if (ItemStacks.isAir(item))
             return;
 
@@ -67,6 +70,8 @@ public final class BackpackPlacementListener implements Listener {
         ItemMeta meta = item.getItemMeta();
         if (meta == null)
             return;
+
+        new BackpackItems(plugin).ensureWearableTag(item);
 
         Keys keys = plugin.keys();
         if (!meta.getPersistentDataContainer().has(keys.BACKPACK_ID, PersistentDataType.STRING))
@@ -195,7 +200,11 @@ public final class BackpackPlacementListener implements Listener {
         // Remove the item from player's hand
         if (player.getGameMode() != GameMode.CREATIVE) {
             item.setAmount(item.getAmount() - 1);
-            player.getInventory().setItemInMainHand(item);
+            if (hand == EquipmentSlot.OFF_HAND) {
+                player.getInventory().setItemInOffHand(item);
+            } else {
+                player.getInventory().setItemInMainHand(item);
+            }
         }
 
         // Already cancelled above to block vanilla fallback placement.
