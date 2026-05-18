@@ -6,6 +6,15 @@ modularpacks:
   # they are wearing a backpack, allowing for a custom 3D model to be rendered in place of the player's chestplate.
   # This may have a small performance impact, but allows for much greater visual customization of backpacks.
   RenderModel: true
+  # Criteria used to decide when the wearable backpack model should be hidden.
+  # Valid values:
+  # - NONE: Always render (unless other hard states disable rendering).
+  # - EXACT_PITCH: Hide when player pitch matches DisableRenderAtPitch (within ~0.5 degrees).
+  # - ABS_PITCH_AT_LEAST: Hide when absolute pitch is >= DisableRenderAtPitch.
+  RenderCriteria: NONE
+  # Minimum pitch angle (looking down) to render the backpack model.  This prevents the model from being visible
+  # when looking straight down.
+  DisableRenderBelowPitch: 37.5
 
   UpdateChecker:
     Enabled: true

@@ -44,6 +44,8 @@ public final class ConfigManager {
 
     // Model rendering
     private boolean renderModel = true;
+    private String renderCriteria = "NONE";
+    private float disableRenderAtPitch = 37.5F;
 
     // Curios integration
     private boolean curiosIntegrationEnabled = true;
@@ -105,6 +107,8 @@ public final class ConfigManager {
         resizeGui = cfg.getBoolean("modularpacks.ResizeGUI", false);
         debugClickLog = cfg.getBoolean("modularpacks.Debug.ClickLog", false);
         renderModel = cfg.getBoolean("modularpacks.RenderModel", true);
+        renderCriteria = cfg.getString("modularpacks.RenderCriteria", "NONE").trim().toUpperCase(Locale.ROOT);
+        disableRenderAtPitch = (float) cfg.getDouble("modularpacks.DisableRenderAtPitch", 90.0D);
 
         curiosIntegrationEnabled = cfg.getBoolean("modularpacks.CuriosIntegration.Enabled", true);
         curiosAutoAddSlots = cfg.getBoolean("modularpacks.CuriosIntegration.AutoAddCuriosSlots", true);
@@ -349,6 +353,14 @@ public final class ConfigManager {
 
     public boolean renderModel() {
         return renderModel;
+    }
+
+    public String renderCriteria() {
+        return renderCriteria;
+    }
+
+    public float disableRenderAtPitch() {
+        return disableRenderAtPitch;
     }
 
     public boolean curiosIntegrationEnabled() {
