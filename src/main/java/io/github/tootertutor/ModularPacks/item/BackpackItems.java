@@ -9,7 +9,6 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
-import io.github.tootertutor.ModularPacks.compat.CuriosItemTagger;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
@@ -49,7 +48,6 @@ public final class BackpackItems {
         meta.displayName(Text.c(type.displayName()));
         meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_ID, PersistentDataType.STRING, id.toString());
         meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_TYPE, PersistentDataType.STRING, type.id());
-        CuriosItemTagger.syncBackpackTags(plugin, meta);
 
         if (type.customModelData() > 0) {
             CustomModelDataUtil.setCustomModelData(meta, type.customModelData());
@@ -98,7 +96,6 @@ public final class BackpackItems {
         meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_ID, PersistentDataType.STRING,
                 backpackId.toString());
         meta.getPersistentDataContainer().set(plugin.keys().BACKPACK_TYPE, PersistentDataType.STRING, type.id());
-        CuriosItemTagger.syncBackpackTags(plugin, meta);
 
         if (type.customModelData() > 0) {
             CustomModelDataUtil.setCustomModelData(meta, type.customModelData());

@@ -2,8 +2,6 @@ name: ModularPacks
 version: "${version}"
 main: io.github.tootertutor.ModularPacks.ModularPacksPlugin
 api-version: "1.21"
-softdepend:
-  - CuriosPaper
 
 commands:
   backpack:

@@ -15,10 +15,6 @@ import io.github.tootertutor.ModularPacks.commands.sub.RecoverSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.RefreshSkullsSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.ReloadSubcommand;
 import io.github.tootertutor.ModularPacks.commands.sub.SetTypeSubcommand;
-import io.github.tootertutor.ModularPacks.compat.CuriosCompat;
-import io.github.tootertutor.ModularPacks.compat.listeners.CuriosBackpackOpenListener;
-import io.github.tootertutor.ModularPacks.compat.listeners.CuriosBackpackTagListener;
-import io.github.tootertutor.ModularPacks.compat.listeners.CuriosModuleBridgeService;
 import io.github.tootertutor.ModularPacks.config.ConfigManager;
 import io.github.tootertutor.ModularPacks.config.LangManager;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository;
@@ -66,10 +62,6 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private PlacedBackpackManager placedBackpacks;
     private BackpackMenuRenderer backpackMenuRenderer;
     private UpdateCheckerService updateCheckerService;
-    private CuriosCompat curiosCompat;
-    private CuriosBackpackTagListener curiosBackpackTagListener;
-    private CuriosBackpackOpenListener curiosBackpackOpenListener;
-    private CuriosModuleBridgeService curiosModuleBridgeService;
 
     @Override
     public void onEnable() {
@@ -85,8 +77,6 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.configManager = new ConfigManager(this);
         this.configManager.reload();
-
-        setupCuriosIntegration();
 
         this.updateCheckerService = new UpdateCheckerService(this);
         this.updateCheckerService.start();
@@ -180,11 +170,6 @@ public final class ModularPacksPlugin extends JavaPlugin {
         if (engines != null)
             engines.stop();
 
-        if (curiosModuleBridgeService != null) {
-            curiosModuleBridgeService.stop();
-            curiosModuleBridgeService = null;
-        }
-
         if (placedBackpacks != null)
             placedBackpacks.shutdown();
 
@@ -237,7 +222,6 @@ public final class ModularPacksPlugin extends JavaPlugin {
     public void reloadAll() {
         cfg().reload();
         lang().reload();
-        setupCuriosIntegration();
         if (recipes != null)
             recipes.reload();
 
@@ -263,45 +247,4 @@ public final class ModularPacksPlugin extends JavaPlugin {
         updateCheckerService.start();
     }
 
-    private void setupCuriosIntegration() {
-        if (curiosCompat == null) {
-            curiosCompat = new CuriosCompat(this);
-        }
-
-        if (!cfg().curiosIntegrationEnabled()) {
-            if (curiosBackpackTagListener != null) {
-                HandlerList.unregisterAll(curiosBackpackTagListener);
-                curiosBackpackTagListener = null;
-            }
-            if (curiosBackpackOpenListener != null) {
-                HandlerList.unregisterAll(curiosBackpackOpenListener);
-                curiosBackpackOpenListener = null;
-            }
-            if (curiosModuleBridgeService != null) {
-                curiosModuleBridgeService.stop();
-                curiosModuleBridgeService = null;
-            }
-            getLogger().info("Curios integration disabled by config.");
-            return;
-        }
-
-        curiosCompat.initialize();
-        if (cfg().curiosAutoAddSlots()) {
-            curiosCompat.registerBackpackTypes(cfg().getTypes());
-        }
-
-        if (curiosBackpackTagListener == null) {
-            curiosBackpackTagListener = new CuriosBackpackTagListener(this);
-            Bukkit.getPluginManager().registerEvents(curiosBackpackTagListener, this);
-        }
-        if (curiosBackpackOpenListener == null) {
-            curiosBackpackOpenListener = new CuriosBackpackOpenListener(this, curiosCompat);
-            Bukkit.getPluginManager().registerEvents(curiosBackpackOpenListener, this);
-        }
-
-        if (curiosModuleBridgeService == null) {
-            curiosModuleBridgeService = new CuriosModuleBridgeService(this, curiosCompat);
-        }
-        curiosModuleBridgeService.start();
-    }
 }
