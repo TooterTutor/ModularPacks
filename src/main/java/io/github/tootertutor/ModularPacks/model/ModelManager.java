@@ -48,7 +48,6 @@ import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public class ModelManager implements Listener {
     private static final byte TAGGED_MODEL = (byte) 1;
-    private static final String WEARABLE_MODEL_TAG = "modularpacks:wearable_model";
     private static final long MAINTENANCE_PERIOD_TICKS = 20L;
     private static final float ROTATION_THRESHOLD = 1.5f;
 
@@ -76,11 +75,6 @@ public class ModelManager implements Listener {
             return;
         }
 
-        if (!shouldRender(player)) {
-            removeModel(player.getUniqueId());
-            return;
-        }
-
         ItemStack sourceBackpack = resolveVisibleBackpack(player);
         if (ItemStacks.isAir(sourceBackpack)) {
             removeModel(player.getUniqueId());
@@ -93,7 +87,7 @@ public class ModelManager implements Listener {
             return;
         }
 
-        applyVisualState(player, stand);
+        applyVisualState(player, stand, sourceBackpack, shouldRender(player));
     }
 
     public void shutdown() {
@@ -305,7 +299,33 @@ public class ModelManager implements Listener {
     }
 
     private boolean shouldRender(Player player) {
-        return player.isOnline() && !player.isDead() && player.getGameMode() != GameMode.SPECTATOR;
+        if (!player.isOnline() || player.isDead() || player.getGameMode() == GameMode.SPECTATOR)
+            return false;
+
+        String criteria = plugin.cfg().renderCriteria();
+        if (criteria == null)
+            return true;
+
+        float pitch = player.getLocation().getPitch();
+        float configuredPitchMin = plugin.cfg().disablePitchMin();
+        float configuredPitchMax = plugin.cfg().disablePitchMax();
+        return switch (criteria) {
+            case "EXACT_PITCH" -> Math.abs(pitch - configuredPitchMin) > 0.5F;
+            case "PITCH" -> {
+                float min = Math.min(configuredPitchMin, configuredPitchMax);
+                float max = Math.max(configuredPitchMin, configuredPitchMax);
+
+                // - Negative-side bound defines an upward hide limit (pitch < -upLimit)
+                // - Positive-side bound defines a downward hide limit (pitch > downLimit)
+                Float upLimit = min < 0.0F ? Math.abs(min) : null;
+                Float downLimit = max > 0.0F ? max : null;
+
+                boolean hideByUpPitch = upLimit != null && pitch < -upLimit;
+                boolean hideByDownPitch = downLimit != null && pitch > downLimit;
+                yield !(hideByUpPitch || hideByDownPitch);
+            }
+            default -> true;
+        };
     }
 
     private ItemStack resolveVisibleBackpack(Player player) {
@@ -325,16 +345,6 @@ public class ModelManager implements Listener {
 
         if (stand == null)
             return null;
-
-        ItemStack wearableItem = backpackItems.createWearableModel(sourceBackpack);
-        if (ItemStacks.isAir(wearableItem)) {
-            removeModel(player.getUniqueId());
-            return null;
-        }
-
-        if (stand.getEquipment() != null) {
-            stand.getEquipment().setHelmet(wearableItem);
-        }
 
         if (!player.getPassengers().contains(stand)) {
             player.addPassenger(stand);
@@ -369,7 +379,7 @@ public class ModelManager implements Listener {
         return stand;
     }
 
-    private void applyVisualState(Player player, ArmorStand stand) {
+    private void applyVisualState(Player player, ArmorStand stand, ItemStack sourceBackpack, boolean visible) {
         Location playerLocation = player.getLocation();
 
         if (stand.getVehicle() != player) {
@@ -387,6 +397,32 @@ public class ModelManager implements Listener {
         stand.setHeadPose(resolveHeadPose(player));
         if (!player.getPassengers().contains(stand)) {
             player.addPassenger(stand);
+        }
+
+        syncHelmetVisibility(stand, sourceBackpack, visible);
+    }
+
+    private void syncHelmetVisibility(ArmorStand stand, ItemStack sourceBackpack, boolean visible) {
+        if (stand.getEquipment() == null) {
+            return;
+        }
+
+        ItemStack current = stand.getEquipment().getHelmet();
+        if (!visible) {
+            if (!ItemStacks.isAir(current)) {
+                stand.getEquipment().setHelmet(null);
+            }
+            return;
+        }
+
+        ItemStack wearableItem = backpackItems.createWearableModel(sourceBackpack);
+        if (ItemStacks.isAir(wearableItem)) {
+            stand.getEquipment().setHelmet(null);
+            return;
+        }
+
+        if (ItemStacks.isAir(current) || !wearableItem.isSimilar(current)) {
+            stand.getEquipment().setHelmet(wearableItem);
         }
     }
 
@@ -458,10 +494,6 @@ public class ModelManager implements Listener {
         } else {
             pdc.remove(keys.WEARABLE_MODEL_BACKPACK_ID);
         }
-
-        if (!stand.getScoreboardTags().contains(WEARABLE_MODEL_TAG)) {
-            stand.addScoreboardTag(WEARABLE_MODEL_TAG);
-        }
     }
 
     private String readBackpackId(ItemStack item) {
@@ -476,7 +508,7 @@ public class ModelManager implements Listener {
     private void cleanupTaggedArmorStands() {
         for (org.bukkit.World world : Bukkit.getWorlds()) {
             for (ArmorStand stand : world.getEntitiesByClass(ArmorStand.class)) {
-                if (isWearableModel(stand) || stand.getScoreboardTags().contains(WEARABLE_MODEL_TAG)) {
+                if (isWearableModel(stand)) {
                     stand.remove();
                 }
             }
