@@ -1,5 +1,6 @@
 package io.github.tootertutor.ModularPacks.config;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -17,6 +18,7 @@ import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
@@ -45,7 +47,8 @@ public final class ConfigManager {
     // Model rendering
     private boolean renderModel = true;
     private String renderCriteria = "NONE";
-    private float disableRenderAtPitch = 37.5F;
+    private float disablePitchMin = 22.5F;
+    private float disablePitchMax = -50.0F;
 
     // Curios integration
     private boolean curiosIntegrationEnabled = true;
@@ -100,6 +103,8 @@ public final class ConfigManager {
     public void reload() {
         plugin.reloadConfig();
         FileConfiguration cfg = plugin.getConfig();
+        YamlConfiguration backpacksCfg = loadDataFolderYaml("backpacks.yml");
+        YamlConfiguration modulesCfg = loadDataFolderYaml("modules.yml");
 
         this.types.clear();
         this.upgrades.clear();
@@ -108,7 +113,11 @@ public final class ConfigManager {
         debugClickLog = cfg.getBoolean("modularpacks.Debug.ClickLog", false);
         renderModel = cfg.getBoolean("modularpacks.RenderModel", true);
         renderCriteria = cfg.getString("modularpacks.RenderCriteria", "NONE").trim().toUpperCase(Locale.ROOT);
-        disableRenderAtPitch = (float) cfg.getDouble("modularpacks.DisableRenderAtPitch", 90.0D);
+        double minPitch = cfg.getDouble("modularpacks.DisablePitchMin",
+                cfg.getDouble("modularpacks.DisablePitchMin", 22.5D));
+        double maxPitch = cfg.getDouble("modularpacks.DisablePitchMax", -50.0D);
+        disablePitchMin = (float) minPitch;
+        disablePitchMax = (float) maxPitch;
 
         curiosIntegrationEnabled = cfg.getBoolean("modularpacks.CuriosIntegration.Enabled", true);
         curiosAutoAddSlots = cfg.getBoolean("modularpacks.CuriosIntegration.AutoAddCuriosSlots", true);
@@ -181,7 +190,7 @@ public final class ConfigManager {
         guiItemKey = new NamespacedKey(plugin, "gui-item");
 
         // Backpack types
-        ConfigurationSection typesSec = cfg.getConfigurationSection("BackpackTypes");
+        ConfigurationSection typesSec = backpacksCfg.getConfigurationSection("BackpackTypes");
         if (typesSec != null) {
             for (String key : typesSec.getKeys(false)) {
                 ConfigurationSection s = typesSec.getConfigurationSection(key);
@@ -212,7 +221,7 @@ public final class ConfigManager {
         }
 
         // Upgrades/modules
-        ConfigurationSection upSec = cfg.getConfigurationSection("Upgrades");
+        ConfigurationSection upSec = modulesCfg.getConfigurationSection("Upgrades");
         if (upSec != null) {
             for (String id : upSec.getKeys(false)) {
                 ConfigurationSection s = upSec.getConfigurationSection(id);
@@ -359,8 +368,12 @@ public final class ConfigManager {
         return renderCriteria;
     }
 
-    public float disableRenderAtPitch() {
-        return disableRenderAtPitch;
+    public float disablePitchMin() {
+        return disablePitchMin;
+    }
+
+    public float disablePitchMax() {
+        return disablePitchMax;
     }
 
     public boolean curiosIntegrationEnabled() {
@@ -762,6 +775,22 @@ public final class ConfigManager {
 
     public int getMaxSharedUsers() {
         return maxSharedUsers;
+    }
+
+    /**
+     * Loads a YAML file from the plugin's data folder, saving the bundled default
+     * if the file does not yet exist on disk.
+     *
+     * @param resourceName file name relative to the data folder (e.g.
+     *                     "backpacks.yml")
+     * @return loaded {@link YamlConfiguration}; never {@code null}
+     */
+    private YamlConfiguration loadDataFolderYaml(String resourceName) {
+        File file = new File(plugin.getDataFolder(), resourceName);
+        if (!file.exists()) {
+            plugin.saveResource(resourceName, false);
+        }
+        return YamlConfiguration.loadConfiguration(file);
     }
 
     private static String resolveUpdateCheckerRoot(FileConfiguration cfg) {

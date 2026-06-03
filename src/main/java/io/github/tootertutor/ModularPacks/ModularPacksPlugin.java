@@ -69,6 +69,8 @@ public final class ModularPacksPlugin extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
         saveResource("lang/en_us.yml", false);
+        saveResource("backpacks.yml", false);
+        saveResource("modules.yml", false);
 
         // Initialize the public API
         ModularPacksAPI.initialize(this);
