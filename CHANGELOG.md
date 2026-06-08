@@ -3,6 +3,35 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.6
+
+**Release Date:** 2026-06-07
+
+## Changes since 2.5.5
+
+### Features & Improvements
+- Added recursive checks and blocking for blacklisted items within shulker boxes and bundles (ef8fd7d)
+- Added support for 26.1.2 (a2c18de)
+- Added criteria for Model Rendering in config (f342bd9)
+
+### Refactoring & Code Quality
+- Modularized configs into three files. (7a5010d)
+- Renamed `CraftingTemplate` to `ModuleTemplate` to alleviate confusion (6874b74)
+- Removed `LockedUpgradeSlotMaterial` since it was unused (246cda3)
+
+### All Commits
+- Added recursive checks and blocking for blacklisted items within shulker boxes and bundles (ef8fd7d)
+- Renamed `CraftingTemplate` to `ModuleTemplate` to alleviate confusion (6874b74)
+- Removed `LockedUpgradeSlotMaterial` since it was unused (246cda3)
+- Minor update to Readme (4538ac0)
+- Modularized configs into three files. (7a5010d)
+- Updated ModelManager (41d6762)
+- Updated configs (5ff1a35)
+- Added support for 26.1.2 (a2c18de)
+- Added criteria for Model Rendering in config (f342bd9)
+---
+
+
 # ModularPacks 2.5.5
 
 **Release Date:** 2026-05-17
