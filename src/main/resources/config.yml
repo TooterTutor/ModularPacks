@@ -63,8 +63,7 @@ modularpacks:
   # GUI Materials
   NavPageButtons: ARROW
   NavBorderFiller: GRAY_STAINED_GLASS_PANE
-  UnlockedUpgradeSlotMaterial: WHITE_STAINED_GLASS_PANE
-  LockedUpgradeSlotMaterial: IRON_BARS
+  ModuleSlotMaterial: WHITE_STAINED_GLASS_PANE
 
   # Placeable Backpacks
   # Whether backpacks can be placed as blocks in the world by shift-right-clicking.
