@@ -40,10 +40,10 @@ public final class UpgradeItems {
 
         // PDC: make it portable + unambiguous (no name-matching hacks)
         //
-        // CraftingTemplate is intentionally stackable (it's a crafting ingredient, not
+        // ModuleTemplate is intentionally stackable (it's a crafting ingredient, not
         // an installable module),
         // so it does NOT get a unique MODULE_ID.
-        if (!"CraftingTemplate".equalsIgnoreCase(upgradeId)) {
+        if (!"ModuleTemplate".equalsIgnoreCase(upgradeId)) {
             UUID moduleId = UUID.randomUUID();
             meta.getPersistentDataContainer().set(plugin.keys().MODULE_ID, PersistentDataType.STRING,
                     moduleId.toString());

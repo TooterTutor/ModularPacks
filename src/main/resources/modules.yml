@@ -4,7 +4,7 @@
 
 Upgrades:
   # Utility upgrades provide various useful features to backpacks.
-  CraftingTemplate:
+  ModuleTemplate:
     Enabled: true
     Toggleable: false
     CraftingRecipe:
@@ -37,7 +37,7 @@ Upgrades:
         - " N "
       Ingredients:
         N: NETHER_STAR
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
       OutputMaterial: NETHER_STAR
       Glint: true
     DisplayName: "&bEverlasting Upgrade"
@@ -63,7 +63,7 @@ Upgrades:
         L: LAPIS_LAZULI
         R: REDSTONE
         I: IRON_INGOT
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
       OutputMaterial: LEVER
       Glint: true
     DisplayName: "&aMagnet Upgrade"
@@ -86,7 +86,7 @@ Upgrades:
         - " B "
       Ingredients:
         W: WATER_BUCKET
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         L: LAVA_BUCKET
         B: BUCKET
       OutputMaterial: BUCKET
@@ -112,7 +112,7 @@ Upgrades:
       Ingredients:
         E: EXPERIENCE_BOTTLE
         W: WATER_BUCKET
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         L: LAVA_BUCKET
         B: BUCKET
       OutputMaterial: BUCKET
@@ -147,7 +147,7 @@ Upgrades:
       Ingredients:
         I: GOLD_INGOT
         A: GOLDEN_APPLE
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         C: GOLDEN_CARROT
         G: GLISTERING_MELON_SLICE
       OutputMaterial: GOLDEN_CARROT
@@ -172,7 +172,7 @@ Upgrades:
       Ingredients:
         R: REDSTONE
         O: OBSIDIAN
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         E: ENDER_PEARL
       OutputMaterial: ENDER_EYE
       Glint: true
@@ -198,7 +198,7 @@ Upgrades:
       Ingredients:
         L: LEATHER
         B: CRAFTING_TABLE
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         C: CHEST
       OutputMaterial: CRAFTING_TABLE
       Glint: true
@@ -220,7 +220,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         L: LEATHER
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         F: FURNACE
       OutputMaterial: FURNACE
       Glint: true
@@ -242,7 +242,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         L: LEATHER
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         F: BLAST_FURNACE
       OutputMaterial: BLAST_FURNACE
       Glint: true
@@ -264,7 +264,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         L: LEATHER
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         S: SMOKER
       OutputMaterial: SMOKER
       Glint: true
@@ -286,7 +286,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         B: BRICKS
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         S: STONECUTTER
       OutputMaterial: STONECUTTER
       Glint: true
@@ -308,7 +308,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         I: IRON_BLOCK
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         A: ANVIL
       OutputMaterial: ANVIL
       Glint: true
@@ -330,7 +330,7 @@ Upgrades:
       Ingredients:
         C: CRAFTING_TABLE
         P: PAPER
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         S: SMITHING_TABLE
       OutputMaterial: SMITHING_TABLE
       Glint: true
@@ -361,7 +361,7 @@ Upgrades:
       Ingredients:
         D: DROPPER
         P: OAK_PLANKS
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         J: JUKEBOX
       OutputMaterial: JUKEBOX
       Glint: true
@@ -388,7 +388,7 @@ Upgrades:
       Ingredients:
         E: EMERALD
         R: REDSTONE
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
       OutputMaterial: EMERALD
       Glint: true
     DisplayName: "&aRestock Upgrade"
@@ -438,7 +438,7 @@ Upgrades:
       Ingredients:
         E: EXPERIENCE_BOTTLE
         B: GLASS_BOTTLE
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
       OutputMaterial: EXPERIENCE_BOTTLE
       Glint: true
     DisplayName: "&aExperience Tank Upgrade"
@@ -465,7 +465,7 @@ Upgrades:
       Ingredients:
         C: COPPER_INGOT
         P: PISTON
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         R: REDSTONE
       OutputMaterial: PISTON
       Glint: true
@@ -500,7 +500,7 @@ Upgrades:
       Ingredients:
         E: EXPERIENCE_BOTTLE
         P: PISTON
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
         R: REDSTONE
       OutputMaterial: EXPERIENCE_BOTTLE
       Glint: true
