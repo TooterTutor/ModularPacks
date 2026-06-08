@@ -414,7 +414,7 @@ public final class ModuleSocketHandler {
 
         JukeboxMode current = JukeboxMode.fromString(
                 pdc.get(keys.MODULE_JUKEBOX_MODE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Jukebox.Mode", "RepeatAll"));
+                plugin.cfg().getString("Upgrades.Jukebox.Mode", "RepeatAll"));
         JukeboxMode next = current.next();
 
         pdc.set(keys.MODULE_JUKEBOX_MODE, PersistentDataType.STRING, next.name());
@@ -435,10 +435,10 @@ public final class ModuleSocketHandler {
 
         FeedingSelectionMode mode = FeedingSelectionMode.fromString(
                 pdc.get(keys.MODULE_FEEDING_SELECTION_MODE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Feeding.SelectionMode", "BestCandidate"));
+                plugin.cfg().getString("Upgrades.Feeding.SelectionMode", "BestCandidate"));
         FeedingPreference pref = FeedingPreference.fromString(
                 pdc.get(keys.MODULE_FEEDING_PREFERENCE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.Feeding.Preference", "Nutrition"));
+                plugin.cfg().getString("Upgrades.Feeding.Preference", "Nutrition"));
 
         FeedingSettings next = FeedingSettings.next(mode, pref);
 
@@ -462,7 +462,7 @@ public final class ModuleSocketHandler {
 
         String defaultMode = "DEPOSIT";
         if (moduleType != null) {
-            defaultMode = plugin.getConfig().getString("Upgrades." + moduleType + ".Mode", "Deposit");
+            defaultMode = plugin.cfg().getString("Upgrades." + moduleType + ".Mode", "Deposit");
         }
 
         PumpMode current = PumpMode.fromString(
@@ -486,7 +486,7 @@ public final class ModuleSocketHandler {
         Keys keys = plugin.keys();
         var pdc = meta.getPersistentDataContainer();
 
-        boolean fallback = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        boolean fallback = plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
         Byte stored = pdc.get(keys.MODULE_EXP_PUMP_MENDING, PersistentDataType.BYTE);
         boolean current = stored == null ? fallback : stored == 1;
         boolean next = !current;

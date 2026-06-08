@@ -122,7 +122,7 @@ public final class RecipeSubcommand extends AbstractSubcommand {
             var type = plugin.cfg().findType(ctx.arg(1));
             if (type == null)
                 return List.of();
-            ConfigurationSection typeSec = plugin.getConfig().getConfigurationSection("BackpackTypes." + type.id());
+            ConfigurationSection typeSec = plugin.cfg().getConfigurationSection("BackpackTypes." + type.id());
             List<RecipeVariant> variants = readRecipeVariants(typeSec);
             String prefix = safeLower(ctx.arg(2));
             return variants.stream()
@@ -142,7 +142,7 @@ public final class RecipeSubcommand extends AbstractSubcommand {
             return;
         }
 
-        ConfigurationSection upgradeSec = plugin.getConfig().getConfigurationSection("Upgrades." + def.id());
+        ConfigurationSection upgradeSec = plugin.cfg().getConfigurationSection("Upgrades." + def.id());
         if (upgradeSec == null) {
             upgradeSec = findExternalModuleSection(def.id());
         }
@@ -192,7 +192,7 @@ public final class RecipeSubcommand extends AbstractSubcommand {
             return;
         }
 
-        ConfigurationSection typeSec = plugin.getConfig().getConfigurationSection("BackpackTypes." + type.id());
+        ConfigurationSection typeSec = plugin.cfg().getConfigurationSection("BackpackTypes." + type.id());
         if (typeSec == null) {
             player.sendMessage(Text.c("&cMissing config section: BackpackTypes." + type.id()));
             return;

@@ -198,7 +198,7 @@ public final class PumpSettingsListener implements Listener {
         Keys keys = plugin.keys();
         var pdc = meta.getPersistentDataContainer();
 
-        boolean fallback = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        boolean fallback = plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
         Byte stored = pdc.get(keys.MODULE_EXP_PUMP_MENDING, PersistentDataType.BYTE);
         boolean current = stored == null ? fallback : stored == 1;
         boolean next = !current;
@@ -221,7 +221,7 @@ public final class PumpSettingsListener implements Listener {
 
         ExpPumpMode current = ExpPumpMode.fromString(
                 pdc.get(keys.MODULE_PUMP_MODE, PersistentDataType.STRING),
-                plugin.getConfig().getString("Upgrades.ExpPump.Mode", "Deposit"));
+                plugin.cfg().getString("Upgrades.ExpPump.Mode", "Deposit"));
         ExpPumpMode next = isPreviousClick(clickType) ? current.previous() : current.next();
         if (current == next)
             return false;
@@ -271,7 +271,7 @@ public final class PumpSettingsListener implements Listener {
     }
 
     private String resolvePumpMode(ItemStack moduleItem, String moduleType) {
-        String fallback = plugin.getConfig().getString("Upgrades." + moduleType + ".Mode", "Deposit");
+        String fallback = plugin.cfg().getString("Upgrades." + moduleType + ".Mode", "Deposit");
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return normalizePumpMode(fallback, isExpPump(moduleType));
 
@@ -284,7 +284,7 @@ public final class PumpSettingsListener implements Listener {
     }
 
     private boolean isExpPumpMendingEnabled(ItemStack moduleItem) {
-        boolean fallback = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        boolean fallback = plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return fallback;
         ItemMeta meta = moduleItem.getItemMeta();
@@ -387,7 +387,7 @@ public final class PumpSettingsListener implements Listener {
     }
 
     private int resolveExpPumpTargetLevel(ItemStack moduleItem) {
-        int fallback = plugin.getConfig().getInt("Upgrades.ExpPump.TargetLevel", 30);
+        int fallback = plugin.cfg().getInt("Upgrades.ExpPump.TargetLevel", 30);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return clampExpPumpTargetLevel(fallback);
 

@@ -522,10 +522,10 @@ public final class Placeholders {
         String rawPref = pdc.get(keys.MODULE_FEEDING_PREFERENCE, PersistentDataType.STRING);
 
         if (rawMode == null || rawMode.isBlank()) {
-            rawMode = plugin.getConfig().getString("Upgrades.Feeding.SelectionMode", "BestCandidate");
+            rawMode = plugin.cfg().getString("Upgrades.Feeding.SelectionMode", "BestCandidate");
         }
         if (rawPref == null || rawPref.isBlank()) {
-            rawPref = plugin.getConfig().getString("Upgrades.Feeding.Preference", "Nutrition");
+            rawPref = plugin.cfg().getString("Upgrades.Feeding.Preference", "Nutrition");
         }
 
         String mode = rawMode.trim().toUpperCase(java.util.Locale.ROOT);
@@ -553,7 +553,7 @@ public final class Placeholders {
 
         String fallback = "Deposit";
         if (upgradeId != null) {
-            fallback = plugin.getConfig().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
+            fallback = plugin.cfg().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
         }
 
         String raw = null;
@@ -568,7 +568,7 @@ public final class Placeholders {
         String normalized = source.trim().toUpperCase(java.util.Locale.ROOT);
         if (upgradeId != null && upgradeId.equalsIgnoreCase("ExpPump")
                 && (normalized.contains("KEEP") || normalized.contains("LEVEL"))) {
-            int targetLevel = plugin.getConfig().getInt("Upgrades.ExpPump.TargetLevel", 30);
+            int targetLevel = plugin.cfg().getInt("Upgrades.ExpPump.TargetLevel", 30);
             if (moduleItem != null && moduleItem.hasItemMeta()) {
                 ItemMeta meta = moduleItem.getItemMeta();
                 if (meta != null) {
@@ -594,7 +594,7 @@ public final class Placeholders {
         if (plugin == null)
             return "";
 
-        boolean enabled = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        boolean enabled = plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
         if (moduleItem != null && moduleItem.hasItemMeta()) {
             ItemMeta meta = moduleItem.getItemMeta();
             if (meta != null) {
@@ -616,7 +616,7 @@ public final class Placeholders {
         if (plugin == null)
             return 30;
 
-        int targetLevel = plugin.getConfig().getInt("Upgrades.ExpPump.TargetLevel", 30);
+        int targetLevel = plugin.cfg().getInt("Upgrades.ExpPump.TargetLevel", 30);
         if (moduleItem != null && moduleItem.hasItemMeta()) {
             ItemMeta meta = moduleItem.getItemMeta();
             if (meta != null) {
@@ -637,7 +637,7 @@ public final class Placeholders {
 
         int fallback = 16;
         if (def != null && def.id() != null) {
-            fallback = plugin.getConfig().getInt("Upgrades." + def.id() + ".RestockThreshold", fallback);
+            fallback = plugin.cfg().getInt("Upgrades." + def.id() + ".RestockThreshold", fallback);
         }
         fallback = Math.max(1, Math.min(64, fallback));
 
@@ -695,7 +695,7 @@ public final class Placeholders {
         if (overrides == null)
             return;
 
-        var sec = plugin.getConfig().getConfigurationSection("Upgrades." + def.id());
+        var sec = plugin.cfg().getConfigurationSection("Upgrades." + def.id());
         if (sec == null)
             return;
 

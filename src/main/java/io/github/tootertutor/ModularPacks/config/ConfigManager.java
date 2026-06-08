@@ -29,6 +29,9 @@ import io.github.tootertutor.ModularPacks.util.ItemStacks;
 public final class ConfigManager {
 
     private final ModularPacksPlugin plugin;
+    private FileConfiguration configYaml;
+    private YamlConfiguration backpacksYaml;
+    private YamlConfiguration modulesYaml;
 
     // GUI nav materials (from config.yml)
     private boolean resizeGui = false;
@@ -106,6 +109,10 @@ public final class ConfigManager {
         YamlConfiguration backpacksCfg = loadDataFolderYaml("backpacks.yml");
         YamlConfiguration modulesCfg = loadDataFolderYaml("modules.yml");
 
+        this.configYaml = cfg;
+        this.backpacksYaml = backpacksCfg;
+        this.modulesYaml = modulesCfg;
+
         this.types.clear();
         this.upgrades.clear();
 
@@ -153,11 +160,8 @@ public final class ConfigManager {
                 Material.GRAY_STAINED_GLASS_PANE);
 
         unlockedUpgradeSlotMaterial = mat(
-                cfg.getString("modularpacks.UnlockedUpgradeSlotMaterial", "WHITE_STAINED_GLASS_PANE"),
+                cfg.getString("modularpacks.ModuleSlotMaterial", "WHITE_STAINED_GLASS_PANE"),
                 Material.WHITE_STAINED_GLASS_PANE);
-        lockedUpgradeSlotMaterial = mat(
-                cfg.getString("modularpacks.LockedUpgradeSlotMaterial", "IRON_BARS"),
-                Material.IRON_BARS);
 
         // Global insert blacklist (Magnet respects this; other insertion paths may as
         // well)
@@ -775,6 +779,89 @@ public final class ConfigManager {
 
     public int getMaxSharedUsers() {
         return maxSharedUsers;
+    }
+
+    /**
+     * Resolve a section across config.yml, backpacks.yml, and modules.yml.
+     */
+    public ConfigurationSection getConfigurationSection(String path) {
+        if (path == null || path.isBlank())
+            return null;
+        for (ConfigurationSection source : orderedSourcesForPath(path)) {
+            ConfigurationSection sec = source.getConfigurationSection(path);
+            if (sec != null)
+                return sec;
+        }
+        return null;
+    }
+
+    /**
+     * Resolve a string across config.yml, backpacks.yml, and modules.yml.
+     */
+    public String getString(String path, String fallback) {
+        if (path == null || path.isBlank())
+            return fallback;
+        for (ConfigurationSection source : orderedSourcesForPath(path)) {
+            if (source.isSet(path))
+                return source.getString(path, fallback);
+        }
+        return fallback;
+    }
+
+    /**
+     * Resolve an int across config.yml, backpacks.yml, and modules.yml.
+     */
+    public int getInt(String path, int fallback) {
+        if (path == null || path.isBlank())
+            return fallback;
+        for (ConfigurationSection source : orderedSourcesForPath(path)) {
+            if (source.isSet(path))
+                return source.getInt(path, fallback);
+        }
+        return fallback;
+    }
+
+    /**
+     * Resolve a boolean across config.yml, backpacks.yml, and modules.yml.
+     */
+    public boolean getBoolean(String path, boolean fallback) {
+        if (path == null || path.isBlank())
+            return fallback;
+        for (ConfigurationSection source : orderedSourcesForPath(path)) {
+            if (source.isSet(path))
+                return source.getBoolean(path, fallback);
+        }
+        return fallback;
+    }
+
+    /**
+     * Resolve a double across config.yml, backpacks.yml, and modules.yml.
+     */
+    public double getDouble(String path, double fallback) {
+        if (path == null || path.isBlank())
+            return fallback;
+        for (ConfigurationSection source : orderedSourcesForPath(path)) {
+            if (source.isSet(path))
+                return source.getDouble(path, fallback);
+        }
+        return fallback;
+    }
+
+    private List<ConfigurationSection> orderedSourcesForPath(String path) {
+        boolean upgradesPath = path.equals("Upgrades") || path.startsWith("Upgrades.");
+        boolean backpackTypesPath = path.equals("BackpackTypes") || path.startsWith("BackpackTypes.");
+
+        ConfigurationSection cfg = configYaml != null ? configYaml : plugin.getConfig();
+        ConfigurationSection backpacks = backpacksYaml != null ? backpacksYaml : loadDataFolderYaml("backpacks.yml");
+        ConfigurationSection modules = modulesYaml != null ? modulesYaml : loadDataFolderYaml("modules.yml");
+
+        if (upgradesPath) {
+            return List.of(modules, cfg, backpacks);
+        }
+        if (backpackTypesPath) {
+            return List.of(backpacks, cfg, modules);
+        }
+        return List.of(cfg, backpacks, modules);
     }
 
     /**

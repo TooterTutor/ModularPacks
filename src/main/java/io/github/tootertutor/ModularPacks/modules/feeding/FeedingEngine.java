@@ -44,14 +44,14 @@ public final class FeedingEngine {
         if (player == null || contents == null)
             return false;
 
-        int minFood = Math.max(0, Math.min(20, plugin.getConfig().getInt("Upgrades.Feeding.MinFoodLevel", 18)));
+        int minFood = Math.max(0, Math.min(20, plugin.cfg().getInt("Upgrades.Feeding.MinFoodLevel", 18)));
         int foodLevel = player.getFoodLevel();
         if (foodLevel >= minFood)
             return false;
 
         int now = Bukkit.getCurrentTick();
         int lastFed = lastFedTickByPlayer.getOrDefault(player.getUniqueId(), -99999);
-        int cooldown = Math.max(0, plugin.getConfig().getInt("Upgrades.Feeding.CooldownTicks", 20));
+        int cooldown = Math.max(0, plugin.cfg().getInt("Upgrades.Feeding.CooldownTicks", 20));
         if (now - lastFed < cooldown)
             return false;
 
@@ -134,7 +134,7 @@ public final class FeedingEngine {
         if (ItemStacks.isAir(it))
             return false;
 
-        boolean debug = plugin.getConfig().getBoolean("Upgrades.Feeding.Debug", false);
+        boolean debug = plugin.cfg().getBoolean("Upgrades.Feeding.Debug", false);
         float beforeSat = player.getSaturation();
 
         // Consume one item
@@ -240,9 +240,9 @@ public final class FeedingEngine {
 
     private FeedingSettings readFeedingSettings(ItemStack moduleSnapshot) {
         FeedingSelectionMode defaultMode = FeedingSelectionMode
-                .parse(plugin.getConfig().getString("Upgrades.Feeding.SelectionMode", "BestCandidate"));
+                .parse(plugin.cfg().getString("Upgrades.Feeding.SelectionMode", "BestCandidate"));
         FeedingPreference defaultPref = FeedingPreference
-                .parse(plugin.getConfig().getString("Upgrades.Feeding.Preference", "Nutrition"));
+                .parse(plugin.cfg().getString("Upgrades.Feeding.Preference", "Nutrition"));
 
         if (moduleSnapshot == null || !moduleSnapshot.hasItemMeta()) {
             return new FeedingSettings(defaultMode, defaultPref);

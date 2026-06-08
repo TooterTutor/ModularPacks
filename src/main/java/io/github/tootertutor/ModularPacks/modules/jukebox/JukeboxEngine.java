@@ -91,8 +91,8 @@ public final class JukeboxEngine {
 
         JukeboxMode mode = readJukeboxMode(moduleSnapshot);
 
-        float volume = (float) plugin.getConfig().getDouble("Upgrades.Jukebox.Volume", 1.0);
-        float pitch = (float) plugin.getConfig().getDouble("Upgrades.Jukebox.Pitch", 1.0);
+        float volume = (float) plugin.cfg().getDouble("Upgrades.Jukebox.Volume", 1.0);
+        float pitch = (float) plugin.cfg().getDouble("Upgrades.Jukebox.Pitch", 1.0);
 
         int now = Bukkit.getCurrentTick();
         if (current == null) {
@@ -255,7 +255,7 @@ public final class JukeboxEngine {
             return JukeboxMode.REPEAT_ALL;
         String raw = meta.getPersistentDataContainer().get(plugin.keys().MODULE_JUKEBOX_MODE,
                 PersistentDataType.STRING);
-        String fallback = plugin.getConfig().getString("Upgrades.Jukebox.Mode", "RepeatAll");
+        String fallback = plugin.cfg().getString("Upgrades.Jukebox.Mode", "RepeatAll");
         return JukeboxMode.fromString(raw, fallback);
     }
 
@@ -335,7 +335,7 @@ public final class JukeboxEngine {
         if (emitter == null || sound == null)
             return java.util.Collections.emptySet();
 
-        double hearRadius = Math.max(0.0, plugin.getConfig().getDouble("Upgrades.Jukebox.HearRadius", 32.0));
+        double hearRadius = Math.max(0.0, plugin.cfg().getDouble("Upgrades.Jukebox.HearRadius", 32.0));
         double hearRadiusSq = hearRadius * hearRadius;
 
         java.util.HashSet<UUID> listeners = new java.util.HashSet<>();
@@ -421,7 +421,7 @@ public final class JukeboxEngine {
     }
 
     private int discDurationTicks(Material disc) {
-        int fallback = Math.max(20, plugin.getConfig().getInt("Upgrades.Jukebox.TrackDurationTicks", 2400));
+        int fallback = Math.max(20, plugin.cfg().getInt("Upgrades.Jukebox.TrackDurationTicks", 2400));
         if (disc == null)
             return fallback;
 

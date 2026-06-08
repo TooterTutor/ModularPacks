@@ -765,7 +765,7 @@ public final class BackpackMenuListener implements Listener {
     private ItemStack[] readRestockStoredState(BackpackData data, UUID moduleId) {
         ItemStack[] out = new ItemStack[10];
 
-        int threshold = plugin.getConfig().getInt("Upgrades.Restock.RestockThreshold", 16);
+        int threshold = plugin.cfg().getInt("Upgrades.Restock.RestockThreshold", 16);
         threshold = Math.max(1, Math.min(64, threshold));
         out[9] = makeRestockThresholdMarker(threshold);
 

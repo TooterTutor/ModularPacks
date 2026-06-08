@@ -320,7 +320,7 @@ public final class ModuleEngineService {
         byte[] rawState = data.moduleStates().get(moduleId);
         AutocraftingStateCodec.State state = AutocraftingStateCodec.decode(rawState);
 
-        int intervalTicks = Math.max(10, plugin.getConfig().getInt("Upgrades.Autocrafting.CraftingIntervalTicks", 120));
+        int intervalTicks = Math.max(10, plugin.cfg().getInt("Upgrades.Autocrafting.CraftingIntervalTicks", 120));
         int persistedCooldown = Math.max(0, state.cooldownTicks());
         int cooldown = autocraftingCooldownTicks.compute(moduleId,
                 (id, existing) -> existing != null ? existing : persistedCooldown);
@@ -359,7 +359,7 @@ public final class ModuleEngineService {
         if (player == null || data == null || pumpModuleId == null)
             return false;
 
-        int interval = Math.max(10, plugin.getConfig().getInt("Upgrades.Pump.IntervalTicks", 40));
+        int interval = Math.max(10, plugin.cfg().getInt("Upgrades.Pump.IntervalTicks", 40));
         int cooldown = pumpCooldownTicks.getOrDefault(pumpModuleId, 0);
         cooldown = Math.max(0, cooldown - ENGINE_DT_TICKS);
         if (cooldown > 0) {
@@ -409,7 +409,7 @@ public final class ModuleEngineService {
         if (player == null || data == null || expPumpModuleId == null)
             return false;
 
-        int interval = Math.max(10, plugin.getConfig().getInt("Upgrades.ExpPump.IntervalTicks", 40));
+        int interval = Math.max(10, plugin.cfg().getInt("Upgrades.ExpPump.IntervalTicks", 40));
         int cooldown = expPumpCooldownTicks.getOrDefault(expPumpModuleId, 0);
         cooldown = Math.max(0, cooldown - ENGINE_DT_TICKS);
         if (cooldown > 0) {
@@ -477,9 +477,9 @@ public final class ModuleEngineService {
 
     private boolean isExpPumpMendingEnabled(BackpackData data, UUID expPumpModuleId) {
         if (data == null || expPumpModuleId == null)
-            return plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+            return plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
 
-        boolean fallback = plugin.getConfig().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
+        boolean fallback = plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
         ItemStack moduleItem = resolveModuleSnapshotItem(data, expPumpModuleId);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return fallback;
@@ -560,7 +560,7 @@ public final class ModuleEngineService {
     }
 
     private String resolvePumpMode(BackpackData data, UUID moduleId, String upgradeId, boolean allowKeepLevel) {
-        String fallback = plugin.getConfig().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
+        String fallback = plugin.cfg().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
         ItemStack moduleItem = resolveModuleSnapshotItem(data, moduleId);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return normalizePumpMode(fallback, allowKeepLevel);
@@ -659,7 +659,7 @@ public final class ModuleEngineService {
     }
 
     private int resolveExpPumpTargetLevel(BackpackData data, UUID expPumpModuleId) {
-        int fallback = plugin.getConfig().getInt("Upgrades.ExpPump.TargetLevel", 30);
+        int fallback = plugin.cfg().getInt("Upgrades.ExpPump.TargetLevel", 30);
         ItemStack moduleItem = resolveModuleSnapshotItem(data, expPumpModuleId);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return clampExpPumpTargetLevel(fallback);
@@ -693,14 +693,14 @@ public final class ModuleEngineService {
 
     private int resolveExpPumpMendingBudgetPerCycle() {
         int fallback = 2;
-        int configured = plugin.getConfig().getInt("Upgrades.ExpPump.MendingXpPerTick", fallback);
+        int configured = plugin.cfg().getInt("Upgrades.ExpPump.MendingXpPerTick", fallback);
         return Math.max(1, Math.min(100, configured));
     }
 
     private int resolveExpPumpKeepLevelStepBudgetPerCycle() {
         int fallback = 1;
-        int configured = plugin.getConfig().getInt("Upgrades.ExpPump.KeepLevelLevelsPerTick",
-                plugin.getConfig().getInt("Upgrades.ExpPump.KeepLevelXpPerTick", fallback));
+        int configured = plugin.cfg().getInt("Upgrades.ExpPump.KeepLevelLevelsPerTick",
+                plugin.cfg().getInt("Upgrades.ExpPump.KeepLevelXpPerTick", fallback));
         return Math.max(1, Math.min(10, configured));
     }
 

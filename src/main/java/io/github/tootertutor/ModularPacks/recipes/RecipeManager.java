@@ -234,9 +234,7 @@ public final class RecipeManager implements Listener {
      * Used during reload to minimize disruption.
      */
     private void registerBackpackRecipesFromConfig() {
-        var cfg = plugin.getConfig();
-
-        ConfigurationSection backpackTypes = cfg.getConfigurationSection("BackpackTypes");
+        ConfigurationSection backpackTypes = plugin.cfg().getConfigurationSection("BackpackTypes");
         if (backpackTypes != null) {
             for (String typeId : backpackTypes.getKeys(false)) {
                 ConfigurationSection typeSec = backpackTypes.getConfigurationSection(typeId);
@@ -248,9 +246,7 @@ public final class RecipeManager implements Listener {
     }
 
     private void registerUpgradeRecipesFromConfig() {
-        var cfg = plugin.getConfig();
-
-        ConfigurationSection upgrades = cfg.getConfigurationSection("Upgrades");
+        ConfigurationSection upgrades = plugin.cfg().getConfigurationSection("Upgrades");
         if (upgrades == null)
             return;
 

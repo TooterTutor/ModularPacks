@@ -40,11 +40,11 @@ public final class MagnetVoidEngine {
         if (player == null || contents == null || whitelist == null)
             return false;
 
-        double range = plugin.getConfig().getDouble("Upgrades.Magnet.Range", 6.0);
+        double range = plugin.cfg().getDouble("Upgrades.Magnet.Range", 6.0);
         if (range <= 0.1)
             return false;
         int maxEntities = Math.max(1,
-                Math.min(256, plugin.getConfig().getInt("Upgrades.Magnet.MaxItemsPerTick", 32)));
+                Math.min(256, plugin.cfg().getInt("Upgrades.Magnet.MaxItemsPerTick", 32)));
 
         boolean changed = false;
         int processed = 0;
@@ -140,11 +140,11 @@ public final class MagnetVoidEngine {
         if (location == null || contents == null || whitelist == null)
             return false;
 
-        double range = plugin.getConfig().getDouble("Upgrades.Magnet.Range", 6.0);
+        double range = plugin.cfg().getDouble("Upgrades.Magnet.Range", 6.0);
         if (range <= 0.1)
             return false;
         int maxEntities = Math.max(1,
-                Math.min(256, plugin.getConfig().getInt("Upgrades.Magnet.MaxItemsPerTick", 32)));
+                Math.min(256, plugin.cfg().getInt("Upgrades.Magnet.MaxItemsPerTick", 32)));
 
         boolean changed = false;
         int processed = 0;

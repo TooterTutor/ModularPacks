@@ -166,7 +166,7 @@ public final class RestockModuleListener implements Listener {
     }
 
     private int readStoredThreshold(BackpackData data, java.util.UUID moduleId) {
-        int fallback = plugin.getConfig().getInt("Upgrades.Restock.RestockThreshold", DEFAULT_THRESHOLD);
+        int fallback = plugin.cfg().getInt("Upgrades.Restock.RestockThreshold", DEFAULT_THRESHOLD);
         fallback = Math.max(1, Math.min(64, fallback));
         if (data == null || moduleId == null)
             return fallback;
