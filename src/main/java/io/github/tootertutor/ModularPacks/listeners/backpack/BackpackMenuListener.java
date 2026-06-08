@@ -1,10 +1,17 @@
 package io.github.tootertutor.ModularPacks.listeners.backpack;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.block.ShulkerBox;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -17,6 +24,8 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BlockStateMeta;
+import org.bukkit.inventory.meta.BundleMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -145,6 +154,12 @@ public final class BackpackMenuListener implements Listener {
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                     return;
                 }
+                if (hasNestedBlacklistedItems(cursor)) {
+                    e.setCancelled(true);
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    sendNestedBlacklistMessage(player, cursor);
+                    return;
+                }
             }
 
             if (action == InventoryAction.HOTBAR_SWAP) {
@@ -154,6 +169,12 @@ public final class BackpackMenuListener implements Listener {
                     if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                        return;
+                    }
+                    if (hasNestedBlacklistedItems(hotbar)) {
+                        e.setCancelled(true);
+                        Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                        sendNestedBlacklistMessage(player, hotbar);
                         return;
                     }
                 }
@@ -233,6 +254,11 @@ public final class BackpackMenuListener implements Listener {
             }
             if (!plugin.cfg().isAllowedInBackpack(moving)) {
                 Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                return;
+            }
+            if (hasNestedBlacklistedItems(moving)) {
+                Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                sendNestedBlacklistMessage(player, moving);
                 return;
             }
 
@@ -383,6 +409,16 @@ public final class BackpackMenuListener implements Listener {
                 if (rawSlot >= 0 && rawSlot < visibleStorage) {
                     e.setCancelled(true);
                     Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    return;
+                }
+            }
+        }
+        if (hasNestedBlacklistedItems(cursor)) {
+            for (int rawSlot : e.getRawSlots()) {
+                if (rawSlot >= 0 && rawSlot < visibleStorage) {
+                    e.setCancelled(true);
+                    Bukkit.getScheduler().runTask(plugin, player::updateInventory);
+                    sendNestedBlacklistMessage(player, cursor);
                     return;
                 }
             }
@@ -818,6 +854,102 @@ public final class BackpackMenuListener implements Listener {
             marker.setItemMeta(meta);
         }
         return marker;
+    }
+
+    private boolean hasNestedBlacklistedItems(ItemStack stack) {
+        return !collectNestedBlacklistedMaterials(stack).isEmpty();
+    }
+
+    private Set<Material> collectNestedBlacklistedMaterials(ItemStack stack) {
+        Set<Material> blacklist = plugin.cfg().backpackInsertBlacklist();
+        if (ItemStacks.isAir(stack) || blacklist == null || blacklist.isEmpty()) {
+            return Set.of();
+        }
+
+        LinkedHashSet<Material> blocked = new LinkedHashSet<>();
+        scanNestedContainersForBlacklisted(stack, blacklist, blocked, 0);
+        return blocked;
+    }
+
+    private void scanNestedContainersForBlacklisted(ItemStack stack, Set<Material> blacklist,
+            LinkedHashSet<Material> blocked, int depth) {
+        if (ItemStacks.isAir(stack) || depth >= 8) {
+            return;
+        }
+
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) {
+            return;
+        }
+
+        if (meta instanceof BundleMeta bundleMeta) {
+            List<ItemStack> items = bundleMeta.getItems();
+            if (items == null || items.isEmpty()) {
+                return;
+            }
+            for (ItemStack nested : items) {
+                collectBlockedFromNestedItem(nested, blacklist, blocked, depth + 1);
+            }
+            return;
+        }
+
+        if (meta instanceof BlockStateMeta blockStateMeta
+                && blockStateMeta.getBlockState() instanceof ShulkerBox shulkerBox) {
+            for (ItemStack nested : shulkerBox.getInventory().getContents()) {
+                collectBlockedFromNestedItem(nested, blacklist, blocked, depth + 1);
+            }
+        }
+    }
+
+    private void collectBlockedFromNestedItem(ItemStack nested, Set<Material> blacklist,
+            LinkedHashSet<Material> blocked, int depth) {
+        if (ItemStacks.isAir(nested)) {
+            return;
+        }
+        if (blacklist.contains(nested.getType())) {
+            blocked.add(nested.getType());
+        }
+        scanNestedContainersForBlacklisted(nested, blacklist, blocked, depth);
+    }
+
+    private void sendNestedBlacklistMessage(Player player, ItemStack stack) {
+        if (player == null || ItemStacks.isAir(stack)) {
+            return;
+        }
+
+        Set<Material> blocked = collectNestedBlacklistedMaterials(stack);
+        if (blocked.isEmpty()) {
+            return;
+        }
+
+        String blockedList = blocked.stream()
+                .map(this::prettyMaterialName)
+                .collect(Collectors.joining(", "));
+
+        player.sendMessage(Text.c("&cCannot insert " + prettyMaterialName(stack.getType())
+                + ": contains blacklisted item(s): &e" + blockedList));
+    }
+
+    private String prettyMaterialName(Material material) {
+        if (material == null) {
+            return "Unknown";
+        }
+
+        String[] parts = material.name().toLowerCase(Locale.ROOT).split("_");
+        StringBuilder out = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            if (!out.isEmpty()) {
+                out.append(' ');
+            }
+            out.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) {
+                out.append(part.substring(1));
+            }
+        }
+        return out.toString();
     }
 
     private record EjectResult(int backpacks, int blocked) {
