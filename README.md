@@ -402,8 +402,7 @@ This is mainly intended for debugging inventory sorting mods, unexpected GUI beh
 ```yaml
 NavPageButtons: ARROW
 NavBorderFiller: GRAY_STAINED_GLASS_PANE
-UnlockedUpgradeSlotMaterial: WHITE_STAINED_GLASS_PANE
-LockedUpgradeSlotMaterial: IRON_BARS
+ModuleSlotMaterial: WHITE_STAINED_GLASS_PANE
 ```
 
 These settings control common menu items such as page buttons, border fillers, unlocked module slots, and locked module slots.
@@ -593,7 +592,7 @@ Upgrades:
         L: LAPIS_LAZULI
         R: REDSTONE
         I: IRON_INGOT
-        T: MODULE:CraftingTemplate
+        T: MODULE:ModuleTemplate
       OutputMaterial: LEVER
       Glint: true
     DisplayName: "&aMagnet Upgrade"
