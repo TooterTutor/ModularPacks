@@ -3,7 +3,7 @@ package io.github.tootertutor.ModularPacks.item;
 import java.util.List;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
@@ -23,7 +23,7 @@ import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
 
 public final class BackpackItems {
-    private static final NamespacedKey VIRTUAL_BACKPACK_ITEM_MODEL = NamespacedKey.minecraft("paper");
+    private static final NamespacedKey VIRTUAL_BACKPACK_ITEM_MODEL = NamespacedKey.minecraft("air");
 
     private final ModularPacksPlugin plugin;
 
@@ -130,12 +130,12 @@ public final class BackpackItems {
         if (!moduleModelDataStrings.isEmpty()) {
             CustomModelDataUtil.setCustomModelDataStrings(meta, moduleModelDataStrings);
         } else {
-            CustomModelDataUtil.setCustomModelDataStrings(meta, java.util.List.of());
+            CustomModelDataUtil.setCustomModelDataStrings(meta, List.of());
         }
 
         // Slot strings are authoritative for module medallion placement.
         // Clear flags to avoid stale type-indexed rendering behavior.
-        CustomModelDataUtil.setCustomModelDataFlags(meta, java.util.List.of());
+        CustomModelDataUtil.setCustomModelDataFlags(meta, List.of());
         applyWearableComponents(meta);
 
         item.setItemMeta(meta);
@@ -159,15 +159,31 @@ public final class BackpackItems {
             return new ItemStack(Material.AIR);
 
         ItemStack item = new ItemStack(Material.PAPER);
-        ItemMeta meta = Bukkit.getItemFactory().asMetaFor(sourceMeta.clone(), item.getType());
+        ItemMeta meta = item.getItemMeta();
         if (meta == null)
             return new ItemStack(Material.AIR);
 
-        // Virtual stand item should mirror equipped backpack data but not be
-        // chest-equippable.
-        if (meta.hasEquippable()) {
-            meta.setEquippable(null);
+        // The stand render item must carry only visual model components.
+        int customModelData = CustomModelDataUtil.getCustomModelData(sourceMeta);
+        if (customModelData > 0) {
+            CustomModelDataUtil.setCustomModelData(meta, customModelData);
         }
+
+        List<String> cmdStrings = CustomModelDataUtil.getCustomModelDataStrings(sourceMeta);
+        if (!cmdStrings.isEmpty()) {
+            CustomModelDataUtil.setCustomModelDataStrings(meta, cmdStrings);
+        }
+
+        List<Boolean> cmdFlags = CustomModelDataUtil.getCustomModelDataFlags(sourceMeta);
+        if (!cmdFlags.isEmpty()) {
+            CustomModelDataUtil.setCustomModelDataFlags(meta, cmdFlags);
+        }
+
+        List<Color> cmdColors = CustomModelDataUtil.getCustomModelDataColors(sourceMeta);
+        if (!cmdColors.isEmpty()) {
+            CustomModelDataUtil.setCustomModelDataColors(meta, cmdColors);
+        }
+
         meta.setItemModel(VIRTUAL_BACKPACK_ITEM_MODEL);
 
         item.setItemMeta(meta);
