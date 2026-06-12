@@ -537,7 +537,7 @@ public final class ModuleEngineService {
             return xpPoints;
 
         int damage = Math.max(0, dmg.getDamage());
-        if (damage <= 0)
+        if (!shouldExpPumpMendDamage(damage))
             return xpPoints;
 
         int maxRepair = xpPoints * 2;
@@ -715,10 +715,14 @@ public final class ModuleEngineService {
             return 0;
 
         int damage = Math.max(0, dmg.getDamage());
-        if (damage <= 0)
+        if (!shouldExpPumpMendDamage(damage))
             return 0;
 
         return (damage + 1) / 2;
+    }
+
+    private boolean shouldExpPumpMendDamage(int damage) {
+        return damage > 2;
     }
 
     private UUID findFluidTankModuleId(BackpackData data) {
