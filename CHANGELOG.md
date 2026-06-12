@@ -3,6 +3,23 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.7
+
+**Release Date:** 2026-06-12
+
+## Changes since 2.5.6
+
+### Bug Fixes
+- Fixed experience pump wasting experience on items with only 1 damage (7898c78)
+- Fixed item_model to 'air' and stripped backpack data from visual slot. (c777859)
+
+### All Commits
+- Bump version (3831af8)
+- Fixed experience pump wasting experience on items with only 1 damage (7898c78)
+- Fixed Switched item_model to 'air' and stripped backpack data from visual slot. (c777859)
+---
+
+
 # ModularPacks 2.5.6
 
 **Release Date:** 2026-06-07
