@@ -3,6 +3,25 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.5.8
+
+**Release Date:** 2026-07-01
+
+## Changes since 2.5.7
+
+### Features & Improvements
+- Added Database insertion/extraction methods (7eb8417)
+
+### Bug Fixes
+- Fixed session lock race (b13b2a4)
+
+### All Commits
+- Fixed session lock race (b13b2a4)
+- Bump version (e368a1e)
+- Added Database insertion/extraction methods (7eb8417)
+---
+
+
 # ModularPacks 2.5.7
 
 **Release Date:** 2026-06-12
