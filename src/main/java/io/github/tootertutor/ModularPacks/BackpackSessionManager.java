@@ -89,7 +89,12 @@ public final class BackpackSessionManager {
             return true;
         }
 
-        // Always allow takeover: close other viewers and move the lock.
+        // Live locks are not stealable by normal viewers. Letting another player
+        // take over while the first viewer is still open creates a save/close race
+        // that can duplicate items when the backpack is later removed.
+        if (!adminOverride)
+            return false;
+
         closeGroupSessions(backpackId, viewerId);
         lockedToViewer.put(backpackId, viewerId);
         return true;
