@@ -85,7 +85,7 @@ public final class RecoverSubcommand extends AbstractSubcommand {
             if (ctx.size() == 2) {
                 String prefix = safeLower(ctx.arg(1));
                 List<String> out = new ArrayList<>();
-                out.addAll(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList());
+                out.addAll(Bukkit.getOnlinePlayers().stream().map(p -> p.getName()).toList());
                 out.addAll(Bukkit.getOnlinePlayers().stream().map(p -> p.getUniqueId().toString()).toList());
                 return filterPrefix(out, prefix);
             }
@@ -94,13 +94,13 @@ public final class RecoverSubcommand extends AbstractSubcommand {
             }
             if (ctx.size() == 4) {
                 String prefix = safeLower(ctx.arg(3));
-                return filterPrefix(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), prefix);
+                return filterPrefix(Bukkit.getOnlinePlayers().stream().map(p -> p.getName()).toList(), prefix);
             }
         }
         if ("backpack".equalsIgnoreCase(ctx.arg(0))) {
             if (ctx.size() == 2) {
                 String prefix = safeLower(ctx.arg(1));
-                return filterPrefix(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), prefix);
+                return filterPrefix(Bukkit.getOnlinePlayers().stream().map(p -> p.getName()).toList(), prefix);
             }
         }
         return List.of();

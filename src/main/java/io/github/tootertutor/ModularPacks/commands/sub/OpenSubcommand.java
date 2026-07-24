@@ -10,6 +10,9 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenCause;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenEvent;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenedEvent;
 import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.BackpackSummary;
@@ -83,9 +86,25 @@ public final class OpenSubcommand extends AbstractSubcommand {
             return;
         }
 
+        BackpackOpenEvent openEvent = new BackpackOpenEvent(viewer, id, type, BackpackOpenCause.COMMAND, null);
+        plugin.getServer().getPluginManager().callEvent(openEvent);
+        if (openEvent.isCancelled()) {
+            ctx.sendError("Backpack opening was cancelled by another plugin.");
+            return;
+        }
+
         // Admin override: if another player has it open, close them and take over.
         plugin.sessions().tryLock(viewer, id, true);
-        renderer.openMenu(viewer, id, type);
+        if (renderer.openMenu(viewer, id, type) == null) {
+            ctx.sendError("Failed to open backpack menu.");
+            return;
+        }
+        plugin.getServer().getPluginManager().callEvent(new BackpackOpenedEvent(
+                viewer,
+                id,
+                type,
+                BackpackOpenCause.COMMAND,
+                null));
         ctx.sendInfo("Opened backpack " + id);
     }
 
@@ -119,8 +138,29 @@ public final class OpenSubcommand extends AbstractSubcommand {
         }
 
         BackpackSummary chosen = rows.get(idx);
+        BackpackOpenEvent openEvent = new BackpackOpenEvent(
+                viewer,
+                chosen.backpackId(),
+                chosen.backpackType(),
+                BackpackOpenCause.COMMAND,
+                null);
+        plugin.getServer().getPluginManager().callEvent(openEvent);
+        if (openEvent.isCancelled()) {
+            ctx.sendError("Backpack opening was cancelled by another plugin.");
+            return;
+        }
+
         plugin.sessions().tryLock(viewer, chosen.backpackId(), true);
-        renderer.openMenu(viewer, chosen.backpackId(), chosen.backpackType());
+        if (renderer.openMenu(viewer, chosen.backpackId(), chosen.backpackType()) == null) {
+            ctx.sendError("Failed to open backpack menu.");
+            return;
+        }
+        plugin.getServer().getPluginManager().callEvent(new BackpackOpenedEvent(
+                viewer,
+                chosen.backpackId(),
+                chosen.backpackType(),
+                BackpackOpenCause.COMMAND,
+                null));
         ctx.sendInfo("Opened " + target.getName() + "'s " + pick.typeId + " backpack #" + pick.index1);
     }
 
@@ -129,7 +169,7 @@ public final class OpenSubcommand extends AbstractSubcommand {
         if (ctx.size() == 1) {
             String prefix = safeLower(ctx.arg(0));
             return Bukkit.getOnlinePlayers().stream()
-                    .map(Player::getName)
+                    .map(p -> p.getName())
                     .filter(n -> n.toLowerCase().startsWith(prefix))
                     .sorted()
                     .toList();

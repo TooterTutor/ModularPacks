@@ -260,23 +260,23 @@ public final class AdminBackpackListMenu {
         List<AdminBackpackListEntry> sorted = new ArrayList<>(holder.entries());
         Comparator<AdminBackpackListEntry> cmp = switch (holder.sortField()) {
             case TYPE -> Comparator.comparingInt((AdminBackpackListEntry e) -> typeTierRank(e.backpackType()))
-                    .thenComparing(AdminBackpackListEntry::typeKey)
-                    .thenComparing(AdminBackpackListEntry::nameKey)
-                    .thenComparing(AdminBackpackListEntry::backpackId);
-            case NAME -> Comparator.comparing(AdminBackpackListEntry::nameKey)
-                    .thenComparing(AdminBackpackListEntry::typeKey)
-                    .thenComparing(AdminBackpackListEntry::backpackId);
-            case QUANTITY -> Comparator.comparingInt(AdminBackpackListEntry::itemCount)
-                    .thenComparing(AdminBackpackListEntry::typeKey)
-                    .thenComparing(AdminBackpackListEntry::backpackId);
-            case MODULES -> Comparator.comparingInt(AdminBackpackListEntry::moduleCount)
-                    .thenComparing(AdminBackpackListEntry::typeKey)
-                    .thenComparing(AdminBackpackListEntry::backpackId);
-            case LOCATION -> Comparator.comparing(AdminBackpackListEntry::placed)
-                    .thenComparing(AdminBackpackListEntry::locationKey)
-                    .thenComparing(AdminBackpackListEntry::backpackId);
-            case LAST_ACCESSED -> Comparator.comparingLong(AdminBackpackListEntry::lastAccessedMillis)
-                    .thenComparing(AdminBackpackListEntry::backpackId);
+                    .thenComparing(e -> e.typeKey())
+                    .thenComparing(e -> e.nameKey())
+                    .thenComparing(e -> e.backpackId());
+            case NAME -> Comparator.comparing((AdminBackpackListEntry e) -> e.nameKey())
+                    .thenComparing(e -> e.typeKey())
+                    .thenComparing(e -> e.backpackId());
+            case QUANTITY -> Comparator.comparingInt((AdminBackpackListEntry e) -> e.itemCount())
+                    .thenComparing(e -> e.typeKey())
+                    .thenComparing(e -> e.backpackId());
+            case MODULES -> Comparator.comparingInt((AdminBackpackListEntry e) -> e.moduleCount())
+                    .thenComparing(e -> e.typeKey())
+                    .thenComparing(e -> e.backpackId());
+            case LOCATION -> Comparator.comparing((AdminBackpackListEntry e) -> e.placed())
+                    .thenComparing(e -> e.locationKey())
+                    .thenComparing(e -> e.backpackId());
+            case LAST_ACCESSED -> Comparator.comparingLong((AdminBackpackListEntry e) -> e.lastAccessedMillis())
+                    .thenComparing(e -> e.backpackId());
         };
 
         if (!holder.ascending()) {

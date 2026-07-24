@@ -197,7 +197,7 @@ public final class GiveSubcommand extends AbstractSubcommand {
             if (ctx.size() == 3) {
                 String prefix = safeLower(ctx.arg(2));
                 return Bukkit.getOnlinePlayers().stream()
-                        .map(Player::getName)
+                        .map(p -> p.getName())
                         .filter(n -> n.toLowerCase().startsWith(prefix))
                         .sorted()
                         .toList();
@@ -217,7 +217,7 @@ public final class GiveSubcommand extends AbstractSubcommand {
             if (ctx.size() == 3) {
                 String prefix = safeLower(ctx.arg(2));
                 return Bukkit.getOnlinePlayers().stream()
-                        .map(Player::getName)
+                        .map(p -> p.getName())
                         .filter(n -> n.toLowerCase().startsWith(prefix))
                         .sorted()
                         .toList();

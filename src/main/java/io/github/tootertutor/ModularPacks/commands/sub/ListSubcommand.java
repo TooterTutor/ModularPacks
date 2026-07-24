@@ -134,7 +134,7 @@ public final class ListSubcommand extends AbstractSubcommand {
         if (ctx.size() == 1) {
             String prefix = safeLower(ctx.arg(0));
             List<String> players = Bukkit.getOnlinePlayers().stream()
-                    .map(Player::getName)
+                    .map(p -> p.getName())
                     .filter(n -> n.toLowerCase().startsWith(prefix))
                     .sorted()
                     .toList();

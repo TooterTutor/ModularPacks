@@ -86,7 +86,7 @@ public final class CommandRouter implements CommandExecutor, TabCompleter {
             String prefix = args.isEmpty() ? "" : args.get(0).toLowerCase(Locale.ROOT);
             return subs.entrySet().stream()
                     .filter(e -> canUse(sender, e.getValue()))
-                    .map(Map.Entry::getKey)
+                    .map(e -> e.getKey())
                     .filter(s -> s.startsWith(prefix))
                     .sorted()
                     .toList();
