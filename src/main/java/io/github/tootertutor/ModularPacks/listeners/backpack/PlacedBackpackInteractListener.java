@@ -15,6 +15,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenCause;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenEvent;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenedEvent;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPickedUpEvent;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPickupCause;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPickupEvent;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
@@ -71,6 +77,17 @@ public final class PlacedBackpackInteractListener implements Listener {
     }
 
     private void openPlacedBackpack(Player player, PlacedBackpack placed) {
+        BackpackOpenEvent openEvent = new BackpackOpenEvent(
+                player,
+                placed.backpackId(),
+                placed.backpackType(),
+                BackpackOpenCause.PLACED_INTERACT,
+                placed.location());
+        plugin.getServer().getPluginManager().callEvent(openEvent);
+        if (openEvent.isCancelled()) {
+            return;
+        }
+
         // Check if player has permission to open
         if (!player.hasPermission("modularpacks.open")) {
             player.sendMessage(Text.c(plugin.lang().get(player, "backpack.open.no_permission",
@@ -113,10 +130,28 @@ public final class PlacedBackpackInteractListener implements Listener {
 
         // Open the backpack GUI (page 0 = first page)
         plugin.getBackpackMenuRenderer().openMenu(player, data, typeDef, 0, placed.location());
+        plugin.getServer().getPluginManager().callEvent(new BackpackOpenedEvent(
+                player,
+                placed.backpackId(),
+                placed.backpackType(),
+                BackpackOpenCause.PLACED_INTERACT,
+                placed.location()));
 
     }
 
     private void pickupBackpack(Player player, PlacedBackpack placed, Block block) {
+        BackpackPickupEvent pickupEvent = new BackpackPickupEvent(
+                player,
+                placed.backpackId(),
+                placed.backpackType(),
+                placed.location(),
+                BackpackPickupCause.SHIFT_INTERACT,
+                placed);
+        plugin.getServer().getPluginManager().callEvent(pickupEvent);
+        if (pickupEvent.isCancelled()) {
+            return;
+        }
+
         // Check if player has permission to pick up
         if (!player.hasPermission("modularpacks.pickup")) {
             player.sendMessage(Text.c(plugin.lang().get(player, "backpack.pickup.no_permission",
@@ -181,6 +216,14 @@ public final class PlacedBackpackInteractListener implements Listener {
 
         // Remove from placed backpacks manager
         plugin.placedBackpacks().remove(placed.location());
+
+        plugin.getServer().getPluginManager().callEvent(new BackpackPickedUpEvent(
+                player,
+                placed.backpackId(),
+                placed.backpackType(),
+                placed.location(),
+                BackpackPickupCause.SHIFT_INTERACT,
+                backpackItem));
 
     }
 }

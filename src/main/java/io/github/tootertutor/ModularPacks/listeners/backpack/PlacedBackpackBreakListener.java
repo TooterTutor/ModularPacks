@@ -18,6 +18,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPickedUpEvent;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPickupCause;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPickupEvent;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.PlacedBackpack;
@@ -53,6 +56,19 @@ public final class PlacedBackpackBreakListener implements Listener {
 
         // This is a placed backpack
         Player player = event.getPlayer();
+
+        BackpackPickupEvent pickupEvent = new BackpackPickupEvent(
+                player,
+                placed.backpackId(),
+                placed.backpackType(),
+                location,
+                BackpackPickupCause.BLOCK_BREAK,
+                placed);
+        plugin.getServer().getPluginManager().callEvent(pickupEvent);
+        if (pickupEvent.isCancelled()) {
+            event.setCancelled(true);
+            return;
+        }
 
         // Check if backpack is currently open
         if (plugin.sessions().lockedTo(placed.backpackId()) != null) {
@@ -98,6 +114,14 @@ public final class PlacedBackpackBreakListener implements Listener {
         // Remove from placed backpacks manager
         plugin.placedBackpacks().remove(location);
 
+        plugin.getServer().getPluginManager().callEvent(new BackpackPickedUpEvent(
+                player,
+                placed.backpackId(),
+                placed.backpackType(),
+                location,
+                BackpackPickupCause.BLOCK_BREAK,
+                backpackItem));
+
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -120,10 +144,30 @@ public final class PlacedBackpackBreakListener implements Listener {
                     BackpackTypeDef typeDef = plugin.cfg().findType(placed.backpackType());
 
                     if (data != null && typeDef != null) {
+                        BackpackPickupEvent pickupEvent = new BackpackPickupEvent(
+                                null,
+                                placed.backpackId(),
+                                placed.backpackType(),
+                                block.getLocation(),
+                                BackpackPickupCause.EXPLOSION,
+                                placed);
+                        plugin.getServer().getPluginManager().callEvent(pickupEvent);
+                        if (pickupEvent.isCancelled()) {
+                            continue;
+                        }
+
                         ItemStack backpackItem = createDroppedBackpackItem(placed);
                         block.getWorld().dropItemNaturally(block.getLocation(), backpackItem);
                         block.setType(Material.AIR);
                         plugin.placedBackpacks().remove(placed.location());
+
+                        plugin.getServer().getPluginManager().callEvent(new BackpackPickedUpEvent(
+                                null,
+                                placed.backpackId(),
+                                placed.backpackType(),
+                                block.getLocation(),
+                                BackpackPickupCause.EXPLOSION,
+                                backpackItem));
                     }
                 }
             }
@@ -150,10 +194,30 @@ public final class PlacedBackpackBreakListener implements Listener {
                     BackpackTypeDef typeDef = plugin.cfg().findType(placed.backpackType());
 
                     if (data != null && typeDef != null) {
+                        BackpackPickupEvent pickupEvent = new BackpackPickupEvent(
+                                null,
+                                placed.backpackId(),
+                                placed.backpackType(),
+                                block.getLocation(),
+                                BackpackPickupCause.EXPLOSION,
+                                placed);
+                        plugin.getServer().getPluginManager().callEvent(pickupEvent);
+                        if (pickupEvent.isCancelled()) {
+                            continue;
+                        }
+
                         ItemStack backpackItem = createDroppedBackpackItem(placed);
                         block.getWorld().dropItemNaturally(block.getLocation(), backpackItem);
                         block.setType(Material.AIR);
                         plugin.placedBackpacks().remove(placed.location());
+
+                        plugin.getServer().getPluginManager().callEvent(new BackpackPickedUpEvent(
+                                null,
+                                placed.backpackId(),
+                                placed.backpackType(),
+                                block.getLocation(),
+                                BackpackPickupCause.EXPLOSION,
+                                backpackItem));
                     }
                 }
             }

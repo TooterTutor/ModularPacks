@@ -12,6 +12,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenCause;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenEvent;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenedEvent;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
@@ -53,7 +56,7 @@ public final class BackpackUseListener implements Listener {
 
             ItemStack equippedBackpack = p.getInventory().getChestplate();
             if (backpackItems.isBackpack(equippedBackpack)) {
-                openBackpackFromItem(p, e, equippedBackpack);
+                openBackpackFromItem(p, e, equippedBackpack, BackpackOpenCause.ITEM_USE);
                 return;
             }
         }
@@ -66,10 +69,11 @@ public final class BackpackUseListener implements Listener {
             p.getInventory().setItemInMainHand(backpackItem);
         }
 
-        openBackpackFromItem(p, e, item);
+        openBackpackFromItem(p, e, item, BackpackOpenCause.ITEM_USE);
     }
 
-    private void openBackpackFromItem(Player player, PlayerInteractEvent event, ItemStack item) {
+    private void openBackpackFromItem(Player player, PlayerInteractEvent event, ItemStack item,
+            BackpackOpenCause cause) {
         if (item == null || !item.hasItemMeta())
             return;
 
@@ -85,6 +89,12 @@ public final class BackpackUseListener implements Listener {
         try {
             backpackId = UUID.fromString(idStr);
         } catch (IllegalArgumentException ex) {
+            return;
+        }
+
+        BackpackOpenEvent openEvent = new BackpackOpenEvent(player, backpackId, typeId, cause, null);
+        plugin.getServer().getPluginManager().callEvent(openEvent);
+        if (openEvent.isCancelled()) {
             return;
         }
 
@@ -155,6 +165,10 @@ public final class BackpackUseListener implements Listener {
         if (renderer.openMenu(player, backpackId, typeId) == null) {
             // If the GUI can't open (missing type config), don't leave a stale lock behind.
             plugin.sessions().onRelatedInventoryClose(player, backpackId);
+            return;
         }
+
+        plugin.getServer().getPluginManager()
+                .callEvent(new BackpackOpenedEvent(player, backpackId, typeId, cause, null));
     }
 }

@@ -25,6 +25,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPlaceEvent;
+import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackPlacedEvent;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
@@ -188,6 +190,12 @@ public final class BackpackPlacementListener implements Listener {
             return;
         }
 
+        BackpackPlaceEvent placeEvent = new BackpackPlaceEvent(player, backpackId, backpackType, placementLoc, item);
+        plugin.getServer().getPluginManager().callEvent(placeEvent);
+        if (placeEvent.isCancelled()) {
+            return;
+        }
+
         // Place the backpack
         boolean success = plugin.placedBackpacks().place(placementLoc, backpackId, backpackType, player, item);
         if (!success) {
@@ -206,6 +214,9 @@ public final class BackpackPlacementListener implements Listener {
                 player.getInventory().setItemInMainHand(item);
             }
         }
+
+        plugin.getServer().getPluginManager()
+                .callEvent(new BackpackPlacedEvent(player, backpackId, backpackType, placementLoc));
 
         // Already cancelled above to block vanilla fallback placement.
     }
