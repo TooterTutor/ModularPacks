@@ -91,6 +91,7 @@ Upgrades:
         B: BUCKET
       OutputMaterial: BUCKET
       Glint: true
+      MaxInstalled: 2
     DisplayName: "&bFluid Tank Upgrade"
     Lore:
       - "&7Allows fluids to be stored."
@@ -178,7 +179,6 @@ Upgrades:
       Glint: true
     DisplayName: "&8Void Upgrade"
     Lore:
-      # - "&7Voids all the hungry."
       - "&7Voids all filtered items."
       - "{toggleState}"
       - "{moduleActions}"
@@ -224,6 +224,7 @@ Upgrades:
         F: FURNACE
       OutputMaterial: FURNACE
       Glint: true
+      MaxInstalled: 3
     DisplayName: "&eSmelting Upgrade"
     Lore:
       - "&7A portable Furnace."
@@ -246,6 +247,7 @@ Upgrades:
         F: BLAST_FURNACE
       OutputMaterial: BLAST_FURNACE
       Glint: true
+      MaxInstalled: 3
     DisplayName: "&eBlasting Upgrade"
     Lore:
       - "&7A portable Blast Furnace."
@@ -268,6 +270,7 @@ Upgrades:
         S: SMOKER
       OutputMaterial: SMOKER
       Glint: true
+      MaxInstalled: 3
     DisplayName: "&eSmoking Upgrade"
     Lore:
       - "&7A portable Smoking."
@@ -418,6 +421,7 @@ Upgrades:
         C: CRAFTER
       OutputMaterial: CRAFTER
       Glint: true
+      MaxInstalled: 3
     DisplayName: "&eAutocrafter Upgrade"
     Lore:
       - "&7A portable autocrafter."
@@ -441,6 +445,7 @@ Upgrades:
         T: MODULE:ModuleTemplate
       OutputMaterial: EXPERIENCE_BOTTLE
       Glint: true
+      MaxInstalled: 2
     DisplayName: "&aExperience Tank Upgrade"
     Lore:
       - "&7Stores and dispenses player experience."
@@ -512,3 +517,116 @@ Upgrades:
       - "{expPumpMending}"
       - "{moduleActionsExpPump}"
     CustomModelData: 2018
+
+  Quiver:
+    Enabled: true
+    Toggleable: true
+    SecondaryAction: true
+    IntervalTicks: 40
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - " B "
+        - "CTH"
+        - " A "
+      Ingredients:
+        B: CROSSBOW
+        T: MODULE:ModuleTemplate
+        C: CHEST
+        H: HOPPER
+        A: SPECTRAL_ARROW
+      OutputMaterial: SPECTRAL_ARROW
+      Glint: true
+    DisplayName: "&bQuiver Upgrade"
+    Lore:
+      - "&7Allows arrows to be fired from the backpack."
+      - "{toggleState}"
+    CustomModelData: 2019
+
+  IronStack:
+    Enabled: true
+    Toggleable: false
+    SecondaryAction: false
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "III"
+        - "ITI"
+        - "III"
+      Ingredients:
+        I: IRON_BLOCK
+        T: MODULE:ModuleTemplate
+      OutputMaterial: IRON_INGOT
+      Glint: true
+      MaxInstalled: 3
+      InstallGroup: Stack
+    DisplayName: "&fIron Stack Upgrade"
+    Lore:
+      - "&7Multiplies max stack size by 2 for all items."
+    CustomModelData: 2020
+
+  GoldStack:
+    Enabled: true
+    Toggleable: false
+    SecondaryAction: false
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "III"
+        - "ITI"
+        - "III"
+      Ingredients:
+        I: GOLD_BLOCK
+        T: MODULE:ModuleTemplate
+      OutputMaterial: GOLD_INGOT
+      Glint: true
+      MaxInstalled: 3
+      InstallGroup: Stack
+    DisplayName: "&6Gold Stack Upgrade"
+    Lore:
+      - "&7Multiplies max stack size by 4 for all items."
+    CustomModelData: 2021
+
+  DiamondStack:
+    Enabled: true
+    Toggleable: false
+    SecondaryAction: false
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "III"
+        - "ITI"
+        - "III"
+      Ingredients:
+        I: DIAMOND_BLOCK
+        T: MODULE:ModuleTemplate
+      OutputMaterial: DIAMOND
+      Glint: true
+      MaxInstalled: 3
+      InstallGroup: Stack
+    DisplayName: "&bDiamond Stack Upgrade"
+    Lore:
+      - "&7Multiplies max stack size by 8 for all items."
+    CustomModelData: 2022
+
+  NetheriteStack:
+    Enabled: true
+    Toggleable: false
+    SecondaryAction: false
+    CraftingRecipe:
+      Type: Crafting
+      Pattern:
+        - "III"
+        - "ITI"
+        - "III"
+      Ingredients:
+        I: NETHERITE_BLOCK
+        T: MODULE:ModuleTemplate
+      OutputMaterial: NETHERITE_INGOT
+      Glint: true
+      MaxInstalled: 3
+      InstallGroup: Stack
+    DisplayName: "&8Netherite Stack Upgrade"
+    Lore:
+      - "&7Multiplies max stack size by 16 for all items."
+    CustomModelData: 2023
