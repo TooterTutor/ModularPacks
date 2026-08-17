@@ -86,22 +86,22 @@ public final class Placeholders {
         }
 
         int usedSlots = 0;
-        int itemCount = 0;
+        long itemCount = 0;
         int installedModules = 0;
         List<String> installedModuleLines = new ArrayList<>();
 
         if (data != null) {
-            ItemStack[] decoded = ItemStackCodec.fromBytes(data.contentsBytes());
+            var storage = plugin.backpackStorage().load(data);
 
-            int effectiveTotalSlots = totalSlots > 0 ? totalSlots : decoded.length;
+            int effectiveTotalSlots = totalSlots > 0 ? totalSlots : storage.size();
 
-            int limit = Math.min(decoded.length, Math.max(0, effectiveTotalSlots));
+            int limit = Math.min(storage.size(), Math.max(0, effectiveTotalSlots));
             for (int i = 0; i < limit; i++) {
-                ItemStack it = decoded[i];
-                if (ItemStacks.isAir(it))
+                var stored = storage.get(i);
+                if (stored == null)
                     continue;
                 usedSlots++;
-                itemCount += Math.max(0, it.getAmount());
+                itemCount = Math.addExact(itemCount, stored.count());
             }
 
             installedModules = data.installedModules().size();
@@ -155,8 +155,8 @@ public final class Placeholders {
 
         overrides.put("usedSlots", Replacement.scalar(Integer.toString(usedSlots)));
         overrides.put("UsedSlots", Replacement.scalar(Integer.toString(usedSlots)));
-        overrides.put("itemCount", Replacement.scalar(Integer.toString(itemCount)));
-        overrides.put("ItemCount", Replacement.scalar(Integer.toString(itemCount)));
+        overrides.put("itemCount", Replacement.scalar(Long.toString(itemCount)));
+        overrides.put("ItemCount", Replacement.scalar(Long.toString(itemCount)));
         overrides.put("installedModuleCount", Replacement.scalar(Integer.toString(installedModules)));
         overrides.put("InstalledModuleCount", Replacement.scalar(Integer.toString(installedModules)));
 
@@ -357,6 +357,9 @@ public final class Placeholders {
         if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
             return langActionsExpPump(plugin);
         }
+        if (def.id() != null && def.id().equalsIgnoreCase("Quiver")) {
+            return langActionsQuiver(plugin);
+        }
         if (def.secondaryAction()) {
             return langActionsSecondary(plugin);
         }
@@ -451,6 +454,15 @@ public final class Placeholders {
         if (plugin == null || plugin.lang() == null)
             return List.of();
         List<String> out = plugin.lang().getList("moduleActionsExpPump");
+        if (!out.isEmpty())
+            return out;
+        return langActionsSecondary(plugin);
+    }
+
+    private static List<String> langActionsQuiver(ModularPacksPlugin plugin) {
+        if (plugin == null || plugin.lang() == null)
+            return List.of();
+        List<String> out = plugin.lang().getList("moduleActionsQuiver");
         if (!out.isEmpty())
             return out;
         return langActionsSecondary(plugin);

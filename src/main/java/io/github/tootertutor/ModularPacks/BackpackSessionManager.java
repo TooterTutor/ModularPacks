@@ -20,6 +20,7 @@ import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.modules.quiver.QuiverSelectionMenuHolder;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
 
@@ -59,6 +60,23 @@ public final class BackpackSessionManager {
             return null;
         Player p = Bukkit.getPlayer(viewer);
         return p == null ? null : p.getName();
+    }
+
+    /**
+     * Returns the viewer holding any lock in this backpack's sharing group.
+     * Event-driven modules use this to avoid racing a stale open shared GUI.
+     */
+    public UUID lockedViewerInGroup(UUID backpackId) {
+        if (backpackId == null)
+            return null;
+
+        Set<UUID> group = sharingGroup(backpackId);
+        for (UUID memberId : group) {
+            UUID viewerId = lockedToViewer.get(memberId);
+            if (viewerId != null)
+                return viewerId;
+        }
+        return null;
     }
 
     /**
@@ -213,6 +231,9 @@ public final class BackpackSessionManager {
         if (holder instanceof ModuleScreenHolder msh) {
             return backpackId.equals(msh.backpackId());
         }
+        if (holder instanceof QuiverSelectionMenuHolder qsh) {
+            return backpackId.equals(qsh.backpackId());
+        }
 
         // Check all registered modules for active sessions
         for (IModule module : ModularPacksAPI.getInstance().getModuleRegistry().getAllModules()) {
@@ -229,22 +250,7 @@ public final class BackpackSessionManager {
         if (backpackId == null)
             return;
 
-        Set<UUID> group = new HashSet<>();
-        group.add(backpackId);
-
-        String typeId = plugin.repo().findBackpackType(backpackId);
-        if (typeId != null) {
-            var data = plugin.repo().loadOrCreate(backpackId, typeId);
-            if (data != null) {
-                if (data.isShareHost()) {
-                    group.addAll(plugin.repo().listJoinedBackpacks(backpackId));
-                } else if (data.shareHostId() != null) {
-                    UUID hostId = data.shareHostId();
-                    group.add(hostId);
-                    group.addAll(plugin.repo().listJoinedBackpacks(hostId));
-                }
-            }
-        }
+        Set<UUID> group = sharingGroup(backpackId);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (exceptViewer != null && exceptViewer.equals(p.getUniqueId()))
@@ -264,6 +270,25 @@ public final class BackpackSessionManager {
             p.sendMessage(Text.c("&cAnother player has taken over this backpack."));
             p.closeInventory();
         }
+    }
+
+    private Set<UUID> sharingGroup(UUID backpackId) {
+        Set<UUID> group = new HashSet<>();
+        group.add(backpackId);
+
+        String typeId = plugin.repo().findBackpackType(backpackId);
+        if (typeId == null)
+            return group;
+
+        BackpackData data = plugin.repo().loadOrCreate(backpackId, typeId);
+        if (data.isShareHost()) {
+            group.addAll(plugin.repo().listJoinedBackpacks(backpackId));
+        } else if (data.shareHostId() != null) {
+            UUID hostId = data.shareHostId();
+            group.add(hostId);
+            group.addAll(plugin.repo().listJoinedBackpacks(hostId));
+        }
+        return group;
     }
 
     private static boolean isLinkedBackpack(Keys keys, ItemStack it, UUID backpackId) {

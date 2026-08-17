@@ -62,6 +62,11 @@ moduleActionsExpPump:
   - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
   - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
 
+moduleActionsQuiver:
+  - "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Select ammunition."
+  - "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle Module."
+  - "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 Remove Module."
+
 toggleState:
   enabled: "&7State: &aᴇɴᴀʙʟᴇᴅ"
   disabled: "&7State: &cᴅɪѕᴀʙʟᴇᴅ"
