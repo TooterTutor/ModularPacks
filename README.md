@@ -696,6 +696,10 @@ Important tables include:
 
 SQLite is used so server owners do not need to set up MySQL or another external database. The plugin also enables SQLite settings such as WAL mode and a busy timeout to make normal server usage smoother.
 
+Backpack contents use a versioned logical-storage payload with amount-one item prototypes and separate counts. Legacy `ItemStack[]` payloads are read automatically and rewritten in the new format on their next save. Module snapshots and state continue to use their existing, separate `ItemStackCodec` format.
+
+Internal gameplay, passive modules, sorting, and GUI persistence operate on `BackpackStorage`. The Bukkit inventory is only a vanilla-safe visual projection; clicks and drags are applied directly to logical storage and rendered items are never read back as canonical state. The legacy public `ItemStack[]` view remains as a deprecated compatibility adapter and fails explicitly when a virtual count cannot be represented.
+
 ## Resource pack support
 
 A resource pack is optional.
@@ -791,6 +795,21 @@ if (api != null) {
 ```
 
 The module ID and the `UpgradeDef` ID must match. ModularPacks validates this so modules do not register under one ID while their item definition uses another.
+
+`UpgradeDef` has extended constructors for `maxInstalled`, `installGroup`, and `stackMultiplier`. The original constructor remains supported and defaults to one installed module of the exact type with a multiplier of one. A non-empty install group makes the maximum apply across all definitions in that group. Stack multipliers compose multiplicatively and apply to each item's normal maximum stack size, including items whose vanilla maximum is one.
+
+External plugin definitions under `modularpacks-modules` can configure the same policy fields:
+
+```yaml
+modularpacks-modules:
+  MyModule:
+    Enabled: true
+    MaxInstalled: 3
+    InstallGroup: MySharedGroup
+    StackMultiplier: 2
+    OutputMaterial: DIAMOND
+    DisplayName: "&6My Custom Module"
+```
 
 ### Implementing `IModule`
 
