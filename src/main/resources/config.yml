@@ -64,6 +64,8 @@ modularpacks:
   NavPageButtons: ARROW
   NavBorderFiller: GRAY_STAINED_GLASS_PANE
   ModuleSlotMaterial: WHITE_STAINED_GLASS_PANE
+  # Appended only to rendered backpack-storage clones; never persisted into item identity.
+  VirtualStackCountLore: "&7Stored: &f{count} &7/ &f{capacity}"
 
   # Placeable Backpacks
   # Whether backpacks can be placed as blocks in the world by shift-right-clicking.

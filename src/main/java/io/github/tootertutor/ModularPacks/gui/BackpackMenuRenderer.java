@@ -21,6 +21,9 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.tank.TankModuleLogic;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorageService;
+import io.github.tootertutor.ModularPacks.storage.StoredStack;
 import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
@@ -204,33 +207,20 @@ public final class BackpackMenuRenderer {
 
         int visibleStorage = SlotLayout.storageAreaSize(invSize, hasNavRow);
 
-        // load logical contents
-        ItemStack[] logical = ItemStackCodec.fromBytes(holder.data().contentsBytes());
         int logicalSize = holder.logicalSlots();
+        BackpackStorageService storageService = plugin.backpackStorage();
+        BackpackStorage storage = storageService.load(holder.data(), logicalSize);
 
-        if (logical.length != logicalSize) {
-            ItemStack[] resized = new ItemStack[logicalSize];
-            System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, logicalSize));
-            logical = resized;
-        }
-
-        // draw storage area
-        if (holder.paginated()) {
-            int offset = holder.page() * 45; // still 45 per page logically
-            int maxLogical = holder.logicalSlots();
-
-            for (int i = 0; i < storageSize; i++) {
-                int logicalIndex = offset + i;
-                if (logicalIndex >= maxLogical)
-                    break;
-                inv.setItem(i, logical[logicalIndex]);
+        int renderSlots = holder.paginated() ? storageSize : visibleStorage;
+        for (int visibleSlot = 0; visibleSlot < renderSlots; visibleSlot++) {
+            int logicalIndex = BackpackPageMapping.logicalIndex(
+                    holder.paginated(), holder.page(), visibleSlot, logicalSize);
+            if (logicalIndex < 0) {
+                break;
             }
-
-        } else {
-            // non-paginated: visibleStorage might be rows*9 (if hasNavRow) or invSize
-            int limit = Math.min(logicalSize, visibleStorage);
-            for (int i = 0; i < limit; i++) {
-                inv.setItem(i, logical[i]);
+            StoredStack stored = storage.get(logicalIndex);
+            if (stored != null) {
+                inv.setItem(visibleSlot, renderStorageStack(holder.data(), stored));
             }
         }
 
@@ -254,52 +244,25 @@ public final class BackpackMenuRenderer {
             }
         }
 
-        // write-back normalized logical array (so size stays stable)
-        holder.data().contentsBytes(ItemStackCodec.toBytes(logical));
     }
 
+    /**
+     * Compatibility hook retained for callers that flush before page/module changes.
+     * Storage interactions are applied directly to logical storage, so rendered
+     * display items must never be read back into the canonical model.
+     */
     public void saveVisibleStorageToData(BackpackMenuHolder holder) {
-        Inventory inv = holder.getInventory();
+        // Intentionally empty: logical storage is authoritative.
+    }
 
-        boolean hasNavRow = hasNavRow(holder);
-        int invSize = inv.getSize();
-        int visibleStorage = SlotLayout.storageAreaSize(invSize, hasNavRow);
-
-        ItemStack[] logical = ItemStackCodec.fromBytes(holder.data().contentsBytes());
-        int logicalSize = holder.logicalSlots();
-
-        if (logical.length != logicalSize) {
-            ItemStack[] resized = new ItemStack[logicalSize];
-            System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, logicalSize));
-            logical = resized;
-        }
-
-        if (holder.paginated()) {
-            int offset = holder.page() * 45;
-            int invSize2 = inv.getSize();
-            int storageSize = hasNavRow ? invSize2 - 9 : invSize2;
-            int valid = validVisibleSlots(holder, storageSize);
-            int saveSlots = Math.min(valid, storageSize);
-
-            for (int i = 0; i < saveSlots; i++) {
-
-                int logicalIndex = offset + i;
-                if (logicalIndex >= logical.length)
-                    break;
-
-                ItemStack it = inv.getItem(i);
-                logical[logicalIndex] = (it == null ? null : it.clone());
-            }
-        } else {
-            int limit = Math.min(logical.length, visibleStorage);
-            for (int i = 0; i < limit; i++) {
-                ItemStack it = inv.getItem(i);
-                logical[i] = (it == null ? null : it.clone());
-            }
-        }
-
-        holder.data().contentsBytes(ItemStackCodec.toBytes(logical));
-
+    private ItemStack renderStorageStack(BackpackData data, StoredStack stored) {
+        ItemStack prototype = stored.prototype();
+        return VirtualStackDisplay.render(
+                plugin.backpackStorage(),
+                stored,
+                plugin.backpackStorage().capacityFor(data, prototype),
+                plugin.cfg().getString("modularpacks.VirtualStackCountLore",
+                        "&7Stored: &f{count} &7/ &f{capacity}"));
     }
 
     private void renderNavRow(BackpackMenuHolder holder) {

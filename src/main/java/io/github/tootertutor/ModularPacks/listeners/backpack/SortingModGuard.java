@@ -7,12 +7,11 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuHolder;
-import io.github.tootertutor.ModularPacks.gui.SlotLayout;
+import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
@@ -28,6 +27,8 @@ public final class SortingModGuard {
     private static final int SORT_MOD_WINDOW_THRESHOLD = 14;
 
     private final ModularPacksPlugin plugin;
+    private final BackpackMenuRenderer renderer;
+    private final BackpackInventoryService inventoryService;
 
     private final Map<UUID, Integer> sortBurstTick = new HashMap<>();
     private final Map<UUID, Integer> sortBurstCount = new HashMap<>();
@@ -35,8 +36,11 @@ public final class SortingModGuard {
     private final Map<UUID, ArrayDeque<Integer>> sortWindowTicks = new HashMap<>();
     private final Map<UUID, Integer> sortBurstNotifiedAtTick = new HashMap<>();
 
-    public SortingModGuard(ModularPacksPlugin plugin) {
+    public SortingModGuard(ModularPacksPlugin plugin, BackpackMenuRenderer renderer,
+            BackpackInventoryService inventoryService) {
         this.plugin = plugin;
+        this.renderer = renderer;
+        this.inventoryService = inventoryService;
     }
 
     public boolean isSortingModBurst(Player player, int now) {
@@ -108,67 +112,21 @@ public final class SortingModGuard {
         if (ItemStacks.isAir(cursor))
             return false;
 
-        Inventory inv = holder.getInventory();
-        if (inv == null) {
+        if (holder.getInventory() == null) {
             return stashCursorIntoPlayer(player);
         }
 
-        boolean hasNavRow = holder.paginated() || holder.type().upgradeSlots() > 0;
-        int invSize = inv.getSize();
-        int storageSize = SlotLayout.storageAreaSize(invSize, hasNavRow);
-
-        int valid = storageSize;
-        if (holder.paginated()) {
-            int remaining = holder.logicalSlots() - holder.page() * 45;
-            valid = Math.max(0, Math.min(45, remaining));
-        }
-
-        ItemStack remaining = cursor.clone();
-
-        // Merge into similar stacks first.
-        for (int i = 0; i < valid; i++) {
-            ItemStack slot = inv.getItem(i);
-            if (ItemStacks.isAir(slot))
-                continue;
-
-            if (!slot.isSimilar(remaining))
-                continue;
-
-            int maxStack = slot.getMaxStackSize();
-            int current = slot.getAmount();
-            int space = maxStack - current;
-            if (space <= 0)
-                continue;
-
-            int toMove = Math.min(space, remaining.getAmount());
-            slot.setAmount(current + toMove);
-            inv.setItem(i, slot);
-            remaining.setAmount(remaining.getAmount() - toMove);
-
-            if (remaining.getAmount() <= 0) {
-                player.setItemOnCursor(null);
-                return true;
+        renderer.saveVisibleStorageToData(holder);
+        ItemStack remaining = inventoryService.insertIntoBackpackLogical(holder, cursor.clone());
+        player.setItemOnCursor(null);
+        if (ItemStacks.isNotAir(remaining)) {
+            var leftovers = player.getInventory().addItem(remaining);
+            for (ItemStack left : leftovers.values()) {
+                if (ItemStacks.isNotAir(left))
+                    player.getWorld().dropItemNaturally(player.getLocation(), left);
             }
         }
-
-        // Put remaining into an empty slot.
-        for (int i = 0; i < valid; i++) {
-            ItemStack slot = inv.getItem(i);
-            if (ItemStacks.isNotAir(slot))
-                continue;
-
-            inv.setItem(i, remaining.clone());
-            player.setItemOnCursor(null);
-            return true;
-        }
-
-        // No room: move to player inventory (and drop overflow).
-        player.setItemOnCursor(null);
-        var leftovers = player.getInventory().addItem(remaining);
-        for (ItemStack left : leftovers.values()) {
-            if (ItemStacks.isNotAir(left))
-                player.getWorld().dropItemNaturally(player.getLocation(), left);
-        }
+        renderer.render(holder);
         return true;
     }
 

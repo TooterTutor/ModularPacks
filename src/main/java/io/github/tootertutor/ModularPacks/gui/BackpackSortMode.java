@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.storage.StoredStack;
 import io.papermc.paper.datacomponent.DataComponentType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -49,6 +50,18 @@ public enum BackpackSortMode {
             case COUNT -> byCount();
             case TAGS -> byDataComponents();
         };
+    }
+
+    public static Comparator<StoredStack> storedComparator(ModularPacksPlugin plugin, BackpackSortMode mode) {
+        if (mode == COUNT) {
+            Comparator<ItemStack> tieBreaker = comparator(plugin, REGISTRY);
+            return Comparator.comparingLong((StoredStack stack) -> stack.count())
+                    .reversed()
+                    .thenComparing((first, second) -> tieBreaker.compare(first.prototype(), second.prototype()));
+        }
+
+        Comparator<ItemStack> itemComparator = comparator(plugin, mode);
+        return (first, second) -> itemComparator.compare(first.prototype(), second.prototype());
     }
 
     private static Comparator<ItemStack> byMaterialRegistryOrder() {
@@ -95,7 +108,8 @@ public enum BackpackSortMode {
     // Rules:
     // - Names with 1-2 characters sort above all others.
     // - Non-alphanumeric names (ex: "%") sort last.
-    // - Otherwise, compare by first 3 characters (ascending), then full name (ascending).
+    // - Otherwise, compare by first 3 characters (ascending), then full name
+    // (ascending).
     private record AlphaKey(int group, int shortLen, String prefix3, String full) implements Comparable<AlphaKey> {
         @Override
         public int compareTo(AlphaKey o) {

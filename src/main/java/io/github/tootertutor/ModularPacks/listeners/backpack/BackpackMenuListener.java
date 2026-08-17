@@ -45,6 +45,8 @@ import io.github.tootertutor.ModularPacks.gui.SlotLayout;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.listeners.module.ModuleSocketHandler;
 import io.github.tootertutor.ModularPacks.modules.furnace.FurnaceStateCodec;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
+import io.github.tootertutor.ModularPacks.storage.StoredStack;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
 
@@ -65,6 +67,7 @@ public final class BackpackMenuListener implements Listener {
     private final BackpackSaveManager saveManager;
     private final SortingModGuard sortGuard;
     private final BackpackInventoryService inventoryService;
+    private final BackpackVirtualStorageController virtualStorageController;
     private final ModuleSocketHandler moduleHandler;
     private final BackpackSharingHost sharingHost;
     private final BackpackSharingJoiner sharingJoiner;
@@ -84,8 +87,9 @@ public final class BackpackMenuListener implements Listener {
 
         // Initialize service classes
         this.saveManager = new BackpackSaveManager(plugin, renderer);
-        this.sortGuard = new SortingModGuard(plugin);
         this.inventoryService = new BackpackInventoryService(plugin);
+        this.virtualStorageController = new BackpackVirtualStorageController(plugin, renderer, saveManager);
+        this.sortGuard = new SortingModGuard(plugin, renderer, inventoryService);
         this.moduleHandler = new ModuleSocketHandler(plugin, renderer, screens, saveManager);
         this.sharingHost = new BackpackSharingHost(plugin, renderer, saveManager);
         this.sharingJoiner = new BackpackSharingJoiner(plugin, renderer, saveManager);
@@ -164,17 +168,19 @@ public final class BackpackMenuListener implements Listener {
 
             if (action == InventoryAction.HOTBAR_SWAP) {
                 int btn = e.getHotbarButton();
-                if (btn >= 0 && btn <= 8) {
-                    ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
+                ItemStack equipmentItem = e.getClick() == ClickType.SWAP_OFFHAND
+                        ? player.getInventory().getItemInOffHand()
+                        : (btn >= 0 && btn <= 8 ? player.getInventory().getItem(btn) : null);
+                if (ItemStacks.isNotAir(equipmentItem)) {
+                    if (!plugin.cfg().isAllowedInBackpack(equipmentItem)) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
                         return;
                     }
-                    if (hasNestedBlacklistedItems(hotbar)) {
+                    if (hasNestedBlacklistedItems(equipmentItem)) {
                         e.setCancelled(true);
                         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
-                        sendNestedBlacklistMessage(player, hotbar);
+                        sendNestedBlacklistMessage(player, equipmentItem);
                         return;
                     }
                 }
@@ -220,6 +226,16 @@ public final class BackpackMenuListener implements Listener {
                     return;
                 }
             }
+        }
+
+        if (e.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
+            virtualStorageController.handleCollectToCursor(e, player, holder);
+            return;
+        }
+
+        if (clickedTop && rawSlot >= 0 && rawSlot < visibleStorage) {
+            virtualStorageController.handleStorageClick(e, player, holder, rawSlot);
+            return;
         }
 
         boolean shiftRightSortToggle = clickedTop
@@ -460,6 +476,10 @@ public final class BackpackMenuListener implements Listener {
                 }
             }
         }
+
+        if (targetsTop) {
+            virtualStorageController.handleDrag(e, player, holder, visibleStorage);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -691,35 +711,30 @@ public final class BackpackMenuListener implements Listener {
         int movedBackpacks = 0;
         int movedBlocked = 0;
 
-        ItemStack[] logical = ItemStackCodec.fromBytes(holder.data().contentsBytes());
-        int logicalSize = holder.logicalSlots();
-        if (logical.length != logicalSize) {
-            ItemStack[] resized = new ItemStack[logicalSize];
-            System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, logicalSize));
-            logical = resized;
-        }
+        BackpackStorage storage = plugin.backpackStorage().load(holder.data(), holder.logicalSlots());
 
-        for (int i = 0; i < logical.length; i++) {
-            ItemStack it = logical[i];
-            if (ItemStacks.isAir(it))
+        for (int i = 0; i < storage.size(); i++) {
+            StoredStack stored = storage.get(i);
+            if (stored == null)
                 continue;
+            ItemStack it = stored.prototype();
 
             if (isBackpack(it)) {
-                logical[i] = null;
-                giveOrDrop(player, it);
+                storage.clear(i);
+                giveOrDropStored(player, stored);
                 movedBackpacks++;
                 continue;
             }
 
             if (!plugin.cfg().isAllowedInBackpack(it)) {
-                logical[i] = null;
-                giveOrDrop(player, it);
+                storage.clear(i);
+                giveOrDropStored(player, stored);
                 movedBlocked++;
             }
         }
 
         if (movedBackpacks > 0 || movedBlocked > 0) {
-            holder.data().contentsBytes(ItemStackCodec.toBytes(logical));
+            plugin.backpackStorage().save(holder.data(), storage);
             Bukkit.getScheduler().runTask(plugin, player::updateInventory);
         }
 
@@ -731,13 +746,27 @@ public final class BackpackMenuListener implements Listener {
             return;
         var leftovers = player.getInventory().addItem(item);
         if (!leftovers.isEmpty()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), item);
+            leftovers.values().forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
+        }
+    }
+
+    private void giveOrDropStored(Player player, StoredStack stored) {
+        if (player == null || stored == null)
+            return;
+        ItemStack prototype = stored.prototype();
+        long remaining = stored.count();
+        while (remaining > 0) {
+            int amount = Math.toIntExact(Math.min(remaining, prototype.getMaxStackSize()));
+            giveOrDrop(player, plugin.backpackStorage().materialize(prototype, amount));
+            remaining -= amount;
         }
     }
 
     private boolean isBackpackHotbarSwap(Player player, InventoryClickEvent e) {
         if (player == null || e == null)
             return false;
+        if (e.getClick() == ClickType.SWAP_OFFHAND)
+            return isBackpack(player.getInventory().getItemInOffHand());
         int btn = e.getHotbarButton();
         if (btn < 0 || btn > 8)
             return false;
