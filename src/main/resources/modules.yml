@@ -1,6 +1,9 @@
 # CraftingRecipe.Ingredients supports vanilla materials (e.g. `IRON_INGOT`) AND special ModularPacks tokens:
 # - `BACKPACK:<TypeId>` or `<TYPE>_BACKPACK` (e.g. `BACKPACK:Leather`, `DIAMOND_BACKPACK`) to require a ModularPacks backpack item
 # - `MODULE:<UpgradeId>` / `UPGRADE:<UpgradeId>` to require a ModularPacks module item
+# MaxInstalled defaults to 1 and limits the exact module type.
+# InstallGroup makes MaxInstalled apply across every module in the same group.
+# StackMultiplier defaults to 1 and multiplies each logical stack's vanilla capacity.
 
 Upgrades:
   # Utility upgrades provide various useful features to backpacks.
@@ -78,6 +81,7 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: false
+    MaxInstalled: 2
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -91,7 +95,6 @@ Upgrades:
         B: BUCKET
       OutputMaterial: BUCKET
       Glint: true
-      MaxInstalled: 2
     DisplayName: "&bFluid Tank Upgrade"
     Lore:
       - "&7Allows fluids to be stored."
@@ -211,6 +214,7 @@ Upgrades:
   Smelting:
     Enabled: true
     Toggleable: false
+    MaxInstalled: 3
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -224,7 +228,6 @@ Upgrades:
         F: FURNACE
       OutputMaterial: FURNACE
       Glint: true
-      MaxInstalled: 3
     DisplayName: "&eSmelting Upgrade"
     Lore:
       - "&7A portable Furnace."
@@ -234,6 +237,7 @@ Upgrades:
   Blasting:
     Enabled: true
     Toggleable: false
+    MaxInstalled: 3
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -247,7 +251,6 @@ Upgrades:
         F: BLAST_FURNACE
       OutputMaterial: BLAST_FURNACE
       Glint: true
-      MaxInstalled: 3
     DisplayName: "&eBlasting Upgrade"
     Lore:
       - "&7A portable Blast Furnace."
@@ -257,6 +260,7 @@ Upgrades:
   Smoking:
     Enabled: true
     Toggleable: false
+    MaxInstalled: 3
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -270,7 +274,6 @@ Upgrades:
         S: SMOKER
       OutputMaterial: SMOKER
       Glint: true
-      MaxInstalled: 3
     DisplayName: "&eSmoking Upgrade"
     Lore:
       - "&7A portable Smoking."
@@ -406,6 +409,7 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: false
+    MaxInstalled: 3
     # Autocrafting behavior tuning
     CraftingIntervalTicks: 120
     CraftingRecipe:
@@ -421,7 +425,6 @@ Upgrades:
         C: CRAFTER
       OutputMaterial: CRAFTER
       Glint: true
-      MaxInstalled: 3
     DisplayName: "&eAutocrafter Upgrade"
     Lore:
       - "&7A portable autocrafter."
@@ -433,6 +436,7 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: true
+    MaxInstalled: 2
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -445,7 +449,6 @@ Upgrades:
         T: MODULE:ModuleTemplate
       OutputMaterial: EXPERIENCE_BOTTLE
       Glint: true
-      MaxInstalled: 2
     DisplayName: "&aExperience Tank Upgrade"
     Lore:
       - "&7Stores and dispenses player experience."
@@ -522,7 +525,6 @@ Upgrades:
     Enabled: true
     Toggleable: true
     SecondaryAction: true
-    IntervalTicks: 40
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -541,12 +543,16 @@ Upgrades:
     Lore:
       - "&7Allows arrows to be fired from the backpack."
       - "{toggleState}"
+      - "{moduleActionsQuiver}"
     CustomModelData: 2019
 
   IronStack:
     Enabled: true
     Toggleable: false
     SecondaryAction: false
+    MaxInstalled: 3
+    InstallGroup: Stack
+    StackMultiplier: 2
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -558,8 +564,6 @@ Upgrades:
         T: MODULE:ModuleTemplate
       OutputMaterial: IRON_INGOT
       Glint: true
-      MaxInstalled: 3
-      InstallGroup: Stack
     DisplayName: "&fIron Stack Upgrade"
     Lore:
       - "&7Multiplies max stack size by 2 for all items."
@@ -569,6 +573,9 @@ Upgrades:
     Enabled: true
     Toggleable: false
     SecondaryAction: false
+    MaxInstalled: 3
+    InstallGroup: Stack
+    StackMultiplier: 4
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -580,8 +587,6 @@ Upgrades:
         T: MODULE:ModuleTemplate
       OutputMaterial: GOLD_INGOT
       Glint: true
-      MaxInstalled: 3
-      InstallGroup: Stack
     DisplayName: "&6Gold Stack Upgrade"
     Lore:
       - "&7Multiplies max stack size by 4 for all items."
@@ -591,6 +596,9 @@ Upgrades:
     Enabled: true
     Toggleable: false
     SecondaryAction: false
+    MaxInstalled: 3
+    InstallGroup: Stack
+    StackMultiplier: 8
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -602,8 +610,6 @@ Upgrades:
         T: MODULE:ModuleTemplate
       OutputMaterial: DIAMOND
       Glint: true
-      MaxInstalled: 3
-      InstallGroup: Stack
     DisplayName: "&bDiamond Stack Upgrade"
     Lore:
       - "&7Multiplies max stack size by 8 for all items."
@@ -613,6 +619,9 @@ Upgrades:
     Enabled: true
     Toggleable: false
     SecondaryAction: false
+    MaxInstalled: 3
+    InstallGroup: Stack
+    StackMultiplier: 16
     CraftingRecipe:
       Type: Crafting
       Pattern:
@@ -624,8 +633,6 @@ Upgrades:
         T: MODULE:ModuleTemplate
       OutputMaterial: NETHERITE_INGOT
       Glint: true
-      MaxInstalled: 3
-      InstallGroup: Stack
     DisplayName: "&8Netherite Stack Upgrade"
     Lore:
       - "&7Multiplies max stack size by 16 for all items."

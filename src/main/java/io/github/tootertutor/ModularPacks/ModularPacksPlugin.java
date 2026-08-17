@@ -46,7 +46,11 @@ import io.github.tootertutor.ModularPacks.listeners.module.SmithingModuleListene
 import io.github.tootertutor.ModularPacks.listeners.module.StonecutterModuleListener;
 import io.github.tootertutor.ModularPacks.model.ModelManager;
 import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
+import io.github.tootertutor.ModularPacks.modules.policy.ModulePolicyService;
+import io.github.tootertutor.ModularPacks.modules.quiver.QuiverService;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorageService;
+import io.github.tootertutor.ModularPacks.storage.StackCapacityService;
 import io.github.tootertutor.ModularPacks.update.UpdateCheckerService;
 
 public final class ModularPacksPlugin extends JavaPlugin {
@@ -64,6 +68,10 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private BackpackMenuRenderer backpackMenuRenderer;
     private UpdateCheckerService updateCheckerService;
     private ModelManager modelManager;
+    private ModulePolicyService modulePolicyService;
+    private BackpackStorageService backpackStorageService;
+    private StackCapacityService stackCapacityService;
+    private QuiverService quiverService;
 
     @Override
     public void onEnable() {
@@ -81,6 +89,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.configManager = new ConfigManager(this);
         this.configManager.reload();
+        this.stackCapacityService = new StackCapacityService(this);
+        this.backpackStorageService = new BackpackStorageService(stackCapacityService);
+        this.modulePolicyService = new ModulePolicyService(this);
 
         this.updateCheckerService = new UpdateCheckerService(this);
         this.updateCheckerService.start();
@@ -95,6 +106,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.placedBackpacks = new PlacedBackpackManager(this);
         this.modelManager = new ModelManager(this);
+        this.modelManager.start();
 
         // Create module instances
         ScreenRouter screenRouter = new ScreenRouter(
@@ -108,6 +120,10 @@ public final class ModularPacksPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(this.recipes, this);
 
         this.backpackMenuRenderer = new BackpackMenuRenderer(this);
+        this.quiverService = new QuiverService(this);
+        this.quiverService.start();
+        Bukkit.getPluginManager().registerEvents(this.quiverService, this);
+        Bukkit.getPluginManager().registerEvents(this.quiverService.selectionMenu(), this);
 
         Bukkit.getPluginManager().registerEvents(new BackpackUseListener(this), this);
         Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, backpackMenuRenderer, screenRouter),
@@ -163,6 +179,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (quiverService != null)
+            quiverService.shutdown();
+
         if (clickDebug != null)
             clickDebug.stop();
 
@@ -230,6 +249,22 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
     public ModelManager modelManager() {
         return modelManager;
+    }
+
+    public ModulePolicyService modulePolicy() {
+        return modulePolicyService;
+    }
+
+    public BackpackStorageService backpackStorage() {
+        return backpackStorageService;
+    }
+
+    public StackCapacityService stackCapacity() {
+        return stackCapacityService;
+    }
+
+    public QuiverService quiver() {
+        return quiverService;
     }
 
     public void reloadAll() {

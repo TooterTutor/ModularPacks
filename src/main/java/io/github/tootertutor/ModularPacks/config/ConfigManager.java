@@ -243,13 +243,16 @@ public final class ConfigManager {
                 List<String> lore = s.getStringList("Lore");
                 int customModelData = s.getInt("CustomModelData", 0);
                 boolean glint = s.getBoolean("Glint", s.getBoolean("CraftingRecipe.Glint", false));
+                int maxInstalled = moduleMaxInstalled(s);
+                String installGroup = moduleInstallGroup(s);
+                int stackMultiplier = moduleStackMultiplier(s, id, plugin.getLogger());
 
                 // Derive screen types from module ID to avoid config confusion.
                 ScreenType screenType = DefaultScreenTypeResolver.deriveFromUpgradeId(id);
 
                 upgrades.put(id.toLowerCase(Locale.ROOT),
                         new UpgradeDef(id, displayName, material, lore, customModelData, glint, enabled, toggleable,
-                                secondaryAction, screenType));
+                                secondaryAction, screenType, maxInstalled, installGroup, stackMultiplier));
             }
         }
 
@@ -323,13 +326,17 @@ public final class ConfigManager {
                     List<String> lore = s.getStringList("Lore");
                     int customModelData = s.getInt("CustomModelData", 0);
                     boolean glint = s.getBoolean("Glint", s.getBoolean("CraftingRecipe.Glint", false));
+                    int maxInstalled = moduleMaxInstalled(s);
+                    String installGroup = moduleInstallGroup(s);
+                    int stackMultiplier = moduleStackMultiplier(s, id, externalPlugin.getLogger());
 
                     // Get screen type from config or derive from ID
                     String screenTypeStr = s.getString("ScreenType");
                     ScreenType screenType = DefaultScreenTypeResolver.fromConfigOrDerived(screenTypeStr, id);
 
                     UpgradeDef upgradeDef = new UpgradeDef(id, displayName, material, lore, customModelData, glint,
-                            enabled, toggleable, secondaryAction, screenType);
+                            enabled, toggleable, secondaryAction, screenType, maxInstalled, installGroup,
+                            stackMultiplier);
                     upgrades.put(key, upgradeDef);
                     loadedCount++;
                     externalPlugin.getLogger().info(
@@ -504,6 +511,36 @@ public final class ConfigManager {
             return fallback;
         Material m = parseMaterial(name);
         return m != null ? m : fallback;
+    }
+
+    private static int moduleMaxInstalled(ConfigurationSection section) {
+        int configured = section.contains("MaxInstalled")
+                ? section.getInt("MaxInstalled", 1)
+                : section.getInt("CraftingRecipe.MaxInstalled", 1);
+        return Math.max(1, configured);
+    }
+
+    private static String moduleInstallGroup(ConfigurationSection section) {
+        String configured = section.contains("InstallGroup")
+                ? section.getString("InstallGroup")
+                : section.getString("CraftingRecipe.InstallGroup");
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        return configured.trim();
+    }
+
+    private static int moduleStackMultiplier(ConfigurationSection section, String moduleId,
+            java.util.logging.Logger logger) {
+        int configured = section.contains("StackMultiplier")
+                ? section.getInt("StackMultiplier", 1)
+                : section.getInt("CraftingRecipe.StackMultiplier", 1);
+        if (configured < 1) {
+            logger.warning("[ModularPacks] Module '" + moduleId
+                    + "' has invalid StackMultiplier " + configured + "; using 1");
+            return 1;
+        }
+        return configured;
     }
 
     private static int parseDefaultColor(ConfigurationSection s, int fallback) {

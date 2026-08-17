@@ -98,8 +98,8 @@ public final class ModuleSocketHandler {
 
         // REMOVE (Shift+Right)
         if (click == ClickType.SHIFT_RIGHT) {
-            removeModuleToPlayer(player, holder, invSlot);
             renderer.saveVisibleStorageToData(holder);
+            removeModuleToPlayer(player, holder, invSlot);
             renderer.render(holder);
             return;
         }
@@ -158,6 +158,19 @@ public final class ModuleSocketHandler {
                 renderer.saveVisibleStorageToData(holder);
                 renderer.render(holder);
             }
+            return;
+        }
+
+        // SECONDARY ACTION (Quiver: exact projectile selection)
+        if (click == ClickType.RIGHT && isQuiverModule(clicked)) {
+            String type = getModuleType(clicked);
+            var def = type == null ? null : plugin.cfg().findUpgrade(type);
+            UUID moduleId = readModuleId(clicked);
+            if (def == null || !def.secondaryAction() || moduleId == null)
+                return;
+
+            saveManager.flushSaveNow(player, holder, true);
+            plugin.quiver().openSelection(player, holder.backpackId(), holder.type().id(), moduleId);
             return;
         }
 
@@ -318,6 +331,11 @@ public final class ModuleSocketHandler {
     private boolean isFeedingModule(ItemStack moduleItem) {
         String type = getModuleType(moduleItem);
         return type != null && type.equalsIgnoreCase("Feeding");
+    }
+
+    private boolean isQuiverModule(ItemStack moduleItem) {
+        String type = getModuleType(moduleItem);
+        return type != null && type.equalsIgnoreCase("Quiver");
     }
 
     private boolean isJukeboxModule(ItemStack moduleItem) {
@@ -734,7 +752,7 @@ public final class ModuleSocketHandler {
             return;
         var leftovers = player.getInventory().addItem(item);
         if (!leftovers.isEmpty()) {
-            player.getWorld().dropItemNaturally(player.getLocation(), item);
+            leftovers.values().forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
         }
     }
 
@@ -758,8 +776,12 @@ public final class ModuleSocketHandler {
         if (moduleType == null)
             return;
 
-        if (isModuleTypeInstalled(holder, moduleType)) {
+        var installDecision = plugin.modulePolicy().canInstall(holder.data(), moduleType);
+        if (!installDecision.allowed()) {
             playSocketFail(player);
+            if (installDecision.reason() != null) {
+                player.sendMessage(Text.c("&c" + installDecision.reason()));
+            }
             return;
         }
 
@@ -831,6 +853,15 @@ public final class ModuleSocketHandler {
         UUID moduleId = holder.data().installedModules().get(socketIndex);
         if (moduleId == null)
             return;
+
+        var removalDecision = plugin.modulePolicy().canRemove(holder.data(), moduleId);
+        if (!removalDecision.allowed()) {
+            playSocketFail(player);
+            if (removalDecision.reason() != null) {
+                player.sendMessage(Text.c("&c" + removalDecision.reason()));
+            }
+            return;
+        }
 
         ItemStack item = null;
         byte[] snap = holder.data().installedSnapshots().get(moduleId);
@@ -986,33 +1017,6 @@ public final class ModuleSocketHandler {
         ItemMeta meta = item.getItemMeta();
         String type = meta.getPersistentDataContainer().get(plugin.keys().MODULE_TYPE, PersistentDataType.STRING);
         return type;
-    }
-
-    private boolean isModuleTypeInstalled(BackpackMenuHolder holder, String moduleType) {
-        if (moduleType == null)
-            return false;
-
-        for (UUID moduleId : holder.data().installedModules().values()) {
-            byte[] snap = holder.data().installedSnapshots().get(moduleId);
-            if (snap == null)
-                continue;
-
-            ItemStack[] arr = ItemStackCodec.fromBytes(snap);
-            if (arr.length == 0 || arr[0] == null)
-                continue;
-
-            String type = getModuleType(arr[0]);
-            if (type == null)
-                continue;
-
-            if (type.equalsIgnoreCase(moduleType))
-                return true;
-
-            if (TankModuleLogic.tankTypesConflictForInstall(moduleType, type)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private boolean isEmptySocket(ItemStack item) {
