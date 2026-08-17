@@ -16,7 +16,8 @@ public final class BackpackData {
     private final UUID backpackId;
     private String backpackType;
 
-    private byte[] contentsBytes; // ItemStack[] bytes
+    // Versioned BackpackStorage bytes. Legacy ItemStackCodec bytes are migrated lazily.
+    private byte[] contentsBytes;
 
     private final Map<Integer, UUID> installedModules = new HashMap<>();
     private final Map<UUID, byte[]> installedSnapshots = new HashMap<>();
