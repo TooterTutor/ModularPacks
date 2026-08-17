@@ -864,8 +864,8 @@ public final class PlacedBackpackManager {
         final String ownerId;
         final String ownerName;
         String rotation; // Stored as BlockFace name - transient for old data
-        List<String> modelDataStrings;
-        List<Integer> modelDataColors;
+        ArrayList<String> modelDataStrings;
+        ArrayList<Integer> modelDataColors;
 
         SavedPlacement(String backpackId, String backpackType, String worldName, int x, int y, int z,
                 String ownerId, String ownerName, String rotation,

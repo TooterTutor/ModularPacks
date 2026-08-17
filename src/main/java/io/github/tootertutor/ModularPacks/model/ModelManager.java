@@ -56,14 +56,19 @@ public class ModelManager implements Listener {
 
     private final Map<UUID, UUID> activeModels = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> pendingRefreshes = new ConcurrentHashMap<>();
-    private final BukkitTask maintenanceTask;
+    private BukkitTask maintenanceTask;
 
     public ModelManager(ModularPacksPlugin plugin) {
         this.plugin = plugin;
         this.backpackItems = new BackpackItems(plugin);
         cleanupTaggedArmorStands();
-        this.maintenanceTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshOnlinePlayers,
-                MAINTENANCE_PERIOD_TICKS, MAINTENANCE_PERIOD_TICKS);
+    }
+
+    public void start() {
+        if (maintenanceTask == null) {
+            maintenanceTask = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshOnlinePlayers,
+                    MAINTENANCE_PERIOD_TICKS, MAINTENANCE_PERIOD_TICKS);
+        }
     }
 
     public void scanPlayerForModels(Player player) {
@@ -100,6 +105,7 @@ public class ModelManager implements Listener {
 
         if (maintenanceTask != null) {
             maintenanceTask.cancel();
+            maintenanceTask = null;
         }
 
         for (UUID playerId : new ArrayList<>(activeModels.keySet())) {
