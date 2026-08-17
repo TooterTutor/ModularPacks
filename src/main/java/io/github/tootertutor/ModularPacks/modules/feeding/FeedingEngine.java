@@ -21,7 +21,9 @@ import org.bukkit.potion.PotionEffectTypeCategory;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.BackpackInventoryUtil;
+import io.github.tootertutor.ModularPacks.data.BackpackData;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
+import io.github.tootertutor.ModularPacks.storage.StoredStack;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.Consumable;
@@ -39,7 +41,7 @@ public final class FeedingEngine {
         this.plugin = plugin;
     }
 
-    public boolean applyFeeding(Player player, ItemStack[] contents, ItemStack moduleSnapshot,
+    public boolean applyFeeding(Player player, BackpackData data, BackpackStorage contents, ItemStack moduleSnapshot,
             List<Material> orderedWhitelist) {
         if (player == null || contents == null)
             return false;
@@ -65,7 +67,7 @@ public final class FeedingEngine {
             int chosen = chooseFeedingByWhitelistOrder(contents, ordered, settings.preference, minFood, foodLevel);
             if (chosen < 0)
                 return false;
-            return consumeFeeding(player, contents, chosen, minFood, foodLevel, settings, now);
+            return consumeFeeding(player, data, contents, chosen, minFood, foodLevel, settings, now);
         }
 
         Set<Material> filterSet = ordered.isEmpty()
@@ -75,10 +77,11 @@ public final class FeedingEngine {
         CandidatePick good = new CandidatePick();
         CandidatePick bad = new CandidatePick();
 
-        for (int i = 0; i < contents.length; i++) {
-            ItemStack it = contents[i];
-            if (ItemStacks.isAir(it))
+        for (int i = 0; i < contents.size(); i++) {
+            StoredStack stored = contents.get(i);
+            if (stored == null)
                 continue;
+            ItemStack it = stored.prototype();
             if (!it.getType().isEdible())
                 continue;
 
@@ -119,33 +122,35 @@ public final class FeedingEngine {
         if (chosen < 0)
             return false;
 
-        return consumeFeeding(player, contents, chosen, minFood, foodLevel, settings, now);
+        return consumeFeeding(player, data, contents, chosen, minFood, foodLevel, settings, now);
     }
 
     private boolean consumeFeeding(
             Player player,
-            ItemStack[] contents,
+            BackpackData data,
+            BackpackStorage contents,
             int index,
             int minFood,
             int beforeFood,
             FeedingSettings settings,
             int now) {
-        ItemStack it = contents[index];
-        if (ItemStacks.isAir(it))
+        StoredStack stored = contents.get(index);
+        if (stored == null)
             return false;
+        ItemStack it = stored.prototype();
 
         boolean debug = plugin.cfg().getBoolean("Upgrades.Feeding.Debug", false);
         float beforeSat = player.getSaturation();
 
         // Consume one item
-        ItemStack after = BackpackInventoryUtil.decrementOne(it);
-        contents[index] = after;
+        plugin.backpackStorage().extractFromSlot(contents, index, 1);
 
         // Handle remaining container item (e.g. soup -> bowl)
         Material rem = it.getType().getCraftingRemainingItem();
         if (rem != null && !rem.isAir()) {
-            ItemStack leftover = BackpackInventoryUtil.insertIntoContents(contents, new ItemStack(rem, 1));
-            if (ItemStacks.isNotAir(leftover) && leftover.getAmount() > 0) {
+            ItemStack leftover = new ItemStack(rem, 1);
+            long inserted = plugin.backpackStorage().insert(data, contents, leftover);
+            if (inserted == 0) {
                 var notFit = player.getInventory().addItem(leftover);
                 if (!notFit.isEmpty()) {
                     player.getWorld().dropItemNaturally(player.getLocation(), leftover);
@@ -183,7 +188,7 @@ public final class FeedingEngine {
     }
 
     private int chooseFeedingByWhitelistOrder(
-            ItemStack[] contents,
+            BackpackStorage contents,
             List<Material> orderedWhitelist,
             FeedingPreference preference,
             int minFood,
@@ -198,10 +203,11 @@ public final class FeedingEngine {
             CandidatePick good = new CandidatePick();
             CandidatePick bad = new CandidatePick();
 
-            for (int i = 0; i < contents.length; i++) {
-                ItemStack it = contents[i];
-                if (ItemStacks.isAir(it))
+            for (int i = 0; i < contents.size(); i++) {
+                StoredStack stored = contents.get(i);
+                if (stored == null)
                     continue;
+                ItemStack it = stored.prototype();
                 if (it.getType() != mat)
                     continue;
                 if (!it.getType().isEdible())

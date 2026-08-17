@@ -14,9 +14,10 @@ import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
+import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.VoidedItemRecord;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.modules.BackpackInventoryUtil;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class MagnetVoidEngine {
@@ -29,7 +30,8 @@ public final class MagnetVoidEngine {
 
     public boolean applyMagnet(
             Player player,
-            ItemStack[] contents,
+            BackpackData data,
+            BackpackStorage contents,
             Set<Material> whitelist,
             ItemStack magnetSnapshot,
             UUID backpackId,
@@ -104,8 +106,8 @@ public final class MagnetVoidEngine {
                 }
             }
 
-            ItemStack remainder = BackpackInventoryUtil.insertIntoContents(contents, stack.clone());
-            if (ItemStacks.isAir(remainder) || remainder.getAmount() <= 0) {
+            long inserted = plugin.backpackStorage().insert(data, contents, stack);
+            if (inserted == stack.getAmount()) {
                 itemEnt.remove();
                 changed = true;
                 processed++;
@@ -113,7 +115,9 @@ public final class MagnetVoidEngine {
             }
 
             // Partial insert; update entity
-            if (remainder.getAmount() != stack.getAmount()) {
+            if (inserted > 0) {
+                ItemStack remainder = plugin.backpackStorage().materialize(
+                        stack, Math.toIntExact(stack.getAmount() - inserted));
                 itemEnt.setItemStack(remainder);
                 changed = true;
                 processed++;
@@ -129,7 +133,8 @@ public final class MagnetVoidEngine {
      */
     public boolean applyMagnetAtLocation(
             Location location,
-            ItemStack[] contents,
+            BackpackData data,
+            BackpackStorage contents,
             Set<Material> whitelist,
             ItemStack magnetSnapshot,
             UUID backpackId,
@@ -203,8 +208,8 @@ public final class MagnetVoidEngine {
                 }
             }
 
-            ItemStack remainder = BackpackInventoryUtil.insertIntoContents(contents, stack.clone());
-            if (ItemStacks.isAir(remainder) || remainder.getAmount() <= 0) {
+            long inserted = plugin.backpackStorage().insert(data, contents, stack);
+            if (inserted == stack.getAmount()) {
                 itemEnt.remove();
                 changed = true;
                 processed++;
@@ -212,7 +217,9 @@ public final class MagnetVoidEngine {
             }
 
             // Partial insert; update entity
-            if (remainder.getAmount() != stack.getAmount()) {
+            if (inserted > 0) {
+                ItemStack remainder = plugin.backpackStorage().materialize(
+                        stack, Math.toIntExact(stack.getAmount() - inserted));
                 itemEnt.setItemStack(remainder);
                 changed = true;
                 processed++;

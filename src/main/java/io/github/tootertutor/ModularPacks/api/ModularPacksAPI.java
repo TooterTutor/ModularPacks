@@ -17,7 +17,8 @@ import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.config.UpgradeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
-import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
+import io.github.tootertutor.ModularPacks.storage.StoredStack;
 
 /**
  * Public API for ModularPacks.
@@ -252,15 +253,27 @@ public class ModularPacksAPI {
      * Changes to the returned array are not persisted until one of the write
      * methods
      * in this API is called.
+     * This compatibility view can represent only vanilla-capacity stacks; plugins
+     * should migrate to {@link #getLogicalBackpackStorage(UUID)} before virtual
+     * stack capacities are enabled.
      *
      * @param backpackId Backpack UUID
      * @return cloned logical contents array
      * @throws IllegalArgumentException if backpackId is null or no backpack row
      *                                  exists
      */
+    @Deprecated(forRemoval = false)
     public ItemStack[] getBackpackStorage(UUID backpackId) {
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        return cloneArray(ctx.logicalContents);
+        return ctx.storage.toVanillaContents();
+    }
+
+    /**
+     * Returns a detached logical-storage snapshot. Mutating it does not persist
+     * changes.
+     */
+    public BackpackStorage getLogicalBackpackStorage(UUID backpackId) {
+        return loadBackpackStorageContext(backpackId).storage.copy();
     }
 
     /**
@@ -272,9 +285,9 @@ public class ModularPacksAPI {
      */
     public ItemStack getBackpackItem(UUID backpackId, int slot) {
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = validateLogicalSlot(slot, ctx.logicalContents.length);
-        ItemStack item = ctx.logicalContents[idx];
-        return item == null ? null : item.clone();
+        int idx = validateLogicalSlot(slot, ctx.storage.size());
+        StoredStack stored = ctx.storage.get(idx);
+        return materializeCompatibilityStack(stored);
     }
 
     /**
@@ -287,9 +300,9 @@ public class ModularPacksAPI {
      */
     public ItemStack getBackpackItem(UUID backpackId, int page, int slot) {
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = pageSlotToLogicalIndex(page, slot, ctx.logicalContents.length);
-        ItemStack item = ctx.logicalContents[idx];
-        return item == null ? null : item.clone();
+        int idx = pageSlotToLogicalIndex(page, slot, ctx.storage.size());
+        StoredStack stored = ctx.storage.get(idx);
+        return materializeCompatibilityStack(stored);
     }
 
     /**
@@ -306,16 +319,13 @@ public class ModularPacksAPI {
         }
 
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        ItemStack remainder = insertIntoRange(ctx.logicalContents, 0, ctx.logicalContents.length, stack.clone());
-        if (remainder == null || remainder.getAmount() <= 0) {
-            persistBackpackStorage(ctx);
-            return null;
-        }
-
-        if (remainder.getAmount() != stack.getAmount()) {
+        long inserted = plugin.backpackStorage().insert(ctx.data, ctx.storage, stack);
+        if (inserted > 0) {
             persistBackpackStorage(ctx);
         }
-        return remainder;
+        long remaining = stack.getAmount() - inserted;
+        return remaining == 0 ? null
+                : plugin.backpackStorage().materialize(stack, Math.toIntExact(remaining));
     }
 
     /**
@@ -337,18 +347,15 @@ public class ModularPacksAPI {
         }
 
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = validateLogicalSlot(slot, ctx.logicalContents.length);
+        int idx = validateLogicalSlot(slot, ctx.storage.size());
 
-        ItemStack remainder = insertIntoRange(ctx.logicalContents, idx, idx + 1, stack.clone());
-        if (remainder == null || remainder.getAmount() <= 0) {
-            persistBackpackStorage(ctx);
-            return null;
-        }
-
-        if (remainder.getAmount() != stack.getAmount()) {
+        long inserted = plugin.backpackStorage().insertIntoSlot(ctx.data, ctx.storage, idx, stack, stack.getAmount());
+        if (inserted > 0) {
             persistBackpackStorage(ctx);
         }
-        return remainder;
+        long remaining = stack.getAmount() - inserted;
+        return remaining == 0 ? null
+                : plugin.backpackStorage().materialize(stack, Math.toIntExact(remaining));
     }
 
     /**
@@ -362,7 +369,7 @@ public class ModularPacksAPI {
      */
     public ItemStack insertBackpackItem(UUID backpackId, int page, int slot, ItemStack stack) {
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = pageSlotToLogicalIndex(page, slot, ctx.logicalContents.length);
+        int idx = pageSlotToLogicalIndex(page, slot, ctx.storage.size());
         return insertBackpackItem(backpackId, idx, stack);
     }
 
@@ -375,16 +382,19 @@ public class ModularPacksAPI {
      */
     public ItemStack extractBackpackItem(UUID backpackId, int slot) {
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = validateLogicalSlot(slot, ctx.logicalContents.length);
+        int idx = validateLogicalSlot(slot, ctx.storage.size());
 
-        ItemStack existing = ctx.logicalContents[idx];
+        StoredStack existing = ctx.storage.get(idx);
         if (existing == null) {
             return null;
         }
 
-        ctx.logicalContents[idx] = null;
+        ensureVanillaRepresentable(existing);
+
+        ItemStack extracted = plugin.backpackStorage().extractFromSlot(
+                ctx.storage, idx, Math.toIntExact(existing.count()));
         persistBackpackStorage(ctx);
-        return existing.clone();
+        return extracted;
     }
 
     /**
@@ -397,7 +407,7 @@ public class ModularPacksAPI {
      */
     public ItemStack extractBackpackItem(UUID backpackId, int page, int slot) {
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = pageSlotToLogicalIndex(page, slot, ctx.logicalContents.length);
+        int idx = pageSlotToLogicalIndex(page, slot, ctx.storage.size());
         return extractBackpackItem(backpackId, idx);
     }
 
@@ -415,25 +425,14 @@ public class ModularPacksAPI {
         }
 
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = validateLogicalSlot(slot, ctx.logicalContents.length);
-
-        ItemStack existing = ctx.logicalContents[idx];
-        if (existing == null) {
+        int idx = validateLogicalSlot(slot, ctx.storage.size());
+        ItemStack extracted = plugin.backpackStorage().extractFromSlot(ctx.storage, idx, amount);
+        if (extracted == null) {
             return null;
         }
 
-        ItemStack out;
-        if (amount >= existing.getAmount()) {
-            out = existing.clone();
-            ctx.logicalContents[idx] = null;
-        } else {
-            out = existing.clone();
-            out.setAmount(amount);
-            existing.setAmount(existing.getAmount() - amount);
-        }
-
         persistBackpackStorage(ctx);
-        return out;
+        return extracted;
     }
 
     /**
@@ -447,7 +446,7 @@ public class ModularPacksAPI {
      */
     public ItemStack extractBackpackItemAmount(UUID backpackId, int page, int slot, int amount) {
         BackpackStorageContext ctx = loadBackpackStorageContext(backpackId);
-        int idx = pageSlotToLogicalIndex(page, slot, ctx.logicalContents.length);
+        int idx = pageSlotToLogicalIndex(page, slot, ctx.storage.size());
         return extractBackpackItemAmount(backpackId, idx, amount);
     }
 
@@ -469,18 +468,13 @@ public class ModularPacksAPI {
         }
 
         int logicalSlots = type.rows() * 9;
-        ItemStack[] logical = ItemStackCodec.fromBytes(data.contentsBytes());
-        if (logical.length != logicalSlots) {
-            ItemStack[] resized = new ItemStack[logicalSlots];
-            System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, logicalSlots));
-            logical = resized;
-        }
+        BackpackStorage storage = plugin.backpackStorage().load(data, logicalSlots);
 
-        return new BackpackStorageContext(data, type, logical);
+        return new BackpackStorageContext(data, type, storage);
     }
 
     private void persistBackpackStorage(BackpackStorageContext ctx) {
-        ctx.data.contentsBytes(ItemStackCodec.toBytes(ctx.logicalContents));
+        plugin.backpackStorage().save(ctx.data, ctx.storage);
         plugin.repo().saveBackpack(ctx.data);
         plugin.sessions().refreshLinkedBackpacksThrottled(ctx.data.backpackId(), ctx.data);
     }
@@ -508,45 +502,6 @@ public class ModularPacksAPI {
         return logicalIndex;
     }
 
-    private static ItemStack insertIntoRange(ItemStack[] logical, int start, int end, ItemStack stack) {
-        if (isAir(stack)) {
-            return stack;
-        }
-
-        // Merge into existing similar stacks first.
-        for (int i = start; i < end; i++) {
-            ItemStack current = logical[i];
-            if (current == null || !current.isSimilar(stack)) {
-                continue;
-            }
-
-            int max = current.getMaxStackSize();
-            int currentAmount = current.getAmount();
-            int room = max - currentAmount;
-            if (room <= 0) {
-                continue;
-            }
-
-            int moved = Math.min(room, stack.getAmount());
-            current.setAmount(currentAmount + moved);
-            stack.setAmount(stack.getAmount() - moved);
-            if (stack.getAmount() <= 0) {
-                return null;
-            }
-        }
-
-        for (int i = start; i < end; i++) {
-            if (logical[i] != null) {
-                continue;
-            }
-
-            logical[i] = stack.clone();
-            return null;
-        }
-
-        return stack;
-    }
-
     private boolean isBackpack(ItemStack item) {
         if (isAir(item) || !item.hasItemMeta()) {
             return false;
@@ -569,14 +524,22 @@ public class ModularPacksAPI {
         return item == null ? null : item.clone();
     }
 
-    private static ItemStack[] cloneArray(ItemStack[] input) {
-        ItemStack[] copy = new ItemStack[input.length];
-        for (int i = 0; i < input.length; i++) {
-            copy[i] = input[i] == null ? null : input[i].clone();
+    private ItemStack materializeCompatibilityStack(StoredStack stored) {
+        if (stored == null) {
+            return null;
         }
-        return copy;
+        ensureVanillaRepresentable(stored);
+        return plugin.backpackStorage().materialize(stored, Math.toIntExact(stored.count()));
     }
 
-    private record BackpackStorageContext(BackpackData data, BackpackTypeDef type, ItemStack[] logicalContents) {
+    private static void ensureVanillaRepresentable(StoredStack stored) {
+        if (stored.count() > stored.prototype().getMaxStackSize()) {
+            throw new IllegalStateException(
+                    "Logical stack count " + stored.count()
+                            + " cannot be represented by this legacy ItemStack API; use getLogicalBackpackStorage");
+        }
+    }
+
+    private record BackpackStorageContext(BackpackData data, BackpackTypeDef type, BackpackStorage storage) {
     }
 }

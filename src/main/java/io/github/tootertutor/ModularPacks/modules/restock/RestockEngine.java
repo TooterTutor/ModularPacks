@@ -9,6 +9,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class RestockEngine {
@@ -21,7 +22,8 @@ public final class RestockEngine {
         this.plugin = plugin;
     }
 
-    public boolean applyRestock(Player player, ItemStack[] backpackContents, int threshold, List<ItemStack> whitelist) {
+    public boolean applyRestock(Player player, BackpackStorage backpackContents, int threshold,
+            List<ItemStack> whitelist) {
         if (player == null || backpackContents == null)
             return false;
         threshold = clampThreshold(threshold);
@@ -32,8 +34,8 @@ public final class RestockEngine {
         // Hotbar first (0..8), then main inventory (9..35). Skip armor/offhand.
         var inv = player.getInventory();
 
-        changed |= restockRange(inv, backpackContents, threshold, whitelist, hasWhitelist, 0, 9);
-        changed |= restockRange(inv, backpackContents, threshold, whitelist, hasWhitelist, 9, 36);
+        changed |= restockRange(player, inv, backpackContents, threshold, whitelist, hasWhitelist, 0, 9);
+        changed |= restockRange(player, inv, backpackContents, threshold, whitelist, hasWhitelist, 9, 36);
 
         return changed;
     }
@@ -45,8 +47,9 @@ public final class RestockEngine {
     }
 
     private boolean restockRange(
+            Player player,
             org.bukkit.inventory.PlayerInventory inv,
-            ItemStack[] backpackContents,
+            BackpackStorage backpackContents,
             int threshold,
             List<ItemStack> whitelist,
             boolean hasWhitelist,
@@ -54,6 +57,8 @@ public final class RestockEngine {
             int endExclusive) {
         boolean changed = false;
         for (int slot = startInclusive; slot < endExclusive; slot++) {
+            if (plugin.quiver() != null && plugin.quiver().isProxySlot(player, slot))
+                continue;
             ItemStack stack = inv.getItem(slot);
             if (ItemStacks.isAir(stack))
                 continue;
@@ -66,7 +71,7 @@ public final class RestockEngine {
                 continue;
 
             // Only restock stackable items.
-            int max = stack.getMaxStackSize();
+            int max = Math.toIntExact(plugin.backpackStorage().capacityFor(stack));
             if (max <= 1)
                 continue;
 
@@ -81,32 +86,14 @@ public final class RestockEngine {
                 continue;
 
             ItemStack updated = stack.clone();
-
-            for (int i = 0; i < backpackContents.length && need > 0; i++) {
-                ItemStack src = backpackContents[i];
-                if (ItemStacks.isAir(src))
-                    continue;
-                if (hasBlockedPdc(src))
-                    continue;
-                if (!src.isSimilar(updated))
-                    continue;
-
-                int move = Math.min(need, src.getAmount());
-                if (move <= 0)
-                    continue;
-
-                updated.setAmount(updated.getAmount() + move);
-                src.setAmount(src.getAmount() - move);
-                if (src.getAmount() <= 0) {
-                    backpackContents[i] = null;
-                } else {
-                    backpackContents[i] = src;
-                }
-                need -= move;
+            long move = Math.min(need, plugin.backpackStorage().countMatching(backpackContents, updated));
+            long extracted = plugin.backpackStorage().extractMatching(backpackContents, updated, move);
+            if (extracted > 0) {
+                updated.setAmount(Math.addExact(updated.getAmount(), Math.toIntExact(extracted)));
                 changed = true;
             }
 
-            if (changed) {
+            if (extracted > 0) {
                 inv.setItem(slot, updated);
             }
         }
@@ -119,7 +106,7 @@ public final class RestockEngine {
         for (ItemStack allowed : whitelist) {
             if (ItemStacks.isAir(allowed))
                 continue;
-            if (allowed.isSimilar(stack))
+            if (plugin.backpackStorage().identity().sameIdentity(allowed, stack))
                 return true;
         }
         return false;

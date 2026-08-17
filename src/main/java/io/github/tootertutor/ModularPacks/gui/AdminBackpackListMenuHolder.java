@@ -136,7 +136,7 @@ public final class AdminBackpackListMenuHolder implements InventoryHolder {
             String backpackName,
             String ownerUuid,
             String ownerName,
-            int itemCount,
+            long itemCount,
             int moduleCount,
             boolean placed,
             String locationText,

@@ -41,6 +41,7 @@ import io.github.tootertutor.ModularPacks.modules.restock.RestockEngine;
 import io.github.tootertutor.ModularPacks.modules.tank.TankExperience;
 import io.github.tootertutor.ModularPacks.modules.tank.TankModuleLogic;
 import io.github.tootertutor.ModularPacks.modules.tank.TankStateCodec;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
@@ -205,7 +206,7 @@ public final class ModuleEngineService {
         // Passive modules that mutate backpack contents (skip while that backpack GUI
         // is open)
         if (allowContentsMutations) {
-            ItemStack[] logical = ensureLogicalContentsSize(data, typeDef.rows() * 9);
+            BackpackStorage logical = ensureLogicalContentsSize(data, typeDef.rows() * 9);
 
             UUID voidId = findInstalledModuleId(data, "Void");
             Set<Material> voidWhitelist = (voidId == null) ? Set.of() : readWhitelistFromState(data, voidId);
@@ -216,7 +217,7 @@ public final class ModuleEngineService {
                 if (feedingId != null) {
                     ItemStack feedingSnapshot = resolveModuleSnapshotItem(data, feedingId);
                     List<Material> orderedWhitelist = readWhitelistOrderedFromState(data, feedingId);
-                    changedAny |= feedingEngine.applyFeeding(player, logical, feedingSnapshot, orderedWhitelist);
+                    changedAny |= feedingEngine.applyFeeding(player, data, logical, feedingSnapshot, orderedWhitelist);
                 }
             }
 
@@ -228,7 +229,8 @@ public final class ModuleEngineService {
 
                 if (player != null) {
                     // Carried backpack: use player location
-                    changedAny |= magnetVoidEngine.applyMagnet(player, logical, readWhitelistFromState(data, magnetId),
+                    changedAny |= magnetVoidEngine.applyMagnet(player, data, logical,
+                            readWhitelistFromState(data, magnetId),
                             magnetSnapshot, backpackId, backpackType, voidId, voidWhitelist, voidSnapshot);
                 } else {
                     // Placed backpack: use block location
@@ -263,7 +265,7 @@ public final class ModuleEngineService {
             }
 
             if (changedAny) {
-                data.contentsBytes(ItemStackCodec.toBytes(logical));
+                plugin.backpackStorage().save(data, logical);
             }
         }
 
@@ -295,7 +297,7 @@ public final class ModuleEngineService {
         tickBackpack(player, backpackId, backpackType, openModuleIds, openBackpackIds);
     }
 
-    private boolean applyPlacedBackpackMagnet(UUID backpackId, ItemStack[] logical, ItemStack magnetSnapshot,
+    private boolean applyPlacedBackpackMagnet(UUID backpackId, BackpackStorage logical, ItemStack magnetSnapshot,
             UUID voidId, Set<Material> voidWhitelist, ItemStack voidSnapshot, BackpackData data) {
         // Get the placed backpack location
         var placedBackpack = plugin.placedBackpacks().getAllPlaced().values().stream()
@@ -308,12 +310,12 @@ public final class ModuleEngineService {
         }
 
         // Use a special magnet implementation for placed backpacks
-        return magnetVoidEngine.applyMagnetAtLocation(placedBackpack.location(), logical,
+        return magnetVoidEngine.applyMagnetAtLocation(placedBackpack.location(), data, logical,
                 readWhitelistFromState(data, findInstalledModuleId(data, "Magnet")),
                 magnetSnapshot, backpackId, data.backpackType(), voidId, voidWhitelist, voidSnapshot);
     }
 
-    private boolean applyAutocrafting(Player player, BackpackData data, UUID moduleId, ItemStack[] logical) {
+    private boolean applyAutocrafting(Player player, BackpackData data, UUID moduleId, BackpackStorage logical) {
         if (data == null || moduleId == null || logical == null)
             return false;
 
@@ -331,7 +333,7 @@ public final class ModuleEngineService {
 
         if (cooldown <= 0) {
             int desired = AutocraftingStateCodec.clampDesiredAmount(state.desiredAmount());
-            int craftedItems = craftAutocraftingBatch(player, moduleInv, logical, desired);
+            int craftedItems = craftAutocraftingBatch(player, data, moduleInv, logical, desired);
             if (craftedItems > 0) {
                 changed = true;
                 cooldown = intervalTicks;
@@ -872,7 +874,8 @@ public final class ModuleEngineService {
         return normalized;
     }
 
-    private int craftAutocraftingBatch(Player player, ItemStack[] moduleInv, ItemStack[] logical, int desiredAmount) {
+    private int craftAutocraftingBatch(Player player, BackpackData data, ItemStack[] moduleInv, BackpackStorage logical,
+            int desiredAmount) {
         if (moduleInv == null || moduleInv.length < 10 || logical == null || desiredAmount <= 0) {
             return 0;
         }
@@ -892,13 +895,13 @@ public final class ModuleEngineService {
         for (int operations = 0; operations < 64 && completedOperations < desiredAmount; operations++) {
             virtual.clear();
 
-            if (!hydrateAutocraftingMatrixFromLogical(template, logical, virtual)) {
+            if (!hydrateAutocraftingMatrixFromLogical(data, template, logical, virtual)) {
                 break;
             }
 
             ItemStack crafted = CraftingModuleLogic.craftOnce(plugin.recipes(), player, virtual,
-                    candidate -> canInsertIntoLogical(logical, candidate));
-            boolean leftoversStored = storeMatrixRemaindersInLogical(virtual, logical);
+                    candidate -> canInsertIntoLogical(data, logical, candidate));
+            boolean leftoversStored = storeMatrixRemaindersInLogical(data, virtual, logical);
             if (ItemStacks.isAir(crafted)) {
                 break;
             }
@@ -906,7 +909,7 @@ public final class ModuleEngineService {
                 break;
             }
 
-            ItemStack remainder = insertIntoLogical(logical, crafted);
+            ItemStack remainder = insertIntoLogical(data, logical, crafted);
             if (ItemStacks.isNotAir(remainder)) {
                 break;
             }
@@ -917,42 +920,18 @@ public final class ModuleEngineService {
         return completedOperations;
     }
 
-    private boolean canSatisfyTemplateOnce(ItemStack[] template, ItemStack[] logical) {
+    private boolean canSatisfyTemplateOnce(ItemStack[] template, BackpackStorage logical) {
         if (template == null || logical == null) {
             return false;
         }
 
-        ItemStack[] remaining = new ItemStack[logical.length];
-        for (int i = 0; i < logical.length; i++) {
-            ItemStack slot = logical[i];
-            if (ItemStacks.isNotAir(slot)) {
-                remaining[i] = slot.clone();
-            }
-        }
+        BackpackStorage remaining = logical.copy();
 
         for (ItemStack marker : template) {
             if (ItemStacks.isAir(marker)) {
                 continue;
             }
-
-            boolean matched = false;
-            for (int i = 0; i < remaining.length; i++) {
-                ItemStack slot = remaining[i];
-                if (ItemStacks.isAir(slot) || !slot.isSimilar(marker)) {
-                    continue;
-                }
-
-                int nextAmount = slot.getAmount() - 1;
-                if (nextAmount > 0) {
-                    slot.setAmount(nextAmount);
-                } else {
-                    remaining[i] = null;
-                }
-                matched = true;
-                break;
-            }
-
-            if (!matched) {
+            if (plugin.backpackStorage().extractMatching(remaining, marker, 1) != 1) {
                 return false;
             }
         }
@@ -982,7 +961,9 @@ public final class ModuleEngineService {
         return hasAny ? template : null;
     }
 
-    private boolean hydrateAutocraftingMatrixFromLogical(ItemStack[] template, ItemStack[] logical, Inventory working) {
+    private boolean hydrateAutocraftingMatrixFromLogical(BackpackData data, ItemStack[] template,
+            BackpackStorage logical,
+            Inventory working) {
         if (template == null || logical == null || working == null) {
             return false;
         }
@@ -996,7 +977,7 @@ public final class ModuleEngineService {
 
             ItemStack one = takeOneMatchingFromLogical(logical, marker);
             if (ItemStacks.isAir(one)) {
-                storeMatrixRemaindersInLogical(working, logical);
+                storeMatrixRemaindersInLogical(data, working, logical);
                 return false;
             }
             working.setItem(i + 1, one);
@@ -1006,34 +987,14 @@ public final class ModuleEngineService {
         return true;
     }
 
-    private ItemStack takeOneMatchingFromLogical(ItemStack[] logical, ItemStack marker) {
+    private ItemStack takeOneMatchingFromLogical(BackpackStorage logical, ItemStack marker) {
         if (logical == null || ItemStacks.isAir(marker)) {
             return null;
         }
-
-        for (int i = 0; i < logical.length; i++) {
-            ItemStack slot = logical[i];
-            if (ItemStacks.isAir(slot) || !slot.isSimilar(marker)) {
-                continue;
-            }
-
-            ItemStack out = slot.clone();
-            out.setAmount(1);
-
-            int next = slot.getAmount() - 1;
-            if (next > 0) {
-                slot.setAmount(next);
-            } else {
-                logical[i] = null;
-            }
-
-            return out;
-        }
-
-        return null;
+        return plugin.backpackStorage().extractMatchingItem(logical, marker, 1);
     }
 
-    private boolean storeMatrixRemaindersInLogical(Inventory working, ItemStack[] logical) {
+    private boolean storeMatrixRemaindersInLogical(BackpackData data, Inventory working, BackpackStorage logical) {
         if (working == null || logical == null) {
             return false;
         }
@@ -1044,8 +1005,10 @@ public final class ModuleEngineService {
                 continue;
             }
 
-            ItemStack remainder = insertIntoLogical(logical, slot.clone());
-            if (ItemStacks.isNotAir(remainder)) {
+            long inserted = data == null
+                    ? plugin.backpackStorage().insert(logical, slot)
+                    : plugin.backpackStorage().insert(data, logical, slot);
+            if (inserted != slot.getAmount()) {
                 return false;
             }
             working.setItem(i, null);
@@ -1055,74 +1018,21 @@ public final class ModuleEngineService {
         return true;
     }
 
-    private boolean canInsertIntoLogical(ItemStack[] logical, ItemStack stack) {
+    private boolean canInsertIntoLogical(BackpackData data, BackpackStorage logical, ItemStack stack) {
         if (ItemStacks.isAir(stack) || logical == null) {
             return true;
         }
-
-        int needed = stack.getAmount();
-        if (needed <= 0) {
-            return true;
-        }
-
-        for (ItemStack slot : logical) {
-            if (ItemStacks.isAir(slot)) {
-                return true;
-            }
-            if (!slot.isSimilar(stack)) {
-                continue;
-            }
-
-            int space = slot.getMaxStackSize() - slot.getAmount();
-            if (space <= 0) {
-                continue;
-            }
-
-            needed -= space;
-            if (needed <= 0) {
-                return true;
-            }
-        }
-
-        return false;
+        return plugin.backpackStorage().canAccept(data, logical, stack, stack.getAmount());
     }
 
-    private ItemStack insertIntoLogical(ItemStack[] logical, ItemStack stack) {
+    private ItemStack insertIntoLogical(BackpackData data, BackpackStorage logical, ItemStack stack) {
         if (ItemStacks.isAir(stack) || logical == null) {
             return null;
         }
-
-        ItemStack moving = stack.clone();
-
-        for (int i = 0; i < logical.length; i++) {
-            ItemStack slot = logical[i];
-            if (ItemStacks.isAir(slot) || !slot.isSimilar(moving)) {
-                continue;
-            }
-
-            int maxStack = slot.getMaxStackSize();
-            int space = maxStack - slot.getAmount();
-            if (space <= 0) {
-                continue;
-            }
-
-            int toMove = Math.min(space, moving.getAmount());
-            slot.setAmount(slot.getAmount() + toMove);
-            moving.setAmount(moving.getAmount() - toMove);
-            if (moving.getAmount() <= 0) {
-                return null;
-            }
-        }
-
-        for (int i = 0; i < logical.length; i++) {
-            if (ItemStacks.isNotAir(logical[i])) {
-                continue;
-            }
-            logical[i] = moving.clone();
-            return null;
-        }
-
-        return moving;
+        long inserted = plugin.backpackStorage().insert(data, logical, stack);
+        long remaining = stack.getAmount() - inserted;
+        return remaining == 0 ? null
+                : plugin.backpackStorage().materialize(stack, Math.toIntExact(remaining));
     }
 
     private void refreshBackpackItemsFor(Player player, UUID backpackId, BackpackTypeDef typeDef,
@@ -1152,16 +1062,10 @@ public final class ModuleEngineService {
         // often)
     }
 
-    private ItemStack[] ensureLogicalContentsSize(BackpackData data, int size) {
+    private BackpackStorage ensureLogicalContentsSize(BackpackData data, int size) {
         if (size < 0)
             size = 0;
-        ItemStack[] logical = ItemStackCodec.fromBytes(data.contentsBytes());
-        if (logical.length != size) {
-            ItemStack[] resized = new ItemStack[size];
-            System.arraycopy(logical, 0, resized, 0, Math.min(logical.length, size));
-            logical = resized;
-        }
-        return logical;
+        return plugin.backpackStorage().load(data, size);
     }
 
     private UUID findInstalledModuleId(BackpackData data, String targetModuleType) {

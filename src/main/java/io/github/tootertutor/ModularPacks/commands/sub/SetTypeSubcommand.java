@@ -12,9 +12,9 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
-import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.storage.BackpackStorage;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 /**
@@ -90,16 +90,16 @@ public final class SetTypeSubcommand extends AbstractSubcommand {
         String effectiveOldType = (currentDbType != null ? currentDbType : oldTypeId);
 
         BackpackData data = plugin.repo().loadOrCreate(backpackId, effectiveOldType);
+        BackpackStorage storage = plugin.backpackStorage().load(data);
 
         int oldSize = plugin.cfg().findType(effectiveOldType) != null
                 ? plugin.cfg().findType(effectiveOldType).rows() * 9
-                : data.contentsBytes() == null ? 0 : ItemStackCodec.fromBytes(data.contentsBytes()).length;
+                : storage.size();
         int newSize = newType.rows() * 9;
 
         if (newSize < oldSize && !force) {
-            ItemStack[] logical = ItemStackCodec.fromBytes(data.contentsBytes());
-            for (int i = newSize; i < logical.length; i++) {
-                if (ItemStacks.isNotAir(logical[i])) {
+            for (int i = newSize; i < storage.size(); i++) {
+                if (storage.get(i) != null) {
                     ctx.sendError("Backpack has items beyond the new size. Use --force to truncate.");
                     return;
                 }

@@ -41,8 +41,8 @@ public class BackpackSharingJoiner {
         saveManager.flushSaveNow(player, holder, true);
 
         BackpackData restored = plugin.repo().loadJoinerContents(holder.backpackId());
-        if (restored != null && restored.contentsBytes() != null) {
-            holder.data().contentsBytes(restored.contentsBytes());
+        if (restored != null) {
+            plugin.backpackStorage().copyEncodedContents(restored, holder.data());
             holder.data().installedModules().clear();
             holder.data().installedSnapshots().clear();
             holder.data().moduleStates().clear();

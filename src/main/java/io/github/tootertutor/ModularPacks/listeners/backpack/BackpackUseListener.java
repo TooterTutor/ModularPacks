@@ -117,8 +117,8 @@ public final class BackpackUseListener implements Listener {
             if (!hostStillShared) {
                 // Restore joiner's own contents and detach from host
                 var restored = plugin.repo().loadJoinerContents(backpackId);
-                if (restored != null && restored.contentsBytes() != null) {
-                    data.contentsBytes(restored.contentsBytes());
+                if (restored != null) {
+                    plugin.backpackStorage().copyEncodedContents(restored, data);
                     data.installedModules().clear();
                     data.installedSnapshots().clear();
                     data.moduleStates().clear();

@@ -24,12 +24,10 @@ import org.bukkit.persistence.PersistentDataType;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
-import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository.BackpackSummary;
 import io.github.tootertutor.ModularPacks.gui.AdminBackpackListMenuHolder.AdminBackpackListEntry;
 import io.github.tootertutor.ModularPacks.gui.AdminBackpackListMenuHolder.InteractionMode;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
-import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
@@ -234,7 +232,7 @@ public final class AdminBackpackListMenu {
         List<AdminBackpackListEntry> out = new ArrayList<>(rows.size());
         for (BackpackSummary row : rows) {
             BackpackData data = plugin.repo().loadOrCreate(row.backpackId(), row.backpackType());
-            int itemCount = countItems(data);
+            long itemCount = countItems(data);
             int moduleCount = data.installedModules().size();
 
             Set<Location> locations = plugin.placedBackpacks().getPlacementLocations(row.backpackId());
@@ -266,7 +264,7 @@ public final class AdminBackpackListMenu {
             case NAME -> Comparator.comparing((AdminBackpackListEntry e) -> e.nameKey())
                     .thenComparing(e -> e.typeKey())
                     .thenComparing(e -> e.backpackId());
-            case QUANTITY -> Comparator.comparingInt((AdminBackpackListEntry e) -> e.itemCount())
+            case QUANTITY -> Comparator.comparingLong((AdminBackpackListEntry e) -> e.itemCount())
                     .thenComparing(e -> e.typeKey())
                     .thenComparing(e -> e.backpackId());
             case MODULES -> Comparator.comparingInt((AdminBackpackListEntry e) -> e.moduleCount())
@@ -341,19 +339,11 @@ public final class AdminBackpackListMenu {
         return next;
     }
 
-    private static int countItems(BackpackData data) {
-        if (data == null || data.contentsBytes() == null || data.contentsBytes().length == 0) {
+    private long countItems(BackpackData data) {
+        if (data == null) {
             return 0;
         }
-
-        int total = 0;
-        ItemStack[] items = ItemStackCodec.fromBytes(data.contentsBytes());
-        for (ItemStack item : items) {
-            if (ItemStacks.isNotAir(item)) {
-                total += Math.max(0, item.getAmount());
-            }
-        }
-        return total;
+        return plugin.backpackStorage().load(data).totalCount();
     }
 
     private static String formatLocation(Location location) {
