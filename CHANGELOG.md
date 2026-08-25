@@ -3,6 +3,42 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.1
+
+**Release Date:** 2026-08-24
+
+## Changes since 2.5.8
+
+### Features & Improvements
+- Added Quiver module (23e9dc9)
+- Added logical backpack storage backend (1eeace5)
+- Added module installation policy framework (0141fa7)
+- Adding new Quiver and Stack modules (5c43efb)
+- Added custom events (297bc49)
+
+### Bug Fixes
+- Fix dupe issue with dragging items (ca6145d)
+- Fixed null-safety warnings (8a10311)
+
+### All Commits
+- Fix dupe issue with dragging items (ca6145d)
+- Update Readme (1e284f6)
+- Small non-breaking fixes for back and placed renders (6c7555e)
+- Forgot to add ModulePolicyService (fc4a820)
+- Added Quiver module (23e9dc9)
+- Implemented stack upgrade capacity multipliers (f6d8c5c)
+- Virtualized backpack storage GUI (b8bf531)
+- Migrated backpack consumers to logical storage (1ae10b5)
+- Added logical backpack storage backend (1eeace5)
+- Added module installation policy framework (0141fa7)
+- Update pom.xml (53884af)
+- Adding new Quiver and Stack modules (5c43efb)
+- Update pom.xml (836d2a3)
+- Fixed null-safety warnings (8a10311)
+- Added custom events (297bc49)
+---
+
+
 # ModularPacks 2.5.8
 
 **Release Date:** 2026-07-01
