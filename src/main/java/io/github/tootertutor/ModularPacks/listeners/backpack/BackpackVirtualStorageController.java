@@ -2,13 +2,16 @@ package io.github.tootertutor.ModularPacks.listeners.backpack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.DragType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -94,57 +97,147 @@ final class BackpackVirtualStorageController {
         saveAndRender(player, holder, storage);
     }
 
-    void handleDrag(InventoryDragEvent event, Player player, BackpackMenuHolder holder, int visibleStorage) {
+    void handleDrag(
+            InventoryDragEvent event,
+            Player player,
+            BackpackMenuHolder holder,
+            int visibleStorage) {
+
         List<Integer> visibleTargets = new ArrayList<>();
         int topSize = event.getView().getTopInventory().getSize();
+
         for (int rawSlot : event.getRawSlots()) {
             if (rawSlot >= topSize) {
-                // Mixed top/player drags are conservatively rejected.
+                // Mixed backpack/player-inventory drags are rejected.
                 event.setCancelled(true);
                 return;
             }
+
             if (rawSlot >= 0 && rawSlot < visibleStorage) {
                 visibleTargets.add(rawSlot);
             }
         }
+
         if (visibleTargets.isEmpty()) {
             return;
         }
 
         event.setCancelled(true);
-        ItemStack cursor = event.getOldCursor();
-        if (ItemStacks.isAir(cursor)) {
+
+        ItemStack oldCursor = event.getOldCursor();
+        if (ItemStacks.isAir(oldCursor)) {
             return;
         }
 
-        BackpackStorage storage = plugin.backpackStorage().load(holder.data(), holder.logicalSlots());
-        long remaining = cursor.getAmount();
-        for (int index = 0; index < visibleTargets.size() && remaining > 0; index++) {
-            int logicalSlot = BackpackPageMapping.logicalIndex(
-                    holder.paginated(), holder.page(), visibleTargets.get(index), holder.logicalSlots());
-            if (logicalSlot < 0) {
-                continue;
-            }
-            long requested;
-            if (event.getType() == DragType.SINGLE) {
-                requested = 1;
-            } else {
-                int targetsLeft = visibleTargets.size() - index;
-                requested = Math.max(1, remaining / targetsLeft);
-            }
-            requested = Math.min(requested, remaining);
-            long inserted = plugin.backpackStorage().insertIntoSlot(
-                    holder.data(), storage, logicalSlot, cursor, requested);
-            remaining -= inserted;
-        }
+        ItemStack originalCursor = oldCursor.clone();
+        List<Integer> targets = List.copyOf(visibleTargets);
+        DragType dragType = event.getType();
 
-        if (remaining == cursor.getAmount()) {
-            return;
-        }
-        player.setItemOnCursor(remaining == 0
-                ? null
-                : plugin.backpackStorage().materialize(cursor, Math.toIntExact(remaining)));
-        saveAndRender(player, holder, storage);
+        UUID backpackId = holder.backpackId();
+        int page = holder.page();
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+
+            Inventory top = player.getOpenInventory().getTopInventory();
+
+            if (!(top.getHolder() instanceof BackpackMenuHolder openHolder)) {
+                player.updateInventory();
+                return;
+            }
+
+            if (!openHolder.backpackId().equals(backpackId)
+                    || openHolder.page() != page) {
+                player.updateInventory();
+                return;
+            }
+
+            ItemStack currentCursor = player.getItemOnCursor();
+
+            if (ItemStacks.isAir(currentCursor)
+                    || currentCursor.getAmount() != originalCursor.getAmount()
+                    || !plugin.backpackStorage().identity()
+                            .sameIdentity(currentCursor, originalCursor)) {
+
+                player.updateInventory();
+                return;
+            }
+
+            BackpackStorage storage = plugin.backpackStorage().load(
+                    openHolder.data(),
+                    openHolder.logicalSlots());
+
+            long originalAmount = originalCursor.getAmount();
+            long remaining = originalAmount;
+
+            for (int index = 0; index < targets.size() && remaining > 0; index++) {
+
+                int logicalSlot = BackpackPageMapping.logicalIndex(
+                        openHolder.paginated(),
+                        openHolder.page(),
+                        targets.get(index),
+                        openHolder.logicalSlots());
+
+                if (logicalSlot < 0) {
+                    continue;
+                }
+
+                long requested;
+
+                if (dragType == DragType.SINGLE) {
+                    requested = 1;
+                } else {
+                    int targetsLeft = targets.size() - index;
+                    requested = Math.max(1, remaining / targetsLeft);
+                }
+
+                requested = Math.min(requested, remaining);
+
+                long inserted = plugin.backpackStorage().insertIntoSlot(
+                        openHolder.data(),
+                        storage,
+                        logicalSlot,
+                        originalCursor,
+                        requested);
+
+                remaining -= inserted;
+            }
+
+            long inserted = originalAmount - remaining;
+
+            if (inserted <= 0) {
+                player.updateInventory();
+                return;
+            }
+
+            /*
+             * Item-conservation sanity check.
+             */
+            if (inserted + remaining != originalAmount) {
+                plugin.getLogger().severe(
+                        "Virtual backpack drag violated item conservation for "
+                                + player.getName());
+
+                player.updateInventory();
+                return;
+            }
+
+            ItemStack remainder = remaining == 0
+                    ? null
+                    : plugin.backpackStorage().materialize(
+                            originalCursor,
+                            Math.toIntExact(remaining));
+
+            plugin.backpackStorage().save(openHolder.data(), storage);
+            player.setItemOnCursor(remainder);
+
+            renderer.render(openHolder);
+            saveManager.markInteraction(player, openHolder);
+
+            player.updateInventory();
+        });
     }
 
     private void leftClick(Player player, BackpackMenuHolder holder, BackpackStorage storage, int slot) {
