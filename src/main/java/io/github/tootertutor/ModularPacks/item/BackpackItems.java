@@ -204,7 +204,7 @@ public final class BackpackItems {
             equippable.setSlot(EquipmentSlot.CHEST);
             equippable.setEquipSound(Sound.ITEM_BUNDLE_DROP_CONTENTS);
             equippable.setEquipOnInteract(true);
-            equippable.setSwappable(true);
+            equippable.setSwappable(false);
             equippable.setAllowedEntities(EntityType.PLAYER);
             meta.setEquippable(equippable);
             changed = true;
@@ -229,7 +229,7 @@ public final class BackpackItems {
         equippable.setSlot(EquipmentSlot.CHEST);
         equippable.setEquipSound(Sound.ITEM_BUNDLE_DROP_CONTENTS);
         equippable.setEquipOnInteract(true);
-        equippable.setSwappable(true);
+        equippable.setSwappable(false);
         equippable.setAllowedEntities(EntityType.PLAYER);
         meta.setEquippable(equippable);
     }
