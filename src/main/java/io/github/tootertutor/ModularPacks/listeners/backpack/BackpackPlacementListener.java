@@ -196,23 +196,59 @@ public final class BackpackPlacementListener implements Listener {
             return;
         }
 
-        // Place the backpack
-        boolean success = plugin.placedBackpacks().place(placementLoc, backpackId, backpackType, player, item);
-        if (!success) {
-            player.sendMessage(Text.c(
-                    plugin.lang().get(player, "backpack.placement.failed",
-                            "&cAn error occurred while placing the backpack.")));
-            return;
-        }
+        // Snapshot the original held item so we can restore it if placement fails.
+        ItemStack originalItem = item.clone();
 
-        // Remove the item from player's hand
         if (player.getGameMode() != GameMode.CREATIVE) {
             item.setAmount(item.getAmount() - 1);
+
             if (hand == EquipmentSlot.OFF_HAND) {
                 player.getInventory().setItemInOffHand(item);
             } else {
                 player.getInventory().setItemInMainHand(item);
             }
+        }
+
+        boolean success;
+
+        try {
+            // Now create/register the placed backpack.
+            success = plugin.placedBackpacks().place(
+                    placementLoc,
+                    backpackId,
+                    backpackType,
+                    player,
+                    originalItem);
+        } catch (RuntimeException exception) {
+            // Restore the consumed item before propagating/logging the failure.
+            if (player.getGameMode() != GameMode.CREATIVE) {
+                if (hand == EquipmentSlot.OFF_HAND) {
+                    player.getInventory().setItemInOffHand(originalItem);
+                } else {
+                    player.getInventory().setItemInMainHand(originalItem);
+                }
+            }
+
+            throw exception;
+        }
+
+        if (!success) {
+            // Roll back the consumed item.
+            if (player.getGameMode() != GameMode.CREATIVE) {
+                if (hand == EquipmentSlot.OFF_HAND) {
+                    player.getInventory().setItemInOffHand(originalItem);
+                } else {
+                    player.getInventory().setItemInMainHand(originalItem);
+                }
+            }
+
+            player.sendMessage(Text.c(
+                    plugin.lang().get(
+                            player,
+                            "backpack.placement.failed",
+                            "&cAn error occurred while placing the backpack.")));
+
+            return;
         }
 
         plugin.getServer().getPluginManager()
