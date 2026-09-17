@@ -3,6 +3,22 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.2
+
+**Release Date:** 2026-09-17
+
+## Changes since 2.7.1
+
+### Bug Fixes
+- Fixed backpack placement and pickup transitions. #2 (eb9f3de)
+
+### All Commits
+- Bump version (6378f32)
+- Fixed backpack placement and pickup transitions. #2 (eb9f3de)
+- Removed swappable tag (14ef8ba)
+---
+
+
 # ModularPacks 2.7.1
 
 **Release Date:** 2026-08-24
