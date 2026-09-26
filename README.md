@@ -693,6 +693,7 @@ Important tables include:
 | `backpacks`        | Stores backpack metadata, owner data, contents, sharing data, sorting lock state, and custom backpack name |
 | `backpack_modules` | Stores installed modules, module snapshots, and module state                                               |
 | `voided_items`     | Stores recoverable item data for items removed by the Void module                                          |
+| `player_resource_pack_preferences` | Stores each player's ordered selection of optional ModularPacks resource-pack layers       |
 
 SQLite is used so server owners do not need to set up MySQL or another external database. The plugin also enables SQLite settings such as WAL mode and a busy timeout to make normal server usage smoother.
 
@@ -702,9 +703,13 @@ Internal gameplay, passive modules, sorting, and GUI persistence operate on `Bac
 
 ## Resource pack support
 
-A resource pack is optional.
+Resource packs are optional and selected per player. The Backpack Settings menu opens a dedicated resource-pack screen where players can mix and match configured layers, stage changes, and apply the complete selection once.
 
-By default, ModularPacks can use normal Minecraft materials and player heads. If you want custom backpack or module visuals, assign `CustomModelData` values in `config.yml` and provide matching models in your resource pack.
+ModularPacks checks configured assets from a GitHub release, downloads each ZIP server-side for validation and SHA-1 calculation, then gives players the release asset's public `browser_download_url`. The plugin does not expose an HTTP listener or require an additional public port. Pack priority controls stacking order, with higher-priority packs layered over lower-priority packs.
+
+When a release asset changes, online players using its previous SHA-1 receive a notification. The plugin does not force a potentially disruptive mid-session reload: players can relog or use **Apply Selected Packs** in the GUI.
+
+The plugin can still use normal Minecraft materials and player heads without any packs. For custom backpack or module visuals, assign `CustomModelData` values and provide matching models in one or more configured pack assets.
 
 Useful config fields for visuals:
 
