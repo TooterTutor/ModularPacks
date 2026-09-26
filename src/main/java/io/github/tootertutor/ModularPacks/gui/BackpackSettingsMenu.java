@@ -36,6 +36,7 @@ import net.wesjd.anvilgui.AnvilGUI;
  */
 public final class BackpackSettingsMenu {
 
+    private static final int SLOT_RESOURCE_PACKS = 4;
     private static final int SLOT_SHARING = 11;
     private static final int SLOT_COLORS = 13;
     private static final int SLOT_NAME = 15;
@@ -82,6 +83,12 @@ public final class BackpackSettingsMenu {
                 25, 26 };
         for (int frameSlot : frameSlots) {
             inv.setItem(frameSlot, frame);
+        }
+
+        if (plugin.cfg().resourcePackEnabled()) {
+            inv.setItem(SLOT_RESOURCE_PACKS, createButton("&dResource Packs", Material.PAINTING,
+                    List.of("&7Mix and match optional visual packs.", "&7Changes are staged until you apply them.",
+                            "&7", "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open pack selector")));
         }
 
         // Row 2: Dynamic sharing mode button (left)
@@ -162,6 +169,13 @@ public final class BackpackSettingsMenu {
      */
     public void handleClick(Player player, BackpackMenuHolder holder, int slot, ClickType click) {
         BackpackData data = holder.data();
+
+        if (slot == SLOT_RESOURCE_PACKS) {
+            if (plugin.cfg().resourcePackEnabled()) {
+                plugin.resourcePacks().openMenu(player, holder);
+            }
+            return;
+        }
 
         // Row 1: Dynamic mode button
         if (slot == SLOT_SHARING) {
