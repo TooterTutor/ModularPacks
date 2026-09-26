@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.resource.PlayerResourcePackPreference;
 
 public final class SQLiteBackpackRepository {
 
@@ -110,6 +111,15 @@ public final class SQLiteBackpackRepository {
                 st.executeUpdate("""
                             CREATE INDEX IF NOT EXISTS idx_voided_items_recovered
                             ON voided_items(recovered_at);
+                        """);
+
+                st.executeUpdate("""
+                            CREATE TABLE IF NOT EXISTS player_resource_pack_preferences (
+                              player_uuid TEXT NOT NULL,
+                              pack_id TEXT NOT NULL,
+                              sort_order INTEGER NOT NULL,
+                              PRIMARY KEY (player_uuid, pack_id)
+                            );
                         """);
 
             }
@@ -577,6 +587,72 @@ public final class SQLiteBackpackRepository {
             plugin.getLogger().info("Added column " + column + " to table " + table);
         } catch (SQLException e) {
             // Column already exists, ignore
+        }
+    }
+
+    public PlayerResourcePackPreference loadResourcePackPreference(UUID playerId) {
+        List<String> packIds = new ArrayList<>();
+        boolean found = false;
+        try (PreparedStatement ps = getConnection().prepareStatement("""
+                SELECT pack_id
+                  FROM player_resource_pack_preferences
+                 WHERE player_uuid = ?
+                 ORDER BY sort_order ASC
+                """)) {
+            ps.setString(1, playerId.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    found = true;
+                    String packId = rs.getString("pack_id");
+                    if (packId != null && !packId.isBlank()) {
+                        packIds.add(packId);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to load resource-pack preference for " + playerId, e);
+        }
+        return found ? new PlayerResourcePackPreference(playerId, packIds) : null;
+    }
+
+    public void saveResourcePackPreference(PlayerResourcePackPreference preference) {
+        try {
+            Connection conn = getConnection();
+            boolean previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement delete = conn.prepareStatement(
+                    "DELETE FROM player_resource_pack_preferences WHERE player_uuid = ?")) {
+                delete.setString(1, preference.playerId().toString());
+                delete.executeUpdate();
+            }
+            try (PreparedStatement insert = conn.prepareStatement("""
+                    INSERT INTO player_resource_pack_preferences(player_uuid, pack_id, sort_order)
+                    VALUES(?, ?, ?)
+                    """)) {
+                if (preference.enabledPackIds().isEmpty()) {
+                    insert.setString(1, preference.playerId().toString());
+                    insert.setString(2, "");
+                    insert.setInt(3, 0);
+                    insert.addBatch();
+                } else {
+                    for (int i = 0; i < preference.enabledPackIds().size(); i++) {
+                        insert.setString(1, preference.playerId().toString());
+                        insert.setString(2, preference.enabledPackIds().get(i));
+                        insert.setInt(3, i);
+                        insert.addBatch();
+                    }
+                }
+                insert.executeBatch();
+            }
+            conn.commit();
+            conn.setAutoCommit(previousAutoCommit);
+        } catch (SQLException e) {
+            try {
+                getConnection().rollback();
+                getConnection().setAutoCommit(true);
+            } catch (SQLException ignored) {
+            }
+            throw new RuntimeException("Failed to save resource-pack preference for " + preference.playerId(), e);
         }
     }
 
