@@ -39,6 +39,7 @@ import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.gui.BackpackSettingsMenu;
 import io.github.tootertutor.ModularPacks.gui.ColorPickerHolder;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
+import io.github.tootertutor.ModularPacks.gui.ResourcePackMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.gui.SettingsMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.SlotLayout;
@@ -102,6 +103,14 @@ public final class BackpackMenuListener implements Listener {
             return;
 
         var topHolder = e.getView().getTopInventory().getHolder();
+
+        if (topHolder instanceof ResourcePackMenuHolder resourcePackHolder) {
+            e.setCancelled(true);
+            if (e.getRawSlot() >= 0 && e.getRawSlot() < e.getView().getTopInventory().getSize()) {
+                plugin.resourcePacks().handleMenuClick(player, resourcePackHolder, e.getRawSlot());
+            }
+            return;
+        }
 
         // Handle settings menu clicks
         if (topHolder instanceof SettingsMenuHolder settingsHolder) {
