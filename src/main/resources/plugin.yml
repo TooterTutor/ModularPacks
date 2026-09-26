@@ -18,6 +18,8 @@ permissions:
     default: op
   modularpacks.update.notify:
     default: op
+  modularpacks.resourcepack.update.notify:
+    default: op
   modularpacks.recipe:
     default: true
 

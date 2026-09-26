@@ -5,9 +5,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
@@ -23,6 +25,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.resource.ResourcePackDefinition;
 import io.github.tootertutor.ModularPacks.screens.core.DefaultScreenTypeResolver;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
@@ -65,6 +68,20 @@ public final class ConfigManager {
     private int updateCheckerIntervalHours = 24;
     private String updateCheckerNotifyPermission = "modularpacks.update.notify";
     private String updateCheckerReleaseApiUrl = "https://api.github.com/repos/tootertutor/ModularPacks/releases/latest";
+
+    // Per-player layered resource packs
+    private boolean resourcePackEnabled = true;
+    private boolean resourcePackApplyOnJoin = true;
+    private boolean resourcePackRequired = false;
+    private String resourcePackPrompt = "&eModularPacks offers optional visual resource packs.";
+    private boolean resourcePackUpdatesEnabled = true;
+    private boolean resourcePackCheckOnStartup = true;
+    private boolean resourcePackPeriodicCheck = true;
+    private int resourcePackCheckIntervalHours = 6;
+    private String resourcePackNotifyPermission = "modularpacks.resourcepack.update.notify";
+    private String resourcePackReleaseApiUrl = "https://api.github.com/repos/TooterTutor/ModularPacks-Resources/releases/latest";
+    private List<String> defaultResourcePacks = List.of("original");
+    private List<ResourcePackDefinition> resourcePacks = List.of();
 
     // Container rules
     private boolean allowShulkerBoxes = false;
@@ -145,6 +162,8 @@ public final class ConfigManager {
         if (updateCheckerReleaseApiUrl == null || updateCheckerReleaseApiUrl.isBlank()) {
             updateCheckerReleaseApiUrl = "https://api.github.com/repos/tootertutor/ModularPacks/releases/latest";
         }
+
+        loadResourcePackSettings(cfg);
 
         allowShulkerBoxes = cfg.getBoolean("modularpacks.AllowShulkerBoxes", false);
         allowBundles = cfg.getBoolean("modularpacks.AllowBundles", false);
@@ -421,6 +440,54 @@ public final class ConfigManager {
 
     public String updateCheckerReleaseApiUrl() {
         return updateCheckerReleaseApiUrl;
+    }
+
+    public boolean resourcePackEnabled() {
+        return resourcePackEnabled;
+    }
+
+    public boolean resourcePackApplyOnJoin() {
+        return resourcePackApplyOnJoin;
+    }
+
+    public boolean resourcePackRequired() {
+        return resourcePackRequired;
+    }
+
+    public String resourcePackPrompt() {
+        return resourcePackPrompt;
+    }
+
+    public boolean resourcePackUpdatesEnabled() {
+        return resourcePackUpdatesEnabled;
+    }
+
+    public boolean resourcePackCheckOnStartup() {
+        return resourcePackCheckOnStartup;
+    }
+
+    public boolean resourcePackPeriodicCheck() {
+        return resourcePackPeriodicCheck;
+    }
+
+    public int resourcePackCheckIntervalHours() {
+        return resourcePackCheckIntervalHours;
+    }
+
+    public String resourcePackNotifyPermission() {
+        return resourcePackNotifyPermission;
+    }
+
+    public String resourcePackReleaseApiUrl() {
+        return resourcePackReleaseApiUrl;
+    }
+
+    public List<String> defaultResourcePacks() {
+        return defaultResourcePacks;
+    }
+
+    public List<ResourcePackDefinition> resourcePacks() {
+        return resourcePacks;
     }
 
     public boolean allowShulkerBoxes() {
@@ -922,5 +989,61 @@ public final class ConfigManager {
             return "modularpacks.UpdateChecker";
         }
         return "modularpacks.UpdateChecker";
+    }
+
+    private void loadResourcePackSettings(FileConfiguration cfg) {
+        String root = "modularpacks.ResourcePack";
+        resourcePackEnabled = cfg.getBoolean(root + ".Enabled", true);
+        resourcePackApplyOnJoin = cfg.getBoolean(root + ".ApplyOnJoin", true);
+        resourcePackRequired = cfg.getBoolean(root + ".Required", false);
+        resourcePackPrompt = cfg.getString(root + ".Prompt",
+                "&eModularPacks offers optional visual resource packs.");
+
+        String updates = root + ".Updates";
+        resourcePackUpdatesEnabled = cfg.getBoolean(updates + ".Enabled", true);
+        resourcePackCheckOnStartup = cfg.getBoolean(updates + ".CheckOnStartup", true);
+        resourcePackPeriodicCheck = cfg.getBoolean(updates + ".PeriodicCheck", true);
+        resourcePackCheckIntervalHours = Math.max(1, cfg.getInt(updates + ".CheckIntervalHours", 6));
+        resourcePackNotifyPermission = cfg.getString(updates + ".NotifyPermission",
+                "modularpacks.resourcepack.update.notify");
+        resourcePackReleaseApiUrl = cfg.getString(updates + ".ReleaseApiUrl",
+                "https://api.github.com/repos/TooterTutor/ModularPacks-Resources/releases/latest");
+
+        List<String> defaults = cfg.isList(root + ".Default")
+                ? cfg.getStringList(root + ".Default")
+                : List.of(cfg.getString(root + ".Default", "Original"));
+        defaultResourcePacks = defaults.stream()
+                .filter(Objects::nonNull)
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .filter(value -> !value.isBlank() && !value.equals("none"))
+                .distinct()
+                .toList();
+
+        Map<String, ResourcePackDefinition> definitions = new LinkedHashMap<>();
+        ConfigurationSection packsSection = cfg.getConfigurationSection(root + ".Packs");
+        if (packsSection != null) {
+            int fallbackPriority = 10;
+            for (String key : packsSection.getKeys(false)) {
+                ConfigurationSection pack = packsSection.getConfigurationSection(key);
+                if (pack == null) {
+                    continue;
+                }
+                String id = key.trim().toLowerCase(Locale.ROOT);
+                String displayName = pack.getString("DisplayName", key);
+                String assetName = pack.getString("Asset", "");
+                int priority = pack.getInt("Priority", fallbackPriority);
+                Material icon = mat(pack.getString("Icon", "PAPER"), Material.PAPER);
+                definitions.put(id, new ResourcePackDefinition(id, displayName, assetName, priority, icon, null));
+                fallbackPriority += 10;
+            }
+        }
+        if (definitions.size() > 4) {
+            plugin.getLogger().warning("Only the four lowest-priority configured resource packs will be loaded.");
+        }
+        resourcePacks = definitions.values().stream()
+                .sorted(java.util.Comparator.comparingInt(ResourcePackDefinition::priority)
+                        .thenComparing(ResourcePackDefinition::id))
+                .limit(4)
+                .toList();
     }
 }

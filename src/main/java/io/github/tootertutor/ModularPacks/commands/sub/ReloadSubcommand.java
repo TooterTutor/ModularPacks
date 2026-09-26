@@ -83,6 +83,7 @@ public final class ReloadSubcommand extends AbstractSubcommand {
             plugin.cfg().reload();
             plugin.placedBackpacks().refreshAllRenders();
             plugin.refreshUpdateChecker();
+            plugin.refreshResourcePacks();
             reloaded.append("config");
         }
 

@@ -32,6 +32,45 @@ modularpacks:
     # GitHub API endpoint used to fetch latest release metadata.
     ReleaseApiUrl: https://api.github.com/repos/tootertutor/ModularPacks/releases/latest
 
+  ResourcePack:
+    Enabled: true
+
+    # Resource-pack layers enabled for players who have not saved a preference.
+    Default:
+      - Original
+
+    ApplyOnJoin: true
+    Required: false
+
+    Prompt: "&eModularPacks uses an optional resource pack for custom backpack visuals."
+
+    Updates:
+      Enabled: true
+      CheckOnStartup: true
+      PeriodicCheck: true
+      CheckIntervalHours: 6
+
+      NotifyPermission: modularpacks.resourcepack.update.notify
+
+      # Can be a dedicated resource-pack repository.
+      ReleaseApiUrl: "https://api.github.com/repos/TooterTutor/ModularPacks-Resources/releases/latest"
+
+    Packs:
+      # Up to four pack layers are supported by the selection screen.
+      # Lower priorities are added first; higher priorities are layered on top
+      # and win when two packs contain the same asset path.
+      Original:
+        DisplayName: "&6Original Backpack Models"
+        Asset: "ModularPacks-Original.zip"
+        Priority: 10
+        Icon: LEATHER_CHESTPLATE
+
+      Font:
+        DisplayName: "&bFont Interface"
+        Asset: "ModularPacks-Font.zip"
+        Priority: 20
+        Icon: NAME_TAG
+
   # ResizeGUI: When false, keeps the backpack pages at a fixed GUI size. When true, makes the backpacks dynamically resize the GUI pages.
   ResizeGUI: true
   AutoCloseOnTeleport: true
