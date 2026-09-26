@@ -25,6 +25,35 @@ public final class SlotLayout {
         return invSize - 1;
     } // last slot of nav row
 
+    public static int navRowSlot(int invSize, int rowOffset) {
+        if (rowOffset < 0 || rowOffset >= 9) {
+            throw new IllegalArgumentException("Navigation-row offset must be between 0 and 8");
+        }
+        return bottomRowStart(invSize) + rowOffset;
+    }
+
+    /** Center items in a nine-slot row with a fixed number of empty slots between them. */
+    public static List<Integer> centeredRowSlots(int rowStart, int itemCount, int gap) {
+        if (itemCount <= 0) {
+            return List.of();
+        }
+        if (gap < 0) {
+            throw new IllegalArgumentException("Row gap cannot be negative");
+        }
+
+        int span = itemCount + gap * (itemCount - 1);
+        if (span > 9) {
+            throw new IllegalArgumentException("Items and gaps do not fit in one inventory row");
+        }
+
+        int firstSlot = rowStart + (9 - span) / 2;
+        List<Integer> slots = new ArrayList<>(itemCount);
+        for (int i = 0; i < itemCount; i++) {
+            slots.add(firstSlot + i * (gap + 1));
+        }
+        return Collections.unmodifiableList(slots);
+    }
+
     /**
      * Center the upgrade sockets on the bottom row. Max 5 sockets (leaves room for
      * buttons).
