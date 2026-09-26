@@ -49,6 +49,7 @@ import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
 import io.github.tootertutor.ModularPacks.modules.policy.ModulePolicyService;
 import io.github.tootertutor.ModularPacks.modules.quiver.QuiverService;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
+import io.github.tootertutor.ModularPacks.resource.ResourcePackService;
 import io.github.tootertutor.ModularPacks.storage.BackpackStorageService;
 import io.github.tootertutor.ModularPacks.storage.StackCapacityService;
 import io.github.tootertutor.ModularPacks.update.UpdateCheckerService;
@@ -72,6 +73,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
     private BackpackStorageService backpackStorageService;
     private StackCapacityService stackCapacityService;
     private QuiverService quiverService;
+    private ResourcePackService resourcePackService;
 
     @Override
     public void onEnable() {
@@ -101,6 +103,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         this.repository = new SQLiteBackpackRepository(this);
         this.repository.init();
+
+        this.resourcePackService = new ResourcePackService(this);
+        this.resourcePackService.start();
 
         this.sessions = new BackpackSessionManager(this);
 
@@ -179,6 +184,9 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (resourcePackService != null)
+            resourcePackService.stop();
+
         if (quiverService != null)
             quiverService.shutdown();
 
@@ -267,6 +275,10 @@ public final class ModularPacksPlugin extends JavaPlugin {
         return quiverService;
     }
 
+    public ResourcePackService resourcePacks() {
+        return resourcePackService;
+    }
+
     public void reloadAll() {
         cfg().reload();
         lang().reload();
@@ -286,6 +298,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
         }
 
         refreshUpdateChecker();
+        refreshResourcePacks();
     }
 
     public void refreshUpdateChecker() {
@@ -293,6 +306,13 @@ public final class ModularPacksPlugin extends JavaPlugin {
             updateCheckerService = new UpdateCheckerService(this);
         }
         updateCheckerService.start();
+    }
+
+    public void refreshResourcePacks() {
+        if (resourcePackService == null) {
+            resourcePackService = new ResourcePackService(this);
+        }
+        resourcePackService.start();
     }
 
 }
