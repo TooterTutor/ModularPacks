@@ -3,6 +3,33 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.3
+
+**Release Date:** 2026-09-25
+
+## Changes since 2.7.2
+
+### Features & Improvements
+- Added resource pack menus (9b53974)
+- Added resource pack button (e05bb18)
+- Added centered navRow slotting system (b96f905)
+- Added resource pack services (0ab5f16)
+- Added resource pack player preference (ff231f7)
+- Added resource pack update checker (df4c051)
+- Added beginning of per-player resource pack system (7871fd8)
+
+### All Commits
+- Update readme and bump version (d1f0e6c)
+- Added resource pack menus (9b53974)
+- Added resource pack button (e05bb18)
+- Added centered navRow slotting system (b96f905)
+- Added resource pack services (0ab5f16)
+- Added resource pack player preference (ff231f7)
+- Added resource pack update checker (df4c051)
+- Added beginning of per-player resource pack system (7871fd8)
+---
+
+
 # ModularPacks 2.7.2
 
 **Release Date:** 2026-09-17
