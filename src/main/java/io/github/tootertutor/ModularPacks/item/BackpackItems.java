@@ -91,6 +91,47 @@ public final class BackpackItems {
         return item;
     }
 
+    /**
+     * Creates a visual-only backpack item for recipe and menu previews.
+     *
+     * Unlike {@link #create(String)}, this does not allocate a backpack UUID or
+     * create a database row. It still applies every configured visual component so
+     * player-head textures and resource-pack models render correctly.
+     */
+    public ItemStack createPreview(String typeId) {
+        BackpackTypeDef type = plugin.cfg().findType(typeId);
+        if (type == null)
+            return null;
+
+        ItemStack item = new ItemStack(type.outputMaterial());
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null)
+            return item;
+
+        meta.displayName(Text.c(type.displayName()));
+
+        if (type.customModelData() > 0) {
+            CustomModelDataUtil.setCustomModelData(meta, type.customModelData());
+        }
+
+        if (meta instanceof SkullMeta skull && type.skullData() != null) {
+            SkullTextureUtil.applyBase64Texture(skull, type.skullData());
+        }
+
+        List<String> lore = type.lore();
+        if (lore != null && !lore.isEmpty()) {
+            List<String> previewLore = lore.stream()
+                    .filter(line -> line != null && !line.contains("{backpackId}"))
+                    .toList();
+            if (!previewLore.isEmpty()) {
+                meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, type, null, previewLore)));
+            }
+        }
+
+        item.setItemMeta(meta);
+        return item;
+    }
+
     public boolean refreshInPlace(ItemStack item, BackpackTypeDef type, UUID backpackId, BackpackData data,
             int totalSlots) {
         if (ItemStacks.isAir(item) || type == null || backpackId == null)

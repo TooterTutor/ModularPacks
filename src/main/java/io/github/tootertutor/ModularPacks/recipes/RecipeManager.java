@@ -299,18 +299,9 @@ public final class RecipeManager implements Listener {
         String suffix = (variantId == null || variantId.isBlank()) ? "main" : sanitize(variantId);
         NamespacedKey key = new NamespacedKey(plugin, "backpack_" + sanitize(typeId) + "_" + suffix);
 
-        ItemStack preview = new ItemStack(typeDef.outputMaterial());
-        ItemMeta meta = preview.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Text.c(typeDef.displayName()));
-            if (typeDef.customModelData() > 0) {
-                CustomModelDataUtil.setCustomModelData(meta, typeDef.customModelData());
-            }
-            if (typeDef.lore() != null && !typeDef.lore().isEmpty()) {
-                meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, typeDef, null, typeDef.lore())));
-            }
-            preview.setItemMeta(meta);
-        }
+        ItemStack preview = backpackItems.createPreview(typeDef.id());
+        if (preview == null)
+            return;
 
         ShapedRecipe shaped = new ShapedRecipe(key, preview);
         shaped.shape(pattern.toArray(new String[0]));
@@ -498,18 +489,9 @@ public final class RecipeManager implements Listener {
 
         NamespacedKey key = new NamespacedKey(plugin, "backpack_smith_" + sanitize(resultType.id()));
 
-        ItemStack preview = new ItemStack(resultType.outputMaterial());
-        ItemMeta meta = preview.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Text.c(resultType.displayName()));
-            if (resultType.customModelData() > 0) {
-                CustomModelDataUtil.setCustomModelData(meta, resultType.customModelData());
-            }
-            if (resultType.lore() != null && !resultType.lore().isEmpty()) {
-                meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, resultType, null, resultType.lore())));
-            }
-            preview.setItemMeta(meta);
-        }
+        ItemStack preview = backpackItems.createPreview(resultType.id());
+        if (preview == null)
+            return;
 
         RecipeChoice templateChoice = new RecipeChoice.MaterialChoice(template);
         RecipeChoice baseChoice = new RecipeChoice.MaterialChoice(baseType.outputMaterial());
@@ -557,22 +539,7 @@ public final class RecipeManager implements Listener {
         // CraftItemEvent.
         ItemStack preview = switch (dyn.kind) {
             case BACKPACK -> {
-                var type = plugin.cfg().findType(dyn.id);
-                if (type == null)
-                    yield null;
-                ItemStack it = new ItemStack(type.outputMaterial());
-                var meta = it.getItemMeta();
-                if (meta != null) {
-                    meta.displayName(Text.c(type.displayName()));
-                    if (type.customModelData() > 0) {
-                        CustomModelDataUtil.setCustomModelData(meta, type.customModelData());
-                    }
-                    if (type.lore() != null && !type.lore().isEmpty()) {
-                        meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, type, null, type.lore())));
-                    }
-                    it.setItemMeta(meta);
-                }
-                yield it;
+                yield backpackItems.createPreview(dyn.id);
             }
             case UPGRADE -> {
                 var def = plugin.cfg().findUpgrade(dyn.id);

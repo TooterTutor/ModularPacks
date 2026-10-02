@@ -33,7 +33,8 @@ public final class BackpackUseListener implements Listener {
 
     @EventHandler
     public void onUse(PlayerInteractEvent e) {
-        if (e.getHand() != EquipmentSlot.HAND)
+        EquipmentSlot hand = e.getHand();
+        if (hand != EquipmentSlot.HAND && hand != EquipmentSlot.OFF_HAND)
             return;
 
         Action a = e.getAction();
@@ -64,9 +65,15 @@ public final class BackpackUseListener implements Listener {
         if (item == null || !item.hasItemMeta())
             return;
 
-        ItemStack backpackItem = p.getInventory().getItemInMainHand();
+        ItemStack backpackItem = hand == EquipmentSlot.OFF_HAND
+                ? p.getInventory().getItemInOffHand()
+                : p.getInventory().getItemInMainHand();
         if (backpackItems.ensureWearableTag(backpackItem)) {
-            p.getInventory().setItemInMainHand(backpackItem);
+            if (hand == EquipmentSlot.OFF_HAND) {
+                p.getInventory().setItemInOffHand(backpackItem);
+            } else {
+                p.getInventory().setItemInMainHand(backpackItem);
+            }
         }
 
         openBackpackFromItem(p, e, item, BackpackOpenCause.ITEM_USE);
@@ -92,13 +99,14 @@ public final class BackpackUseListener implements Listener {
             return;
         }
 
+        event.setCancelled(true);
+
         BackpackOpenEvent openEvent = new BackpackOpenEvent(player, backpackId, typeId, cause, null);
         plugin.getServer().getPluginManager().callEvent(openEvent);
         if (openEvent.isCancelled()) {
             return;
         }
 
-        event.setCancelled(true);
         plugin.repo().ensureBackpackExists(backpackId, typeId, player.getUniqueId(), player.getName());
 
         // Load backpack data early to check share validity

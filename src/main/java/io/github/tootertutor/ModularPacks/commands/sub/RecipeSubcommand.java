@@ -19,15 +19,19 @@ import io.github.tootertutor.ModularPacks.commands.AbstractSubcommand;
 import io.github.tootertutor.ModularPacks.commands.CommandContext;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.gui.RecipePreviewUi;
+import io.github.tootertutor.ModularPacks.item.BackpackItems;
+import io.github.tootertutor.ModularPacks.item.CustomModelDataUtil;
 import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
 public final class RecipeSubcommand extends AbstractSubcommand {
 
     private final ModularPacksPlugin plugin;
+    private final BackpackItems backpackItems;
 
     public RecipeSubcommand(ModularPacksPlugin plugin) {
         this.plugin = plugin;
+        this.backpackItems = new BackpackItems(plugin);
     }
 
     @Override
@@ -302,33 +306,7 @@ public final class RecipeSubcommand extends AbstractSubcommand {
     }
 
     private ItemStack createBackpackPreview(String typeId) {
-        var type = plugin.cfg().findType(typeId);
-        if (type == null)
-            return null;
-
-        ItemStack item = new ItemStack(type.outputMaterial());
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null)
-            return item;
-
-        meta.displayName(Text.c(type.displayName()));
-
-        List<String> lore = type.lore();
-        if (lore != null && !lore.isEmpty()) {
-            List<String> filtered = lore.stream()
-                    .filter(s -> s != null && !s.contains("{backpackId}"))
-                    .toList();
-            if (!filtered.isEmpty()) {
-                meta.lore(Text.lore(Placeholders.expandBackpackLore(plugin, type, null, filtered)));
-            } else {
-                meta.lore(null);
-            }
-        } else {
-            meta.lore(null);
-        }
-
-        item.setItemMeta(meta);
-        return item;
+        return backpackItems.createPreview(typeId);
     }
 
     private ItemStack createUpgradePreview(String upgradeId) {
@@ -342,6 +320,12 @@ public final class RecipeSubcommand extends AbstractSubcommand {
             return item;
 
         meta.displayName(Text.c(Placeholders.expandText(plugin, def, item, def.displayName())));
+        if (def.customModelData() > 0) {
+            CustomModelDataUtil.setCustomModelData(meta, def.customModelData());
+        }
+        if (def.glint()) {
+            meta.setEnchantmentGlintOverride(true);
+        }
         List<String> lore = def.lore();
         if (lore != null && !lore.isEmpty()) {
             meta.lore(Text.lore(Placeholders.expandLore(plugin, def, lore)));
