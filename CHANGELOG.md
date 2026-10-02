@@ -3,6 +3,21 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.4
+
+**Release Date:** 2026-10-02
+
+## Changes since 2.7.3
+
+### Bug Fixes
+- Fixed recipe rendering and offhand placement (caca50d)
+
+### All Commits
+- Bump version (8ed8a08)
+- Fixed recipe rendering and offhand placement (caca50d)
+---
+
+
 # ModularPacks 2.7.3
 
 **Release Date:** 2026-09-25
