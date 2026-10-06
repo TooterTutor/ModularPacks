@@ -3,6 +3,21 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.5
+
+**Release Date:** 2026-10-06
+
+## Changes since 2.7.4
+
+### Features & Improvements
+- Added BackSlot system (91a29fe)
+
+### All Commits
+- Bump version (19e1818)
+- Added BackSlot system (91a29fe)
+---
+
+
 # ModularPacks 2.7.4
 
 **Release Date:** 2026-10-02
