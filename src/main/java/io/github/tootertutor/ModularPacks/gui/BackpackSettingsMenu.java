@@ -36,7 +36,8 @@ import net.wesjd.anvilgui.AnvilGUI;
  */
 public final class BackpackSettingsMenu {
 
-    private static final int SLOT_RESOURCE_PACKS = 4;
+    private static final int SLOT_RESOURCE_PACKS = 2;
+    private static final int SLOT_EQUIP = 6;
     private static final int SLOT_SHARING = 11;
     private static final int SLOT_COLORS = 13;
     private static final int SLOT_NAME = 15;
@@ -77,22 +78,22 @@ public final class BackpackSettingsMenu {
             return;
         }
 
-        // Decorative frame for cleaner visual grouping
-        ItemStack frame = createButton("&8", Material.GRAY_STAINED_GLASS_PANE, List.of("&8Backpack Settings"));
-        int[] frameSlots = new int[] { 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 14, 16, 17, 18, 19, 20, 21, 23, 24,
-                25, 26 };
-        for (int frameSlot : frameSlots) {
-            inv.setItem(frameSlot, frame);
-        }
-
+        // Resource packs button (top row, left)
         if (plugin.cfg().resourcePackEnabled()) {
             inv.setItem(SLOT_RESOURCE_PACKS, createButton("&dResource Packs", Material.PAINTING,
                     List.of("&7Mix and match optional visual packs.", "&7Changes are staged until you apply them.",
                             "&7", "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open pack selector")));
         }
 
+        if (!holder.isPlacedContext()) {
+            boolean equipped = plugin.modelManager().backSlot().isEquipped(player, holder.backpackId());
+            inv.setItem(SLOT_EQUIP, createButton(equipped ? "&eUnequip" : "&aEquip",
+                    Material.DIAMOND_CHESTPLATE,
+                    List.of(equipped ? "&7Unequip this backpack" : "&7Equip this backpack")));
+        }
+
         // Row 2: Dynamic sharing mode button (left)
-        int slot = SLOT_SHARING;
+        int slotSharing = SLOT_SHARING;
 
         if (data.isShared()) {
             if (data.isShareHost()) {
@@ -105,7 +106,7 @@ public final class BackpackSettingsMenu {
                 lore.add("&7");
                 lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Stop hosting");
                 lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Set host password");
-                inv.setItem(slot, createButton("&bSharing: Host", Material.ENDER_EYE, lore));
+                inv.setItem(slotSharing, createButton("&bSharing: Host", Material.ENDER_EYE, lore));
 
             } else {
                 // Currently joined
@@ -114,7 +115,7 @@ public final class BackpackSettingsMenu {
                 lore.add("&7");
                 lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Leave this backpack");
                 lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Join a different host");
-                inv.setItem(slot, createButton("&dSharing: Joined", Material.ENDER_PEARL, lore));
+                inv.setItem(slotSharing, createButton("&dSharing: Joined", Material.ENDER_PEARL, lore));
             }
         } else {
             // Private mode
@@ -123,11 +124,11 @@ public final class BackpackSettingsMenu {
             lore.add("&7");
             lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Start hosting");
             lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Join shared backpack");
-            inv.setItem(slot, createButton("&cSharing: Private", Material.BARRIER, lore));
+            inv.setItem(slotSharing, createButton("&cSharing: Private", Material.BARRIER, lore));
         }
 
         // Row 2: Color settings (center)
-        slot = SLOT_COLORS;
+        slotSharing = SLOT_COLORS;
         int[] colors = BackpackColorTints.getColors(backpackItem);
         List<String> colorLore = new ArrayList<>();
         colorLore.add("&7Edit backpack model color groups");
@@ -138,10 +139,10 @@ public final class BackpackSettingsMenu {
         }
         colorLore.add("&7");
         colorLore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open color picker");
-        inv.setItem(slot, createColorPreviewItem(backpackItem, colorLore));
+        inv.setItem(slotSharing, createColorPreviewItem(backpackItem, colorLore));
 
         // Row 2: Name button (right)
-        slot = SLOT_NAME;
+        slotSharing = SLOT_NAME;
 
         // Backpack name button
         List<String> nameLore = new ArrayList<>();
@@ -153,13 +154,21 @@ public final class BackpackSettingsMenu {
         }
         nameLore.add("&7");
         nameLore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Set name");
-        inv.setItem(slot, createButton("&6Backpack Name", Material.NAME_TAG, nameLore));
+        inv.setItem(slotSharing, createButton("&6Backpack Name", Material.NAME_TAG, nameLore));
 
         // Row 3: Back button (bottom center)
-        slot = SLOT_BACK;
+        slotSharing = SLOT_BACK;
         List<String> backLore = new ArrayList<>();
         backLore.add("&7Return to the backpack inventory");
-        inv.setItem(slot, createButton("&eBack", Material.ARROW, backLore));
+        inv.setItem(slotSharing, createButton("&eBack", Material.ARROW, backLore));
+
+        // Decorative frame for cleaner visual grouping
+        ItemStack frame = createButton("&8", Material.GRAY_STAINED_GLASS_PANE, List.of("&8Backpack Settings"));
+        for (int slot = 0; slot < inv.getSize(); slot++) {
+            if (inv.getItem(slot) == null) {
+                inv.setItem(slot, frame);
+            }
+        }
 
         player.openInventory(inv);
     }
@@ -174,6 +183,19 @@ public final class BackpackSettingsMenu {
             if (plugin.cfg().resourcePackEnabled()) {
                 plugin.resourcePacks().openMenu(player, holder);
             }
+            return;
+        }
+
+        // Equip button (top right)
+        if (slot == SLOT_EQUIP) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()
+                        && player.getOpenInventory().getTopInventory()
+                                .getHolder() instanceof SettingsMenuHolder settings
+                        && settings.backpackMenuHolder() == holder) {
+                    toggleEquipped(player, holder);
+                }
+            });
             return;
         }
 
@@ -456,6 +478,24 @@ public final class BackpackSettingsMenu {
         return COLOR_GROUP_NAMES[groupIndex];
     }
 
+    private boolean matchesBackpack(ItemStack item, UUID backpackId) {
+        return backpackId != null && backpackItems.isBackpack(item)
+                && backpackId.toString().equals(item.getItemMeta().getPersistentDataContainer()
+                        .get(plugin.keys().BACKPACK_ID, PersistentDataType.STRING));
+    }
+
+    private void toggleEquipped(Player player, BackpackMenuHolder holder) {
+        if (holder.isPlacedContext()) {
+            player.sendMessage(Text.c("&cPick up this backpack before equipping it."));
+            return;
+        }
+
+        if (plugin.modelManager().backSlot().toggle(player, holder.backpackId())) {
+            plugin.modelManager().scanPlayerForModels(player);
+            openSettingsMenu(player, holder);
+        }
+    }
+
     /**
      * Find the backpack ItemStack in the player's inventory by looking for the
      * backpack ID in the item's PersistentDataContainer.
@@ -541,11 +581,24 @@ public final class BackpackSettingsMenu {
             return item;
         }
 
-        return findBackpackInInventory(player, holder.backpackId());
+        ItemStack equipped = plugin.modelManager().equippedBackpack(player);
+        return matchesBackpack(equipped, holder.backpackId()) ? equipped
+                : findBackpackInInventory(player, holder.backpackId());
     }
 
     private void persistVisualChanges(BackpackMenuHolder holder, ItemStack backpackItem) {
-        if (holder == null || backpackItem == null || !holder.isPlacedContext()) {
+        if (holder == null || backpackItem == null) {
+            return;
+        }
+
+        if (!holder.isPlacedContext()) {
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                if (plugin.modelManager().backSlot().isEquipped(player, holder.backpackId())) {
+                    plugin.modelManager().backSlot().update(player, backpackItem);
+                    player.saveData();
+                    plugin.modelManager().scanPlayerForModels(player);
+                }
+            }
             return;
         }
 

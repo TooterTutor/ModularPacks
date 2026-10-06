@@ -38,29 +38,27 @@ public final class BackpackUseListener implements Listener {
             return;
 
         Action a = e.getAction();
-        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK)
-            return;
-
         Player p = e.getPlayer();
-
         if (a == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null
-                && plugin.placedBackpacks().getAt(e.getClickedBlock().getLocation()) != null) {
+                && (plugin.placedBackpacks().getAt(e.getClickedBlock().getLocation()) != null
+                        || (p.isSneaking() && backpackItems.isBackpack(e.getItem())))) {
             return;
         }
-
-        ItemStack item = e.getItem();
-
-        if (p.isSneaking()) {
-            if (a == Action.RIGHT_CLICK_BLOCK && backpackItems.isBackpack(item)) {
-                return;
+        if (hand == EquipmentSlot.HAND && p.isSneaking()
+                && (a == Action.RIGHT_CLICK_AIR || a == Action.RIGHT_CLICK_BLOCK)) {
+            ItemStack equippedBackpack = plugin.modelManager().equippedBackpack(p);
+            if (!backpackItems.isBackpack(equippedBackpack)) {
+                equippedBackpack = p.getInventory().getChestplate();
             }
-
-            ItemStack equippedBackpack = p.getInventory().getChestplate();
             if (backpackItems.isBackpack(equippedBackpack)) {
                 openBackpackFromItem(p, e, equippedBackpack, BackpackOpenCause.ITEM_USE);
                 return;
             }
         }
+        if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK)
+            return;
+
+        ItemStack item = e.getItem();
 
         if (item == null || !item.hasItemMeta())
             return;

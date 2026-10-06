@@ -140,7 +140,7 @@ public final class ModuleEngineService {
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             Set<UUID> processedBackpacks = new HashSet<>();
-            ItemStack[] contents = player.getInventory().getContents();
+            ItemStack[] contents = plugin.modelManager().backSlot().carriedItems(player);
             if (contents == null || contents.length == 0)
                 continue;
 
@@ -1046,6 +1046,12 @@ public final class ModuleEngineService {
 
         Keys keys = plugin.keys();
         int totalSlots = typeDef.rows() * 9;
+
+        ItemStack equipped = plugin.modelManager().equippedBackpack(player);
+        if (plugin.modelManager().backSlot().matches(equipped, backpackId)
+                && backpackItems.refreshInPlace(equipped, typeDef, backpackId, data, totalSlots)) {
+            plugin.modelManager().backSlot().update(player, equipped);
+        }
 
         for (int i = 0; i < contents.length; i++) {
             ItemStack it = contents[i];

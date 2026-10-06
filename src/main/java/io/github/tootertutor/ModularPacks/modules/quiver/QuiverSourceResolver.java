@@ -37,7 +37,7 @@ public final class QuiverSourceResolver {
         if (player == null) {
             return null;
         }
-        ItemStack[] carried = player.getInventory().getContents();
+        ItemStack[] carried = plugin.modelManager().backSlot().carriedItems(player);
         for (ItemStack item : carried) {
             BackpackReference reference = readBackpack(item);
             if (reference == null) {
@@ -213,7 +213,7 @@ public final class QuiverSourceResolver {
     }
 
     private boolean isCarriedBackpack(Player player, UUID backpackId) {
-        for (ItemStack item : player.getInventory().getContents()) {
+        for (ItemStack item : plugin.modelManager().backSlot().carriedItems(player)) {
             BackpackReference reference = readBackpack(item);
             if (reference != null && reference.backpackId().equals(backpackId)) {
                 return true;

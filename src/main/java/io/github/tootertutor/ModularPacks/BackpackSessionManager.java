@@ -190,6 +190,12 @@ public final class BackpackSessionManager {
         Keys keys = plugin.keys();
 
         for (Player p : Bukkit.getOnlinePlayers()) {
+            ItemStack equipped = plugin.modelManager().equippedBackpack(p);
+            if (isLinkedBackpack(keys, equipped, backpackId)
+                    && backpackItems.refreshInPlace(equipped, type, backpackId, data, totalSlots)) {
+                plugin.modelManager().backSlot().update(p, equipped);
+                plugin.modelManager().scanPlayerForModels(p);
+            }
             ItemStack[] contents = p.getInventory().getContents();
             if (contents != null) {
                 for (int i = 0; i < contents.length; i++) {

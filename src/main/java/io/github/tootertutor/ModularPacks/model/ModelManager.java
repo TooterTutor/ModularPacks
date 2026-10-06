@@ -42,6 +42,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.EulerAngle;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.item.BackpackBackSlot;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
@@ -53,6 +54,7 @@ public class ModelManager implements Listener {
 
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
+    private final BackpackBackSlot backSlot;
 
     private final Map<UUID, UUID> activeModels = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> pendingRefreshes = new ConcurrentHashMap<>();
@@ -61,6 +63,7 @@ public class ModelManager implements Listener {
     public ModelManager(ModularPacksPlugin plugin) {
         this.plugin = plugin;
         this.backpackItems = new BackpackItems(plugin);
+        this.backSlot = new BackpackBackSlot(plugin);
         cleanupTaggedArmorStands();
     }
 
@@ -123,8 +126,15 @@ public class ModelManager implements Listener {
         removeModel(event.getPlayer().getUniqueId());
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onDeath(PlayerDeathEvent event) {
+        if (!event.getKeepInventory()) {
+            ItemStack equipped = backSlot.get(event.getEntity());
+            if (equipped != null) {
+                event.getDrops().add(equipped);
+                backSlot.clear(event.getEntity());
+            }
+        }
         removeModel(event.getEntity().getUniqueId());
     }
 
@@ -334,12 +344,22 @@ public class ModelManager implements Listener {
         };
     }
 
+    public BackpackBackSlot backSlot() {
+        return backSlot;
+    }
+
+    public ItemStack equippedBackpack(Player player) {
+        if (player == null) {
+            return null;
+        }
+        return backSlot.get(player);
+    }
+
     private ItemStack resolveVisibleBackpack(Player player) {
         if (player == null)
             return new ItemStack(org.bukkit.Material.AIR);
 
-        ItemStack chestItem = player.getInventory().getChestplate();
-        return backpackItems.isBackpack(chestItem) ? chestItem : new ItemStack(Material.AIR);
+        return equippedBackpack(player);
     }
 
     private ArmorStand ensureArmorStand(Player player, ItemStack sourceBackpack) {

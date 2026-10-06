@@ -274,6 +274,13 @@ public final class ModuleSocketHandler {
 
         boolean changed = false;
         UUID target = holder.backpackId();
+        ItemStack equipped = plugin.modelManager().equippedBackpack(player);
+        if (plugin.modelManager().backSlot().matches(equipped, target)
+                && backpackItems.refreshInPlace(equipped, holder.type(), target, holder.data(),
+                        holder.logicalSlots())) {
+            plugin.modelManager().backSlot().update(player, equipped);
+            plugin.modelManager().scanPlayerForModels(player);
+        }
         for (int i = 0; i < contents.length; i++) {
             ItemStack it = contents[i];
             if (!isBackpack(it))
