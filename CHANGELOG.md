@@ -3,6 +3,23 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.6
+
+**Release Date:** 2026-10-10
+
+## Changes since 2.7.5
+
+### Features & Improvements
+- Added Backpack priority checks (dcd6375)
+- Added framework for opening backpacks through hotkeys or inventory gestures (6e26d38)
+
+### All Commits
+- Bump version and update readme (097ac39)
+- Added Backpack priority checks (dcd6375)
+- Added framework for opening backpacks through hotkeys or inventory gestures (6e26d38)
+---
+
+
 # ModularPacks 2.7.5
 
 **Release Date:** 2026-10-06
