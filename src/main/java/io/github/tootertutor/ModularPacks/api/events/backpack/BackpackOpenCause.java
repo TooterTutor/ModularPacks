@@ -5,6 +5,8 @@ package io.github.tootertutor.ModularPacks.api.events.backpack;
  */
 public enum BackpackOpenCause {
     ITEM_USE,
+    INVENTORY_GESTURE,
+    EQUIPPED_HOTKEY,
     PLACED_INTERACT,
     COMMAND,
     API
