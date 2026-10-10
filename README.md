@@ -167,6 +167,23 @@ Players can obtain backpacks through recipes or admin commands.
 
 To open a backpack, right-click the backpack item.
 
+For a backpack equipped in the virtual slot or chestplate slot, sneak and press
+the swap-hands key (default **Shift+F**) while in the world. This works in
+Survival, Adventure, and Creative, with items in either hand. The virtual slot
+takes priority over the chestplate slot. Normal swaps are preserved when not
+sneaking or when no backpack is equipped.
+
+In the ordinary Survival/Adventure inventory, you can also double-left-click
+outside its window with an empty cursor (within 350 ms). Both clicks must have
+an empty cursor. This gesture does not apply to item slots, containers, or plugin
+menus. Equipped backpacks no longer open on sneak-right-click,
+so building and item use cannot accidentally open them. A held backpack can
+still be placed by sneak-right-clicking a block.
+
+Right-click a placed backpack to open it. Sneak-right-click with both hands empty
+to pick it up. When sneaking with an item in either hand, the placed backpack is
+bypassed so vanilla item use or held-backpack placement can proceed.
+
 Inside the backpack menu, players can interact with storage slots and installed modules. Module actions are shown in the module lore, so server owners can customize the instructions in the language file.
 
 Common module interactions include:
