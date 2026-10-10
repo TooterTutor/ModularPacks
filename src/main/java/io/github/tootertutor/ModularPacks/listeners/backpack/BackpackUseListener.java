@@ -1,13 +1,25 @@
 package io.github.tootertutor.ModularPacks.listeners.backpack;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -18,9 +30,16 @@ import io.github.tootertutor.ModularPacks.api.events.backpack.BackpackOpenedEven
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.item.Keys;
+import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class BackpackUseListener implements Listener {
 
+    private static final long DOUBLE_CLICK_NANOS = 350_000_000L;
+
+    private record OutsideClick(InventoryView view, long time, ItemStack backpack) {
+    }
+
+    private final Map<UUID, OutsideClick> outsideClicks = new HashMap<>();
     private final ModularPacksPlugin plugin;
     private final BackpackMenuRenderer renderer;
     private final BackpackItems backpackItems;
@@ -38,25 +57,26 @@ public final class BackpackUseListener implements Listener {
             return;
 
         Action a = e.getAction();
-        Player p = e.getPlayer();
-        if (a == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null
-                && (plugin.placedBackpacks().getAt(e.getClickedBlock().getLocation()) != null
-                        || (p.isSneaking() && backpackItems.isBackpack(e.getItem())))) {
-            return;
-        }
-        if (hand == EquipmentSlot.HAND && p.isSneaking()
-                && (a == Action.RIGHT_CLICK_AIR || a == Action.RIGHT_CLICK_BLOCK)) {
-            ItemStack equippedBackpack = plugin.modelManager().equippedBackpack(p);
-            if (!backpackItems.isBackpack(equippedBackpack)) {
-                equippedBackpack = p.getInventory().getChestplate();
-            }
-            if (backpackItems.isBackpack(equippedBackpack)) {
-                openBackpackFromItem(p, e, equippedBackpack, BackpackOpenCause.ITEM_USE);
-                return;
-            }
-        }
         if (a != Action.RIGHT_CLICK_AIR && a != Action.RIGHT_CLICK_BLOCK)
             return;
+        Player p = e.getPlayer();
+        var priority = BackpackInteractionRouter.resolve(plugin, e);
+        if (priority == BackpackInteractionPriority.Action.PLACED_BACKPACK) {
+            if (backpackItems.isBackpack(e.getItem())) {
+                e.setUseItemInHand(Result.DENY);
+            }
+            return;
+        }
+        if (priority == BackpackInteractionPriority.Action.PLACE_HELD) {
+            return;
+        }
+        if (priority == BackpackInteractionPriority.Action.VANILLA
+                || priority == BackpackInteractionPriority.Action.NONE) {
+            if (backpackItems.isBackpack(e.getItem())) {
+                e.setUseItemInHand(Result.DENY);
+            }
+            return;
+        }
 
         ItemStack item = e.getItem();
 
@@ -74,10 +94,89 @@ public final class BackpackUseListener implements Listener {
             }
         }
 
-        openBackpackFromItem(p, e, item, BackpackOpenCause.ITEM_USE);
+        openBackpackFromItem(p, () -> e.setCancelled(true), item, BackpackOpenCause.ITEM_USE);
     }
 
-    private void openBackpackFromItem(Player player, PlayerInteractEvent event, ItemStack item,
+    private ItemStack equippedBackpack(Player player) {
+        ItemStack item = plugin.modelManager().equippedBackpack(player);
+        return backpackItems.isBackpack(item) ? item : player.getInventory().getChestplate();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onEquippedHotkey(PlayerSwapHandItemsEvent event) {
+        Player player = event.getPlayer();
+        if (!player.isSneaking()) {
+            return;
+        }
+        ItemStack equipped = equippedBackpack(player);
+        if (!backpackItems.isBackpack(equipped)) {
+            return;
+        }
+        // Cancel the swap before custom open events or menu/session processing.
+        openBackpackFromItem(player, () -> event.setCancelled(true), equipped,
+                BackpackOpenCause.EQUIPPED_HOTKEY);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onOutsideClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        UUID id = player.getUniqueId();
+        OutsideClick previous = outsideClicks.remove(id);
+        // Only the player's ordinary inventory: never hijack containers or plugin
+        // menus.
+        if (event.isCancelled() || event.getView().getType() != InventoryType.CRAFTING
+                || !BackpackInventoryGesture.isOutsideLeftClick(event.getRawSlot(), event.getClick())
+                || !ItemStacks.isAir(event.getCursor())) {
+            return;
+        }
+        ItemStack equipped = equippedBackpack(player);
+        if (!backpackItems.isBackpack(equipped)) {
+            return;
+        }
+        long now = System.nanoTime();
+        if (previous == null || previous.view() != event.getView()
+                || now - previous.time() > DOUBLE_CLICK_NANOS
+                || !previous.backpack().equals(equipped)) {
+            outsideClicks.put(id, new OutsideClick(event.getView(), now, equipped.clone()));
+            return;
+        }
+        event.setCancelled(true);
+        InventoryView view = event.getView();
+        ItemStack expected = equipped.clone();
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline() || player.getOpenInventory() != view
+                    || !ItemStacks.isAir(player.getItemOnCursor())
+                    || !expected.equals(equippedBackpack(player))) {
+                return;
+            }
+            openBackpackFromItem(player, () -> {
+            }, expected, BackpackOpenCause.INVENTORY_GESTURE);
+        });
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        outsideClicks.remove(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onInventoryOpen(InventoryOpenEvent event) {
+        outsideClicks.remove(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        outsideClicks.remove(event.getWhoClicked().getUniqueId());
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        outsideClicks.remove(event.getPlayer().getUniqueId());
+    }
+
+    private void openBackpackFromItem(Player player, Runnable cancelInteraction, ItemStack item,
             BackpackOpenCause cause) {
         if (item == null || !item.hasItemMeta())
             return;
@@ -97,7 +196,7 @@ public final class BackpackUseListener implements Listener {
             return;
         }
 
-        event.setCancelled(true);
+        cancelInteraction.run();
 
         BackpackOpenEvent openEvent = new BackpackOpenEvent(player, backpackId, typeId, cause, null);
         plugin.getServer().getPluginManager().callEvent(openEvent);

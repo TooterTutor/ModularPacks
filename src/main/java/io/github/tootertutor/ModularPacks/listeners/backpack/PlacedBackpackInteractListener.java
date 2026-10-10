@@ -31,7 +31,7 @@ import io.github.tootertutor.ModularPacks.util.Text;
 /**
  * Handles interactions with placed backpacks.
  * - Right-click to open
- * - Shift-right-click to pick up
+ * - Shift-right-click with both hands empty to pick up
  */
 public final class PlacedBackpackInteractListener implements Listener {
 
@@ -61,18 +61,21 @@ public final class PlacedBackpackInteractListener implements Listener {
         if (placed == null)
             return;
 
+        if (BackpackInteractionRouter.resolve(plugin, event) != BackpackInteractionPriority.Action.PLACED_BACKPACK)
+            return;
+
         // This is a placed backpack - cancel default interaction
         event.setCancelled(true);
 
         Player player = event.getPlayer();
 
-        // Shift-right-click to pick up
+        // Shift-right-click with both hands empty to pick up
         if (player.isSneaking()) {
             pickupBackpack(player, placed, block);
             return;
         }
 
-        // Regular right-click to open (only with empty hand or non-backpack item)
+        // Regular right-click explicitly targets the placed backpack.
         openPlacedBackpack(player, placed);
     }
 

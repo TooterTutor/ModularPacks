@@ -55,6 +55,10 @@ public final class BackpackPlacementListener implements Listener {
         if (hand != EquipmentSlot.HAND && hand != EquipmentSlot.OFF_HAND)
             return;
 
+        if (event.useItemInHand() == Result.DENY
+                || BackpackInteractionRouter.resolve(plugin, event) != BackpackInteractionPriority.Action.PLACE_HELD)
+            return;
+
         Player player = event.getPlayer();
         if (!player.isSneaking())
             return;
