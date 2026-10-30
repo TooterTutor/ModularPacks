@@ -378,6 +378,11 @@ modularpacks:
 
 `ResizeGUI` controls whether backpack pages dynamically resize or keep a fixed size.
 
+Every backpack includes a navigation row for settings, sorting, and module slots,
+even when `UpgradeSlots` is zero. `Rows` counts storage only: `Rows: 2` provides
+18 storage slots plus the navigation row. Packs with more than five storage rows
+use pages of up to 45 storage slots, preserving their full configured capacity.
+
 `AutoCloseOnTeleport` closes open backpack menus when a player teleports.
 
 `AllowShulkerBoxes` and `AllowBundles` control whether nested storage items can be placed inside backpacks.
