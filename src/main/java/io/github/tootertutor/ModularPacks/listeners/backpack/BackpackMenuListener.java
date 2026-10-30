@@ -144,8 +144,7 @@ public final class BackpackMenuListener implements Listener {
         boolean clickedTop = e.getClickedInventory().equals(top);
         int rawSlot = e.getRawSlot();
 
-        boolean hasNavRow = holder.paginated() || holder.type().upgradeSlots() > 0;
-        int visibleStorage = SlotLayout.storageAreaSize(topSize, hasNavRow);
+        int visibleStorage = SlotLayout.bottomRowStart(topSize);
 
         // Hard block: never allow swapping a backpack item into an open backpack
         if (isBackpackHotbarSwap(player, e) || isBackpack(e.getCursor()) || isBackpack(e.getCurrentItem())) {
@@ -304,7 +303,7 @@ public final class BackpackMenuListener implements Listener {
         }
 
         // Protect nav row (except upgrade sockets)
-        if (clickedTop && hasNavRow && rawSlot >= visibleStorage) {
+        if (clickedTop && rawSlot >= visibleStorage) {
 
             if (holder.upgradeSlots().contains(rawSlot)) {
                 moduleHandler.handleUpgradeSocketClick(e, player, holder, rawSlot);
@@ -425,8 +424,7 @@ public final class BackpackMenuListener implements Listener {
         Inventory top = e.getView().getTopInventory();
         int topSize = top.getSize();
 
-        boolean hasNavRow = holder.paginated() || holder.type().upgradeSlots() > 0;
-        int visibleStorage = SlotLayout.storageAreaSize(topSize, hasNavRow);
+        int visibleStorage = SlotLayout.bottomRowStart(topSize);
 
         ItemStack cursor = e.getOldCursor();
         if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
@@ -463,7 +461,7 @@ public final class BackpackMenuListener implements Listener {
         }
 
         for (int rawSlot : e.getRawSlots()) {
-            if (rawSlot < topSize && hasNavRow && rawSlot >= visibleStorage) {
+            if (rawSlot < topSize && rawSlot >= visibleStorage) {
                 e.setCancelled(true);
                 return;
             } else if (rawSlot >= 0 && rawSlot < topSize) {

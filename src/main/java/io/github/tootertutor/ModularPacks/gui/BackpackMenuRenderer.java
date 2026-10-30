@@ -42,22 +42,11 @@ public final class BackpackMenuRenderer {
 
         BackpackData data = plugin.repo().loadOrCreate(backpackId, type.id());
 
-        boolean paginated = type.rows() > 5;
-        boolean hasNavRow = paginated || type.upgradeSlots() > 0;
-
-        // inventory rows:
-        // - paginated: always 6 (5 storage rows + 1 nav row)
-        // - non-paginated: rows (+1 if we need a nav row for upgrade sockets)
-        int invRows = paginated ? 6 : (hasNavRow ? type.rows() + 1 : type.rows());
-
-        // Page size for logical paging (always 45 for paginated, otherwise irrelevant)
-        int pageSize = paginated ? 45 : type.rows() * 9;
-
-        // upgrade sockets live in bottom row (even for non-paginated if hasNavRow)
-        int invSize = invRows * 9;
-        List<Integer> upgradeSlots = hasNavRow
-                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated)
-                : List.of();
+        BackpackMenuLayout layout = BackpackMenuLayout.create(type.rows(), 0, plugin.cfg().resizeGui());
+        boolean paginated = layout.paginated();
+        int invSize = layout.inventorySize();
+        int pageSize = layout.pageSize();
+        List<Integer> upgradeSlots = SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated);
 
         BackpackMenuHolder holder = new BackpackMenuHolder(
                 backpackId,
@@ -72,12 +61,7 @@ public final class BackpackMenuRenderer {
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
         holder.setInventory(inv);
 
-        // clamp page to valid range (important if saved page index is stale)
-        int pageCount = pageCount(holder);
-        if (holder.page() < 0)
-            holder.page(0);
-        if (holder.page() >= pageCount)
-            holder.page(Math.max(0, pageCount - 1));
+        holder.page(layout.page());
 
         render(holder);
 
@@ -92,40 +76,16 @@ public final class BackpackMenuRenderer {
 
         BackpackData data = plugin.repo().loadOrCreate(backpackId, type.id());
 
-        boolean paginated = type.rows() > 5;
-        boolean hasNavRow = paginated || type.upgradeSlots() > 0;
-
-        int invRows;
-        if (paginated) {
-            // Option B sizing: if ResizeGUI=true, shrink storage rows for last page based
-            // on valid slots
-            if (plugin.cfg().resizeGui()) {
-                int logicalSlots = type.rows() * 9;
-                int remaining = logicalSlots - page * 45;
-                int valid = Math.max(0, Math.min(45, remaining));
-                int storageRows = Math.max(1, (int) Math.ceil(valid / 9.0)); // 1..5
-                invRows = storageRows + 1; // + nav row
-            } else {
-                invRows = 6; // 5 storage + nav
-            }
-        } else {
-            invRows = hasNavRow ? type.rows() + 1 : type.rows();
-        }
-
-        int invSize = invRows * 9;
-        List<Integer> upgradeSlots = hasNavRow
-                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated)
-                : List.of();
-
-        int pageSize = paginated ? 45 : type.rows() * 9;
+        BackpackMenuLayout layout = BackpackMenuLayout.create(type.rows(), page, plugin.cfg().resizeGui());
+        boolean paginated = layout.paginated();
+        int invSize = layout.inventorySize();
+        int pageSize = layout.pageSize();
+        List<Integer> upgradeSlots = SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated);
 
         BackpackMenuHolder holder = new BackpackMenuHolder(backpackId, type, data, null, paginated, pageSize,
                 upgradeSlots);
 
-        // clamp and set page
-        int pc = paginated ? Math.max(1, (int) Math.ceil((type.rows() * 9) / 45.0)) : 1;
-        page = Math.max(0, Math.min(page, pc - 1));
-        holder.page(page);
+        holder.page(layout.page());
 
         Component title = buildBackpackTitle(type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
@@ -142,31 +102,11 @@ public final class BackpackMenuRenderer {
     }
 
     public void openMenu(Player player, BackpackData data, BackpackTypeDef type, int page, Location placedLocation) {
-        boolean paginated = type.rows() > 5;
-        boolean hasNavRow = paginated || type.upgradeSlots() > 0;
-
-        int invRows;
-
-        if (paginated) {
-            if (plugin.cfg().resizeGui()) {
-                int logicalSlots = type.rows() * 9;
-                int remaining = logicalSlots - page * 45;
-                int valid = Math.max(0, Math.min(45, remaining));
-                int storageRows = Math.max(1, (int) Math.ceil(valid / 9.0));
-                invRows = storageRows + 1; // + nav row
-            } else {
-                invRows = 6;
-            }
-        } else {
-            invRows = hasNavRow ? type.rows() + 1 : type.rows();
-        }
-
-        int invSize = invRows * 9;
-        List<Integer> upgradeSlots = hasNavRow
-                ? SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated)
-                : java.util.Collections.emptyList();
-
-        int pageSize = paginated ? 45 : type.rows() * 9;
+        BackpackMenuLayout layout = BackpackMenuLayout.create(type.rows(), page, plugin.cfg().resizeGui());
+        boolean paginated = layout.paginated();
+        int invSize = layout.inventorySize();
+        int pageSize = layout.pageSize();
+        List<Integer> upgradeSlots = SlotLayout.upgradeSocketSlots(invSize, type.upgradeSlots(), paginated);
 
         BackpackMenuHolder holder = new BackpackMenuHolder(
                 data.backpackId(),
@@ -177,8 +117,7 @@ public final class BackpackMenuRenderer {
                 pageSize,
                 upgradeSlots);
 
-        int clamped = Math.max(0, Math.min(page, holder.pageCount() - 1));
-        holder.page(clamped);
+        holder.page(layout.page());
 
         Component title = buildBackpackTitle(type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
@@ -200,19 +139,14 @@ public final class BackpackMenuRenderer {
         Inventory inv = holder.getInventory();
         inv.clear();
 
-        boolean hasNavRow = hasNavRow(holder);
         int invSize = inv.getSize();
-        int navStart = invSize - 9;
-        int storageSize = navStart; // everything above nav row
-
-        int visibleStorage = SlotLayout.storageAreaSize(invSize, hasNavRow);
+        int storageSize = SlotLayout.bottomRowStart(invSize);
 
         int logicalSize = holder.logicalSlots();
         BackpackStorageService storageService = plugin.backpackStorage();
         BackpackStorage storage = storageService.load(holder.data(), logicalSize);
 
-        int renderSlots = holder.paginated() ? storageSize : visibleStorage;
-        for (int visibleSlot = 0; visibleSlot < renderSlots; visibleSlot++) {
+        for (int visibleSlot = 0; visibleSlot < storageSize; visibleSlot++) {
             int logicalIndex = BackpackPageMapping.logicalIndex(
                     holder.paginated(), holder.page(), visibleSlot, logicalSize);
             if (logicalIndex < 0) {
@@ -225,10 +159,8 @@ public final class BackpackMenuRenderer {
         }
 
         // bottom row (nav row) with fillers + optional buttons + upgrade sockets
-        if (hasNavRow) {
-            renderNavRow(holder);
-            renderUpgradeSockets(holder);
-        }
+        renderNavRow(holder);
+        renderUpgradeSockets(holder);
 
         if (holder.paginated()) {
             int valid = validVisibleSlots(holder, storageSize); // note overload below
@@ -247,7 +179,8 @@ public final class BackpackMenuRenderer {
     }
 
     /**
-     * Compatibility hook retained for callers that flush before page/module changes.
+     * Compatibility hook retained for callers that flush before page/module
+     * changes.
      * Storage interactions are applied directly to logical storage, so rendered
      * display items must never be read back into the canonical model.
      */
@@ -429,10 +362,6 @@ public final class BackpackMenuRenderer {
         int remaining = holder.logicalSlots() - holder.page() * 45;
         int valid = Math.max(0, Math.min(remaining, 45)); // logical remaining in this page
         return Math.min(valid, storageSize); // can't exceed this inventory's storage area
-    }
-
-    private boolean hasNavRow(BackpackMenuHolder holder) {
-        return holder.paginated() || holder.type().upgradeSlots() > 0;
     }
 
     private int pageCount(BackpackMenuHolder holder) {
