@@ -16,7 +16,9 @@ import io.github.tootertutor.ModularPacks.resource.ResourcePackService;
 import io.github.tootertutor.ModularPacks.update.PackCheckerService.AvailablePack;
 import io.github.tootertutor.ModularPacks.util.Text;
 
-/** GUI for composing and applying a stack of up to four optional resource packs. */
+/**
+ * GUI for composing and applying a stack of up to four optional resource packs.
+ */
 public final class ResourcePackMenu {
 
     private static final int GUI_SIZE = 18;
@@ -40,7 +42,7 @@ public final class ResourcePackMenu {
         LinkedHashSet<String> selected = new LinkedHashSet<>(service.selectionFor(player));
         ResourcePackMenuHolder holder = new ResourcePackMenuHolder(source, selected);
         Inventory inventory = plugin.getServer().createInventory(holder, GUI_SIZE,
-                Text.c("&8ModularPacks Resource Packs"));
+                Text.c(plugin.lang().text(player, "gui.packs.title")));
         render(player, holder, inventory);
         player.openInventory(inventory);
     }
@@ -100,33 +102,38 @@ public final class ResourcePackMenu {
             AvailablePack available = service.availablePack(definition.id());
             String loadedHash = service.loadedHash(player, definition.id());
             List<String> lore = new ArrayList<>();
-            lore.add(selected ? "&aEnabled in selection" : "&7Disabled in selection");
-            lore.add("&7Stack priority: &f" + definition.priority());
+            lore.add(selected ? plugin.lang().text(player, "gui.packs.enabled")
+                    : plugin.lang().text(player, "gui.packs.disabled"));
+            lore.add(plugin.lang().text(player, "gui.packs.priority", "priority", definition.priority()));
             if (available == null) {
-                lore.add("&cNot downloaded yet");
+                lore.add(plugin.lang().text(player, "gui.packs.notDownloaded"));
             } else {
-                lore.add("&7Available: &f" + available.sha1().substring(0, 8));
+                lore.add(plugin.lang().text(player, "gui.packs.available", "hash", available.sha1().substring(0, 8)));
                 if (loadedHash != null && loadedHash.equals(available.sha1())) {
-                    lore.add("&aCurrently loaded");
+                    lore.add(plugin.lang().text(player, "gui.packs.loaded"));
                 } else if (loadedHash != null) {
-                    lore.add("&eUpdate ready");
+                    lore.add(plugin.lang().text(player, "gui.packs.update"));
                 }
             }
             lore.add("");
-            lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Toggle this layer");
+            lore.add(plugin.lang().text(player, "gui.packs.toggle"));
             String name = (selected ? "&a✔ " : "&7") + definition.displayName();
             inventory.setItem(slots.get(index), item(definition.icon(), name, lore));
         }
 
         NavRow nav = navRow(inventory.getSize());
-        inventory.setItem(nav.back(), item(plugin.cfg().navPageButtons(), "&eBack to Backpack", List.of()));
-        inventory.setItem(nav.disableAll(), item(Material.BARRIER, "&cDisable All",
-                List.of("&7Clear every ModularPacks layer", "&7from the staged selection.")));
-        inventory.setItem(nav.apply(), item(Material.LIME_CONCRETE, "&aApply Selected Packs",
-                List.of("&7Save and apply &f" + holder.selected().size() + "&7 selected layer(s).",
-                        "&7All changes are sent together.")));
-        inventory.setItem(nav.defaults(), item(Material.RECOVERY_COMPASS, "&eSelect Default",
-                List.of("&7Restore the server's default", "&7resource-pack selection.")));
+        inventory.setItem(nav.back(),
+                item(plugin.cfg().navPageButtons(), plugin.lang().text(player, "gui.packs.back"), List.of()));
+        inventory.setItem(nav.disableAll(), item(Material.BARRIER, plugin.lang().text(player, "gui.packs.disableAll"),
+                List.of(plugin.lang().text(player, "gui.packs.disableLore1"),
+                        plugin.lang().text(player, "gui.packs.disableLore2"))));
+        inventory.setItem(nav.apply(), item(Material.LIME_CONCRETE, plugin.lang().text(player, "gui.packs.apply"),
+                List.of(plugin.lang().text(player, "gui.packs.applyCount", "count", holder.selected().size()),
+                        plugin.lang().text(player, "gui.packs.applyTogether"))));
+        inventory.setItem(nav.defaults(),
+                item(Material.RECOVERY_COMPASS, plugin.lang().text(player, "gui.packs.defaults"),
+                        List.of(plugin.lang().text(player, "gui.packs.defaultLore1"),
+                                plugin.lang().text(player, "gui.packs.defaultLore2"))));
     }
 
     private List<ResourcePackDefinition> visibleDefinitions() {

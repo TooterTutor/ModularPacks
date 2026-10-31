@@ -415,7 +415,8 @@ public final class ModuleSocketHandler {
 
         saveManager.flushSaveNow(player, holder);
 
-        String title = moduleType.equalsIgnoreCase("ExpPump") ? "Exp Pump Settings" : "Pump Settings";
+        String title = moduleType.equalsIgnoreCase("ExpPump") ? plugin.lang().text(player, "gui.screens.expPump")
+                : plugin.lang().text(player, "gui.screens.pump");
         PumpSettingsHolder settingsHolder = new PumpSettingsHolder(
                 holder.backpackId(),
                 holder.type().id(),
@@ -1009,7 +1010,7 @@ public final class ModuleSocketHandler {
                 saveManager.flushSaveNow(player, holder);
                 module.get().open(plugin, player, holder.backpackId(), holder.type().id(), moduleId);
             } else {
-                player.sendMessage(Text.c("&cThis module has no configurable UI."));
+                player.sendMessage(Text.c(plugin.lang().text(player, "gui.feedback.noModuleUi")));
             }
             return;
         }

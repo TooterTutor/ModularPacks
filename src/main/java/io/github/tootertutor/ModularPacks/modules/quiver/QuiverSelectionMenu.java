@@ -53,16 +53,17 @@ public final class QuiverSelectionMenu implements Listener {
                 return;
             }
             QuiverSelectionMenuHolder holder = new QuiverSelectionMenuHolder(backpackId, backpackType, moduleId);
-            Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER, Text.c("&8Quiver Selection"));
+            Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER,
+                    Text.c(plugin.lang().text(player, "gui.quiver.title")));
             holder.inventory(inventory);
-            render(holder);
+            render(player, holder);
             player.openInventory(inventory);
         });
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player)
+        if (!(event.getWhoClicked() instanceof Player player)
                 || !(event.getView().getTopInventory().getHolder() instanceof QuiverSelectionMenuHolder holder)) {
             return;
         }
@@ -96,7 +97,7 @@ public final class QuiverSelectionMenu implements Listener {
         }
 
         if (resolver.saveSelection(holder.backpackId(), holder.backpackType(), holder.moduleId(), selection)) {
-            render(holder);
+            render(player, holder);
         }
     }
 
@@ -117,7 +118,7 @@ public final class QuiverSelectionMenu implements Listener {
         }
     }
 
-    private void render(QuiverSelectionMenuHolder holder) {
+    private void render(Player player, QuiverSelectionMenuHolder holder) {
         Inventory inventory = holder.getInventory();
         inventory.clear();
         holder.clearChoices();
@@ -145,70 +146,71 @@ public final class QuiverSelectionMenu implements Listener {
 
         if (selectedIndex < 0) {
             inventory.setItem(SELECTED_PROJECTILE_SLOT,
-                    control(Material.PAPER, "&cNo Quiver Ammunition",
-                            List.of("&7Add a supported arrow to this backpack.")));
+                    control(Material.PAPER, plugin.lang().text(player, "gui.quiver.empty"),
+                            List.of(plugin.lang().text(player, "gui.quiver.emptyLore"))));
             return;
         }
 
         ProjectileOption selected = options.get(selectedIndex);
-        inventory.setItem(SELECTED_PROJECTILE_SLOT, selectedDisplay(selected, selection.mode()));
+        inventory.setItem(SELECTED_PROJECTILE_SLOT, selectedDisplay(player, selected, selection.mode()));
         holder.choice(SELECTED_PROJECTILE_SLOT, selected.prototype());
-        setNavigationChoice(inventory, holder, options, selectedIndex - 1,
-                PREVIOUS_PROJECTILE_SLOT, "&ePrevious Projectile");
-        setNavigationChoice(inventory, holder, options, selectedIndex + 1,
-                NEXT_PROJECTILE_SLOT, "&eNext Projectile");
-        setPageChoice(inventory, holder, options, selectedIndex - PAGE_STEP,
-                PREVIOUS_PAGE_SLOT, "&ePrevious Page");
-        setPageChoice(inventory, holder, options, selectedIndex + PAGE_STEP,
-                NEXT_PAGE_SLOT, "&eNext Page");
+        setNavigationChoice(player, inventory, holder, options, selectedIndex - 1,
+                PREVIOUS_PROJECTILE_SLOT, plugin.lang().text(player, "gui.quiver.previousProjectile"));
+        setNavigationChoice(player, inventory, holder, options, selectedIndex + 1,
+                NEXT_PROJECTILE_SLOT, plugin.lang().text(player, "gui.quiver.nextProjectile"));
+        setPageChoice(player, inventory, holder, options, selectedIndex - PAGE_STEP,
+                PREVIOUS_PAGE_SLOT, plugin.lang().text(player, "gui.quiver.previous"));
+        setPageChoice(player, inventory, holder, options, selectedIndex + PAGE_STEP,
+                NEXT_PAGE_SLOT, plugin.lang().text(player, "gui.quiver.next"));
     }
 
-    private void setNavigationChoice(Inventory inventory, QuiverSelectionMenuHolder holder,
+    private void setNavigationChoice(Player player, Inventory inventory, QuiverSelectionMenuHolder holder,
             List<ProjectileOption> options, int index, int slot, String label) {
         if (index < 0 || index >= options.size()) {
             return;
         }
         ProjectileOption option = options.get(index);
-        inventory.setItem(slot, optionDisplay(option, label));
+        inventory.setItem(slot, optionDisplay(player, option, label));
         holder.choice(slot, option.prototype());
     }
 
-    private void setPageChoice(Inventory inventory, QuiverSelectionMenuHolder holder,
+    private void setPageChoice(Player player, Inventory inventory, QuiverSelectionMenuHolder holder,
             List<ProjectileOption> options, int targetIndex, int slot, String label) {
         if (targetIndex < 0 || targetIndex >= options.size()) {
             return;
         }
         ProjectileOption target = options.get(targetIndex);
         inventory.setItem(slot, control(Material.ARROW, label,
-                List.of("&7Jump three projectiles.")));
+                List.of(plugin.lang().text(player, "gui.quiver.jump"))));
         holder.choice(slot, target.prototype());
     }
 
-    private ItemStack optionDisplay(ProjectileOption option, String label) {
+    private ItemStack optionDisplay(Player player, ProjectileOption option, String label) {
         ItemStack display = option.prototype();
         display.setAmount(Math.toIntExact(Math.min(option.count(), display.getMaxStackSize())));
         ItemMeta meta = display.getItemMeta();
         List<Component> lore = meta.lore() == null ? new ArrayList<>() : new ArrayList<>(meta.lore());
         lore.add(Text.c(label));
-        lore.add(Text.c("&7Stored: &f" + option.count()));
-        lore.add(Text.c("&eClick to select"));
+        lore.add(Text.c(plugin.lang().text(player, "gui.quiver.stored", "count", option.count())));
+        lore.add(Text.c(plugin.lang().text(player, "gui.quiver.select")));
         meta.lore(lore);
         display.setItemMeta(meta);
         return display;
     }
 
-    private ItemStack selectedDisplay(ProjectileOption option, QuiverSelectionMode mode) {
+    private ItemStack selectedDisplay(Player player, ProjectileOption option, QuiverSelectionMode mode) {
         ItemStack display = option.prototype();
         display.setAmount(Math.toIntExact(Math.max(1, Math.min(option.count(), display.getMaxStackSize()))));
         ItemMeta meta = display.getItemMeta();
         List<Component> lore = meta.lore() == null ? new ArrayList<>() : new ArrayList<>(meta.lore());
-        lore.add(Text.c(mode == QuiverSelectionMode.AUTO ? "&aMode: Auto" : "&aMode: Exact"));
+        lore.add(Text.c(mode == QuiverSelectionMode.AUTO ? plugin.lang().text(player, "gui.quiver.auto")
+                : plugin.lang().text(player, "gui.quiver.exact")));
         lore.add(Text.c(option.count() > 0
-                ? "&7Available: &f" + option.count()
-                : "&cCurrently unavailable"));
+                ? plugin.lang().text(player, "gui.quiver.available", "count", option.count())
+                : plugin.lang().text(player, "gui.quiver.unavailable")));
         lore.add(Text.c(mode == QuiverSelectionMode.AUTO
-                ? "&eRight-click for Exact mode"
-                : "&eRight-click for Auto mode"));
+                ? plugin.lang().text(player, "gui.quiver.chooseExact")
+                : plugin.lang().text(player, "gui.quiver.chooseAuto")));
         meta.lore(lore);
         display.setItemMeta(meta);
         return display;

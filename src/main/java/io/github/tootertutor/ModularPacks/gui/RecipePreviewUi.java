@@ -7,6 +7,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
+import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
 public final class RecipePreviewUi {
@@ -26,7 +27,7 @@ public final class RecipePreviewUi {
 
         RecipePreviewHolder holder = new RecipePreviewHolder(Kind.CRAFTING);
         Inventory inv = Bukkit.createInventory(holder, InventoryType.WORKBENCH,
-                title == null ? Component.text("Recipe Preview") : title);
+                title == null ? Text.c(plugin.lang().text(player, "gui.recipe.title")) : title);
         holder.setInventory(inv);
 
         for (int i = 0; i < 9; i++) {
@@ -46,7 +47,9 @@ public final class RecipePreviewUi {
 
         RecipePreviewHolder holder = new RecipePreviewHolder(Kind.SMITHING);
         Inventory inv = Bukkit.createInventory(holder, InventoryType.SMITHING,
-                title == null ? Component.text("Recipe Preview") : title);
+                title == null
+                        ? Text.c(plugin.lang().text(player, "gui.recipe.title"))
+                        : title);
         holder.setInventory(inv);
 
         // SmithingInventory is [0]=template, [1]=base, [2]=addition, [3]=result.

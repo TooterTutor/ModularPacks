@@ -87,7 +87,7 @@ public final class CraftingModuleListener implements Listener {
         }
 
         // Autocrafting module uses output slot clicks to adjust desired batch amount.
-        if (module.handleAutocraftingResultClick(e, player)) {
+        if (module.handleAutocraftingResultClick(plugin, e, player)) {
             return;
         }
 

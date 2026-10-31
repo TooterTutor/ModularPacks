@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
@@ -30,6 +31,15 @@ public final class BackpackMenuHolder implements InventoryHolder {
     private boolean sortLocked = false;
 
     private Inventory inventory;
+    private Player viewer;
+
+    public Player viewer() {
+        return viewer;
+    }
+
+    public void viewer(Player player) {
+        this.viewer = player;
+    }
 
     public BackpackMenuHolder(UUID backpackId, BackpackTypeDef type, BackpackData data, Location placedLocation,
             boolean paginated, int pageSize,

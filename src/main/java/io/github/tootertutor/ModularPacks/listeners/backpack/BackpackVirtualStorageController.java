@@ -303,7 +303,7 @@ final class BackpackVirtualStorageController {
         long oldVanillaCapacity = stored.prototype().getMaxStackSize();
         long newLogicalCapacity = plugin.backpackStorage().capacityFor(holder.data(), cursor);
         if (stored.count() > oldVanillaCapacity || cursor.getAmount() > newLogicalCapacity) {
-            player.sendMessage(Text.c("&cThat virtual stack cannot be swapped as one item stack."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.feedback.swapVirtual")));
             return;
         }
 
@@ -381,7 +381,7 @@ final class BackpackVirtualStorageController {
         }
 
         if (stored != null && stored.count() > stored.prototype().getMaxStackSize()) {
-            player.sendMessage(Text.c("&cThat virtual stack cannot be moved into a hotbar or offhand slot at once."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.feedback.moveVirtual")));
             return;
         }
         if (ItemStacks.isNotAir(source)

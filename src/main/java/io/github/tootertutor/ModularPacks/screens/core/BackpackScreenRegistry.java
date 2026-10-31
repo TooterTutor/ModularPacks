@@ -1,10 +1,12 @@
 package io.github.tootertutor.ModularPacks.screens.core;
 
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -16,6 +18,7 @@ import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
+import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
 public final class BackpackScreenRegistry {
@@ -37,15 +40,28 @@ public final class BackpackScreenRegistry {
     }
 
     public Inventory createInventory(ModuleScreenHolder holder) {
+        return createInventory(null, holder);
+    }
+
+    public Inventory createInventory(Player player, ModuleScreenHolder holder) {
         String moduleType = resolveModuleType(holder.backpackId(), holder.moduleId());
         String filterMode = resolveFilterMode(holder.backpackId(), holder.moduleId());
 
         ScreenDefinition definition = resolveDefinition(moduleType, holder.screenType());
         if (definition == null)
-            return Bukkit.createInventory(holder, 27, Component.text("Module"));
+            return Bukkit.createInventory(holder, 27, Text.c(plugin.lang().text(player, "gui.screens.unknown")));
 
-        Component title = Component.text(definition.titleResolver()
-                .resolve(holder.screenType(), moduleType, filterMode));
+        String key = "gui.screens.defaults." + holder.screenType().name().toLowerCase(Locale.ROOT);
+        ModuleDeclaration declaration = BuiltInModuleDeclarations.find(moduleType);
+        if (declaration != null && declaration.getScreenDefinition(holder.screenType()) != null) {
+            key = "gui.screens.modules." + moduleType.toLowerCase(Locale.ROOT) + "."
+                    + holder.screenType().name().toLowerCase(Locale.ROOT);
+            if ("Feeding".equalsIgnoreCase(moduleType) || "Magnet".equalsIgnoreCase(moduleType)) {
+                key += "BLACKLIST".equalsIgnoreCase(filterMode) ? ".blacklist" : ".whitelist";
+            }
+        }
+        Component title = Text.c(plugin.lang().get(player, key, definition.titleResolver()
+                .resolve(holder.screenType(), moduleType, filterMode)));
 
         if (definition.usesInventoryType()) {
             return Bukkit.createInventory(holder, definition.inventoryType(), title);

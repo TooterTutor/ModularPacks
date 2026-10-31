@@ -59,8 +59,8 @@ public final class RestockModuleListener implements Listener {
         BackpackData data = plugin.repo().loadOrCreate(msh.backpackId(), msh.backpackType());
         int threshold = readStoredThreshold(data, msh.moduleId());
         top.clear();
-        writeThreshold(top, threshold);
-        renderIfNeeded(top);
+        writeThreshold(player, top, threshold);
+        renderIfNeeded(player, top);
         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
     }
 
@@ -88,7 +88,7 @@ public final class RestockModuleListener implements Listener {
         }
 
         // Ensure layout exists even if the screen was opened with null state.
-        renderIfNeeded(top);
+        renderIfNeeded(player, top);
 
         final int delta = (e.getClick() != null && e.getClick().isLeftClick())
                 ? (e.isShiftClick() ? 8 : 1)
@@ -97,7 +97,7 @@ public final class RestockModuleListener implements Listener {
         if (raw == SLOT_DECREASE && delta > 0) {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 int t = readThreshold(top);
-                writeThreshold(top, t - delta);
+                writeThreshold(player, top, t - delta);
                 player.updateInventory();
             });
             return;
@@ -106,7 +106,7 @@ public final class RestockModuleListener implements Listener {
         if (raw == SLOT_INCREASE && delta > 0) {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 int t = readThreshold(top);
-                writeThreshold(top, t + delta);
+                writeThreshold(player, top, t + delta);
                 player.updateInventory();
             });
             return;
@@ -116,7 +116,7 @@ public final class RestockModuleListener implements Listener {
         if (raw == SLOT_CENTER && (e.getClick() == ClickType.LEFT || e.getClick() == ClickType.SHIFT_LEFT
                 || e.getClick() == ClickType.RIGHT || e.getClick() == ClickType.SHIFT_RIGHT)) {
             Bukkit.getScheduler().runTask(plugin, () -> {
-                renderIfNeeded(top);
+                renderIfNeeded(player, top);
                 player.closeInventory();
             });
             return;
@@ -147,22 +147,22 @@ public final class RestockModuleListener implements Listener {
         }
     }
 
-    private void renderIfNeeded(Inventory inv) {
+    private void renderIfNeeded(Player player, Inventory inv) {
         if (inv == null || inv.getSize() < 5)
             return;
 
         int threshold = readThreshold(inv);
 
         // Always render the arrows and filler; this also fixes any tampering.
-        inv.setItem(SLOT_DECREASE, arrow("&cDecrease"));
-        inv.setItem(SLOT_INCREASE, arrow("&aIncrease"));
+        inv.setItem(SLOT_DECREASE, arrow(plugin.lang().text(player, "gui.restock.decrease")));
+        inv.setItem(SLOT_INCREASE, arrow(plugin.lang().text(player, "gui.restock.increase")));
 
         if (ItemStacks.isAir(inv.getItem(1)))
             inv.setItem(1, filler());
         if (ItemStacks.isAir(inv.getItem(3)))
             inv.setItem(3, filler());
 
-        writeThreshold(inv, threshold);
+        writeThreshold(player, inv, threshold);
     }
 
     private int readStoredThreshold(BackpackData data, java.util.UUID moduleId) {
@@ -209,7 +209,7 @@ public final class RestockModuleListener implements Listener {
         return clampBetween1And64(amt);
     }
 
-    private void writeThreshold(Inventory inv, int threshold) {
+    private void writeThreshold(Player player, Inventory inv, int threshold) {
         if (inv == null || inv.getSize() <= SLOT_CENTER)
             return;
 
@@ -219,11 +219,11 @@ public final class RestockModuleListener implements Listener {
         item.setAmount(t);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(Text.c("&eRestock Threshold &7(&f" + t + "&7)"));
+            meta.displayName(Text.c(plugin.lang().text(player, "gui.restock.threshold", "threshold", t)));
             meta.lore(Text.lore(java.util.List.of(
-                    "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7: &f-/+ 1",
-                    "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7: &f-/+ 8",
-                    "&7Click this item to &aconfirm")));
+                    plugin.lang().text(player, "gui.restock.step"),
+                    plugin.lang().text(player, "gui.restock.shiftStep"),
+                    plugin.lang().text(player, "gui.restock.confirm"))));
             item.setItemMeta(meta);
         }
         inv.setItem(SLOT_CENTER, item);

@@ -152,15 +152,15 @@ public final class ResourcePackService implements Listener {
         }
 
         if (!unavailable.isEmpty()) {
-            player.sendMessage(Text.c("&eSome selected resource packs are not available yet: &f"
-                    + String.join(", ", unavailable)));
+            player.sendMessage(Text
+                    .c(plugin.lang().text(player, "gui.packs.unavailable", "packs", String.join(", ", unavailable))));
         }
         if (packInfos.isEmpty()) {
             if (userInitiated) {
                 if (selectedIds.isEmpty()) {
-                    player.sendMessage(Text.c("&aModularPacks resource packs disabled."));
+                    player.sendMessage(Text.c(plugin.lang().text(player, "gui.packs.disabledMessage")));
                 } else {
-                    player.sendMessage(Text.c("&cNo selected resource packs are currently available."));
+                    player.sendMessage(Text.c(plugin.lang().text(player, "gui.packs.noneAvailable")));
                 }
             }
             return;
@@ -170,14 +170,14 @@ public final class ResourcePackService implements Listener {
                 .packs(packInfos)
                 .replace(false)
                 .required(plugin.cfg().resourcePackRequired())
-                .prompt(Text.c(plugin.cfg().resourcePackPrompt()))
+                .prompt(Text.c(io.github.tootertutor.ModularPacks.config.Placeholders.expandTextFor(
+                        plugin, player, null, null, plugin.cfg().resourcePackPrompt())))
                 .callback((packId, status, audience) -> handlePackStatus(player.getUniqueId(), packId, status,
                         audience, requestPacks))
                 .build();
         player.sendResourcePacks(request);
         if (userInitiated) {
-            player.sendMessage(Text.c("&aApplying " + packInfos.size() + " ModularPacks resource-pack layer"
-                    + (packInfos.size() == 1 ? "." : "s.")));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.packs.applying", "count", packInfos.size())));
         }
     }
 
@@ -198,8 +198,10 @@ public final class ResourcePackService implements Listener {
                 loadedHashes.computeIfAbsent(expectedPlayer, ignored -> new HashMap<>())
                         .put(hosted.definition().id(), hosted.sha1());
             } else if (!status.intermediate()) {
-                player.sendMessage(Text.c("&cCould not load resource pack &f"
-                        + hosted.definition().displayName() + "&c: " + status.name().toLowerCase(Locale.ROOT)));
+                player.sendMessage(Text.c(plugin.lang().text(player, "gui.packs.loadFailed", "pack",
+                        hosted.definition().displayName(), "status",
+                        plugin.lang().get(player, "gui.packs.statuses." + status.name().toLowerCase(Locale.ROOT),
+                                status.name().toLowerCase(Locale.ROOT)))));
             }
         });
     }
@@ -217,9 +219,8 @@ public final class ResourcePackService implements Listener {
             if (loaded == null || loaded.equals(replacement.sha1())) {
                 continue;
             }
-            player.sendMessage(Text.c("&eA newer ModularPacks resource pack is available for &f"
-                    + replacement.definition().displayName()
-                    + "&e. Relog, or open Backpack Settings → Resource Packs and press Apply."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.packs.newVersion", "pack",
+                    replacement.definition().displayName())));
         }
     }
 }

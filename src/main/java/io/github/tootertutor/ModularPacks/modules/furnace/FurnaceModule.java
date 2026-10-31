@@ -17,6 +17,7 @@ import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 import net.kyori.adventure.text.Component;
 
 /**
@@ -84,10 +85,10 @@ public final class FurnaceModule extends AbstractModule {
             return;
 
         Component title = switch (screenType) {
-            case SMELTING -> Component.text("Smelting Module");
-            case BLASTING -> Component.text("Blasting Module");
-            case SMOKING -> Component.text("Smoking Module");
-            default -> Component.text("Furnace Module");
+            case SMELTING -> Text.c(plugin.lang().text(player, "gui.screens.defaults.smelting"));
+            case BLASTING -> Text.c(plugin.lang().text(player, "gui.screens.defaults.blasting"));
+            case SMOKING -> Text.c(plugin.lang().text(player, "gui.screens.defaults.smoking"));
+            default -> Text.c(plugin.lang().text(player, "gui.screens.defaults.furnace"));
         };
 
         FurnaceView view = builder.title(title)

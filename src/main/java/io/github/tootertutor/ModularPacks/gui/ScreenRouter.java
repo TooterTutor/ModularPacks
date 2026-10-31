@@ -141,7 +141,7 @@ public final class ScreenRouter {
 
 		// Holder so listeners can identify and persist this module screen
 		ModuleScreenHolder holder = new ModuleScreenHolder(backpackId, backpackType, moduleId, screenType);
-		Inventory inv = screenRegistry.createInventory(holder);
+		Inventory inv = screenRegistry.createInventory(player, holder);
 
 		holder.setInventory(inv);
 

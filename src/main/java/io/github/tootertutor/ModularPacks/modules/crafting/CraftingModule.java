@@ -18,7 +18,7 @@ import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
-import net.kyori.adventure.text.Component;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Crafting module that provides a 3x3 crafting table interface in backpacks.
@@ -53,7 +53,9 @@ public final class CraftingModule extends AbstractModule {
         sessionModes.put(playerId, mode);
 
         InventoryView view = MenuType.CRAFTING.builder()
-                .title(Component.text(mode == SessionMode.AUTOCRAFTING ? "Autocrafting Module" : "Crafting Module"))
+                .title(Text.c(plugin.lang().text(player, mode == SessionMode.AUTOCRAFTING
+                        ? "gui.screens.defaults.autocrafting"
+                        : "gui.screens.defaults.crafting")))
                 .location(player.getLocation())
                 .checkReachable(false)
                 .build(player);
@@ -149,6 +151,10 @@ public final class CraftingModule extends AbstractModule {
     }
 
     public boolean handleAutocraftingResultClick(InventoryClickEvent e, Player player) {
+        return handleAutocraftingResultClick(null, e, player);
+    }
+
+    public boolean handleAutocraftingResultClick(ModularPacksPlugin plugin, InventoryClickEvent e, Player player) {
         if (player == null || e == null || !isAutocraftingSession(player))
             return false;
 
@@ -175,7 +181,8 @@ public final class CraftingModule extends AbstractModule {
             int current = getAutocraftingDesiredAmount(player);
             int updated = AutocraftingStateCodec.clampDesiredAmount(current + delta);
             autocraftingDesiredAmounts.put(playerId, updated);
-            player.sendActionBar(Component.text("Autocraft batch amount: " + updated));
+            player.sendActionBar(Text.c(plugin == null ? "Autocraft batch amount: " + updated
+                    : plugin.lang().text(player, "gui.feedback.autocraftBatch", "count", updated)));
         }
 
         return true;

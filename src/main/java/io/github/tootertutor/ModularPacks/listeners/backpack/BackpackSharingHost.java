@@ -35,7 +35,7 @@ public class BackpackSharingHost {
      */
     public void hostBackpack(Player player, BackpackMenuHolder holder) {
         if (!plugin.cfg().isSharedBackpacksEnabled()) {
-            player.sendMessage(Text.c("&cBackpack sharing is disabled."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.disabled")));
             return;
         }
 
@@ -48,7 +48,7 @@ public class BackpackSharingHost {
         plugin.repo().saveBackpack(holder.data());
         plugin.sessions().refreshLinkedBackpacksThrottled(holder.backpackId(), holder.data());
 
-        player.sendMessage(Text.c("&aBackpack is now shared!"));
+        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.started")));
         renderer.render(holder); // refresh mode button and visuals
     }
 
@@ -69,7 +69,7 @@ public class BackpackSharingHost {
                 boolean matches = (invHolder instanceof BackpackMenuHolder bmh && joinedId.equals(bmh.backpackId()))
                         || (invHolder instanceof ModuleScreenHolder msh && joinedId.equals(msh.backpackId()));
                 if (matches) {
-                    online.sendMessage(Text.c("&cThe host closed sharing; your backpack is now private."));
+                    online.sendMessage(Text.c(plugin.lang().text(online, "gui.sharing.hostClosed")));
                     online.closeInventory();
                 }
             }
@@ -87,7 +87,7 @@ public class BackpackSharingHost {
         plugin.repo().saveBackpack(holder.data());
         plugin.sessions().refreshLinkedBackpacksThrottled(holder.backpackId(), holder.data());
 
-        player.sendMessage(Text.c("&aBackpack is no longer shared."));
+        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.stopped")));
         renderer.render(holder);
     }
 
@@ -131,7 +131,7 @@ public class BackpackSharingHost {
                                                 && joinedId.equals(msh.backpackId()));
                                 if (matches) {
                                     online.sendMessage(
-                                            Text.c("&cHost changed the password; you have been disconnected."));
+                                            Text.c(plugin.lang().text(online, "gui.sharing.disconnected")));
                                     online.closeInventory();
                                 }
                             }
@@ -142,7 +142,7 @@ public class BackpackSharingHost {
                             }
                             plugin.sessions().releaseLock(joinedId);
                         }
-                        player.sendMessage(Text.c("&aPassword changed; all joined backpacks disconnected."));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.passwordChanged")));
                     }
 
                     return java.util.Arrays.asList(
@@ -153,8 +153,9 @@ public class BackpackSharingHost {
                                 });
                             }));
                 })
-                .text(currentPassword.isEmpty() ? "Enter password" : currentPassword)
-                .title("Set Share Password")
+                .text(currentPassword.isEmpty() ? plugin.lang().text(player, "gui.sharing.passwordPrompt")
+                        : currentPassword)
+                .title(plugin.lang().text(player, "gui.sharing.passwordTitle"))
                 .plugin(plugin)
                 .open(player);
     }

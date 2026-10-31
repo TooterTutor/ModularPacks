@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -66,9 +68,10 @@ public final class AdminBackpackListMenu {
         AdminBackpackListMenuHolder holder = new AdminBackpackListMenuHolder(target.getUniqueId(), ownerName, entries,
                 0);
 
-        Component title = Text.c("&8Backpacks: &7" + ownerName);
+        Component title = Text.c(plugin.lang().text(viewer, "gui.admin.title", "owner", ownerName));
         Inventory inv = Bukkit.createInventory(holder, INVENTORY_SIZE, title);
         holder.setInventory(inv);
+        holder.viewer(viewer);
 
         render(holder);
         viewer.openInventory(inv);
@@ -96,7 +99,7 @@ public final class AdminBackpackListMenu {
             AdminBackpackListEntry row = rows.get(i);
             String typeKey = safeType(row.backpackType());
             int index = incrementTypeCounter(typeCounter, typeKey);
-            inv.setItem(slot++, buildBackpackEntry(row, index));
+            inv.setItem(slot++, buildBackpackEntry(holder.viewer(), row, index));
         }
 
         renderNavRow(holder, inv);
@@ -140,6 +143,7 @@ public final class AdminBackpackListMenu {
     }
 
     private void renderNavRow(AdminBackpackListMenuHolder holder, Inventory inv) {
+        Player player = holder.viewer();
         for (int slot = 45; slot < INVENTORY_SIZE; slot++) {
             inv.setItem(slot, namedItemWithGuiMarker(plugin.cfg().navBorderFiller(), "&7", "admin-list-filler"));
         }
@@ -148,43 +152,50 @@ public final class AdminBackpackListMenu {
         int pageCount = holder.pageCount();
 
         List<String> modeLore = List.of(
-                "&7Current mode: &f" + holder.mode().name().toLowerCase(),
-                "&eClick to toggle mode",
-                "&8View: open backpack",
-                "&8Recover: left->you, right->owner");
-        String modeName = holder.mode() == InteractionMode.VIEW ? "&bMode: View" : "&dMode: Recover";
+                plugin.lang().text(player, "gui.admin.mode", "mode",
+                        plugin.lang().text(player, "gui.admin.modes." + holder.mode().name().toLowerCase(Locale.ROOT))),
+                plugin.lang().text(player, "gui.admin.toggleMode"),
+                plugin.lang().text(player, "gui.admin.viewHint"),
+                plugin.lang().text(player, "gui.admin.recoverHint"));
+        String modeName = holder.mode() == InteractionMode.VIEW ? plugin.lang().text(player, "gui.admin.view")
+                : plugin.lang().text(player, "gui.admin.recover");
         inv.setItem(NAV_MODE_SLOT, namedItemWithGuiMarker(Material.COMPARATOR, modeName, modeLore, GUI_MODE));
 
         List<String> sortLore = new ArrayList<>();
-        sortLore.add("&7Left-click: &fChange field");
-        sortLore.add("&7Right-click: &fToggle direction");
-        sortLore.add("&7Direction: " + (holder.ascending() ? "&aAscending" : "&cDescending"));
+        sortLore.add(plugin.lang().text(player, "gui.admin.changeField"));
+        sortLore.add(plugin.lang().text(player, "gui.admin.toggleDirection"));
+        sortLore.add(plugin.lang().text(player, "gui.admin.direction", "direction",
+                plugin.lang().text(player, holder.ascending() ? "gui.admin.ascending" : "gui.admin.descending")));
         sortLore.add("&7");
-        sortLore.add("&7Field:");
+        sortLore.add(plugin.lang().text(player, "gui.admin.field"));
         for (AdminBackpackListMenuHolder.SortField field : AdminBackpackListMenuHolder.SortField.values()) {
             String color = (field == holder.sortField()) ? "&a" : "&7";
-            sortLore.add(color + field.label());
+            sortLore.add(color + plugin.lang().get(player,
+                    "gui.admin.fields." + field.name().toLowerCase(java.util.Locale.ROOT), field.label()));
         }
-        inv.setItem(NAV_SORT_SLOT, namedItemWithGuiMarker(Material.HOPPER, "&eSort", sortLore, GUI_SORT));
+        inv.setItem(NAV_SORT_SLOT, namedItemWithGuiMarker(Material.HOPPER, plugin.lang().text(player, "gui.admin.sort"),
+                sortLore, GUI_SORT));
 
         if (holder.page() > 0) {
             List<String> lore = List.of(
-                    "&7Page: &f" + page + "&7/&f" + pageCount,
-                    "&eClick to view previous page");
+                    plugin.lang().text(player, "gui.admin.page", "page", page, "pages", pageCount),
+                    plugin.lang().text(player, "gui.admin.previousHint"));
             inv.setItem(NAV_PREV_SLOT,
-                    namedItemWithGuiMarker(plugin.cfg().navPageButtons(), "&aPrevious Page", lore, GUI_PREV));
+                    namedItemWithGuiMarker(plugin.cfg().navPageButtons(),
+                            plugin.lang().text(player, "gui.admin.previous"), lore, GUI_PREV));
         }
 
         if (holder.page() + 1 < pageCount) {
             List<String> lore = List.of(
-                    "&7Page: &f" + page + "&7/&f" + pageCount,
-                    "&eClick to view next page");
+                    plugin.lang().text(player, "gui.admin.page", "page", page, "pages", pageCount),
+                    plugin.lang().text(player, "gui.admin.nextHint"));
             inv.setItem(NAV_NEXT_SLOT,
-                    namedItemWithGuiMarker(plugin.cfg().navPageButtons(), "&aNext Page", lore, GUI_NEXT));
+                    namedItemWithGuiMarker(plugin.cfg().navPageButtons(), plugin.lang().text(player, "gui.admin.next"),
+                            lore, GUI_NEXT));
         }
     }
 
-    private ItemStack buildBackpackEntry(AdminBackpackListEntry row, int index) {
+    private ItemStack buildBackpackEntry(Player player, AdminBackpackListEntry row, int index) {
         ItemStack item;
         try {
             item = backpackItems.createExisting(row.backpackId(), row.backpackType());
@@ -203,17 +214,12 @@ public final class AdminBackpackListMenu {
                 : "&e" + customName + " &7(" + safeType(row.backpackType()) + " #" + index + ")";
         meta.displayName(Text.c(title));
 
-        List<String> lore = new ArrayList<>();
-        lore.add("&7Type: &f" + safeType(row.backpackType()));
-        lore.add("&7Name: &f" + (customName.isEmpty() ? "(default)" : customName));
-        lore.add("&7Items: &f" + row.itemCount());
-        lore.add("&7Modules: &f" + row.moduleCount());
-        lore.add("&7Location: &f" + (row.placed() ? row.locationText() : "Not placed"));
-        lore.add("&7Last Accessed: &f" + formatTimestamp(row.lastAccessedMillis()));
-        lore.add("&7Backpack ID: &f" + row.backpackId());
-        lore.add("&8");
-        lore.add("&aLeft-click: open/recover to you");
-        lore.add("&bRight-click: recover to owner (recover mode)");
+        List<String> lore = plugin.lang().lines(player, "gui.admin.entryLore",
+                "type", safeType(row.backpackType()),
+                "name", customName.isEmpty() ? plugin.lang().text(player, "gui.admin.defaultName") : customName,
+                "items", row.itemCount(), "modules", row.moduleCount(),
+                "location", row.placed() ? row.locationText() : plugin.lang().text(player, "gui.admin.notPlaced"),
+                "accessed", formatTimestamp(player, row.lastAccessedMillis()), "id", row.backpackId());
 
         meta.lore(Text.lore(lore));
         meta.getPersistentDataContainer().set(
@@ -354,9 +360,9 @@ public final class AdminBackpackListMenu {
                 + location.getBlockZ() + ")";
     }
 
-    private static String formatTimestamp(long epochMillis) {
+    private String formatTimestamp(Player player, long epochMillis) {
         if (epochMillis <= 0) {
-            return "unknown";
+            return plugin.lang().text(player, "gui.admin.unknown");
         }
 
         Instant when = Instant.ofEpochMilli(epochMillis);
@@ -365,13 +371,13 @@ public final class AdminBackpackListMenu {
         long seconds = Math.max(0, Duration.between(when, Instant.now()).getSeconds());
         String relative;
         if (seconds < 60) {
-            relative = seconds + "s ago";
+            relative = plugin.lang().text(player, "gui.admin.secondsAgo", "count", seconds);
         } else if (seconds < 3600) {
-            relative = (seconds / 60) + "m ago";
+            relative = plugin.lang().text(player, "gui.admin.minutesAgo", "count", seconds / 60);
         } else if (seconds < 86400) {
-            relative = (seconds / 3600) + "h ago";
+            relative = plugin.lang().text(player, "gui.admin.hoursAgo", "count", seconds / 3600);
         } else {
-            relative = (seconds / 86400) + "d ago";
+            relative = plugin.lang().text(player, "gui.admin.daysAgo", "count", seconds / 86400);
         }
 
         return absolute + " (" + relative + ")";

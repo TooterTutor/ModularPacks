@@ -89,7 +89,7 @@ public final class AdminBackpackListMenuListener implements Listener {
 
         AdminBackpackListEntry entry = holder.findEntry(backpackId);
         if (entry == null) {
-            player.sendMessage(Text.c("&cCould not resolve that backpack entry."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.admin.missingEntry")));
             return;
         }
 
@@ -104,7 +104,7 @@ public final class AdminBackpackListMenuListener implements Listener {
 
         String type = plugin.repo().findBackpackType(backpackId);
         if (type == null || type.isBlank()) {
-            player.sendMessage(Text.c("&cThat backpack no longer exists in the database."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.admin.missingBackpack")));
             return;
         }
 
@@ -121,7 +121,7 @@ public final class AdminBackpackListMenuListener implements Listener {
 
         plugin.repo().ensureBackpackExists(entry.backpackId(), entry.backpackType(), viewer.getUniqueId(),
                 viewer.getName());
-        viewer.sendMessage(Text.c("&aRecovered backpack to you: &f" + entry.backpackId()));
+        viewer.sendMessage(Text.c(plugin.lang().text(viewer, "gui.admin.recovered", "id", entry.backpackId())));
     }
 
     private void recoverToOwner(Player viewer, AdminBackpackListEntry entry) {
@@ -129,13 +129,13 @@ public final class AdminBackpackListMenuListener implements Listener {
         try {
             ownerUuid = UUID.fromString(entry.ownerUuid());
         } catch (Exception ex) {
-            viewer.sendMessage(Text.c("&cThis backpack has no valid owner UUID to recover to."));
+            viewer.sendMessage(Text.c(plugin.lang().text(viewer, "gui.admin.noOwner")));
             return;
         }
 
         Player owner = Bukkit.getPlayer(ownerUuid);
         if (owner == null) {
-            viewer.sendMessage(Text.c("&cOwner is offline. Right-click recovery requires owner online."));
+            viewer.sendMessage(Text.c(plugin.lang().text(viewer, "gui.admin.offlineOwner")));
             return;
         }
 
@@ -148,7 +148,8 @@ public final class AdminBackpackListMenuListener implements Listener {
         plugin.repo().ensureBackpackExists(entry.backpackId(), entry.backpackType(), owner.getUniqueId(),
                 owner.getName());
         viewer.sendMessage(
-                Text.c("&aRecovered backpack to owner: &f" + owner.getName() + " &7(" + entry.backpackId() + ")"));
+                Text.c(plugin.lang().text(viewer, "gui.admin.recoveredOwner", "owner", owner.getName(), "id",
+                        entry.backpackId())));
     }
 
     @EventHandler

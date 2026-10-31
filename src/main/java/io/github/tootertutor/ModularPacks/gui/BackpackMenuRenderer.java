@@ -57,9 +57,10 @@ public final class BackpackMenuRenderer {
                 pageSize,
                 upgradeSlots);
 
-        Component title = buildBackpackTitle(type, data);
+        Component title = buildBackpackTitle(player, type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
         holder.setInventory(inv);
+        holder.viewer(player);
 
         holder.page(layout.page());
 
@@ -87,9 +88,10 @@ public final class BackpackMenuRenderer {
 
         holder.page(layout.page());
 
-        Component title = buildBackpackTitle(type, data);
+        Component title = buildBackpackTitle(player, type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
         holder.setInventory(inv);
+        holder.viewer(player);
 
         render(holder);
 
@@ -119,20 +121,22 @@ public final class BackpackMenuRenderer {
 
         holder.page(layout.page());
 
-        Component title = buildBackpackTitle(type, data);
+        Component title = buildBackpackTitle(player, type, data);
         Inventory inv = Bukkit.createInventory(holder, invSize, title);
         holder.setInventory(inv);
+        holder.viewer(player);
 
         render(holder);
         player.openInventory(inv);
     }
 
-    private Component buildBackpackTitle(BackpackTypeDef type, BackpackData data) {
+    private Component buildBackpackTitle(Player player, BackpackTypeDef type, BackpackData data) {
         String customName = data.backpackName() == null ? "" : data.backpackName().trim();
         if (!customName.isEmpty()) {
-            return Text.c("&8" + customName + " &7(" + type.displayName() + "&7)");
+            return Text.c(plugin.lang().text(player, "gui.backpack.customTitle", "name", customName, "type",
+                    type.displayName()));
         }
-        return Text.c("&8Backpack &7(" + type.displayName() + "&7)");
+        return Text.c(plugin.lang().text(player, "gui.backpack.title", "type", type.displayName()));
     }
 
     public void render(BackpackMenuHolder holder) {
@@ -154,7 +158,7 @@ public final class BackpackMenuRenderer {
             }
             StoredStack stored = storage.get(logicalIndex);
             if (stored != null) {
-                inv.setItem(visibleSlot, renderStorageStack(holder.data(), stored));
+                inv.setItem(visibleSlot, renderStorageStack(holder.viewer(), holder.data(), stored));
             }
         }
 
@@ -188,17 +192,19 @@ public final class BackpackMenuRenderer {
         // Intentionally empty: logical storage is authoritative.
     }
 
-    private ItemStack renderStorageStack(BackpackData data, StoredStack stored) {
+    private ItemStack renderStorageStack(Player player, BackpackData data, StoredStack stored) {
         ItemStack prototype = stored.prototype();
         return VirtualStackDisplay.render(
                 plugin.backpackStorage(),
                 stored,
                 plugin.backpackStorage().capacityFor(data, prototype),
-                plugin.cfg().getString("modularpacks.VirtualStackCountLore",
-                        "&7Stored: &f{count} &7/ &f{capacity}"));
+                plugin.lang().get(player, "gui.storage.count",
+                        plugin.cfg().getString("modularpacks.VirtualStackCountLore",
+                                "&7Stored: &f{count} &7/ &f{capacity}")));
     }
 
     private void renderNavRow(BackpackMenuHolder holder) {
+        Player player = holder.viewer();
         Inventory inv = holder.getInventory();
         int invSize = inv.getSize();
         int bottomStart = SlotLayout.bottomRowStart(invSize);
@@ -223,14 +229,14 @@ public final class BackpackMenuRenderer {
             if (holder.page() > 0) {
                 inv.setItem(prevSlot, namedItemWithPdc(
                         plugin.cfg().navPageButtons(),
-                        "&ePrevious Page",
+                        plugin.lang().text(player, "gui.navigation.previous"),
                         plugin.cfg().getGuiItemKey(),
                         "nav-page-button"));
             }
             if (holder.page() < pageCount - 1) {
                 inv.setItem(nextSlot, namedItemWithPdc(
                         plugin.cfg().navPageButtons(),
-                        "&eNext Page",
+                        plugin.lang().text(player, "gui.navigation.next"),
                         plugin.cfg().getGuiItemKey(),
                         "nav-page-button"));
             }
@@ -238,53 +244,44 @@ public final class BackpackMenuRenderer {
 
         int sortSlot = SlotLayout.sortButtonSlot(invSize, holder.upgradeSlots(), holder.paginated());
         if (sortSlot >= 0) {
-            List<String> lore = new ArrayList<>();
-            lore.add("&7Left-click: &fSort");
-            lore.add("&7Right-click: &fChange mode");
-            lore.add("&7Shift + Right-click: &fLock/Unlock");
-            lore.add("&7Status: " + (holder.sortLocked() ? "&cLocked" : "&aUnlocked"));
-            lore.add("&7");
-            lore.add("&7Mode:");
+            List<String> lore = new ArrayList<>(plugin.lang().lines(player, "gui.sort.lore", "status",
+                    plugin.lang().text(player,
+                            holder.sortLocked() ? "gui.navigation.locked" : "gui.navigation.unlocked")));
             for (BackpackSortMode mode : BackpackSortMode.values()) {
                 String color = (mode == holder.sortMode()) ? "&a" : "&7";
-                lore.add(color + mode.displayName());
+                lore.add(color + plugin.lang().get(player,
+                        "gui.sort.modes." + mode.name().toLowerCase(java.util.Locale.ROOT), mode.displayName()));
             }
 
-            inv.setItem(sortSlot, namedItem(Material.COMPARATOR, "&eSort", lore));
+            inv.setItem(sortSlot,
+                    namedItem(Material.COMPARATOR, plugin.lang().text(player, "gui.navigation.sort"), lore));
         }
 
         // Render mode button (opposite side of sort button)
         int modeSlot = SlotLayout.modeButtonSlot(invSize, holder.upgradeSlots(), holder.paginated(), sortSlot);
         if (modeSlot >= 0) {
-            renderModeButton(inv, holder.data(), modeSlot);
+            renderModeButton(player, inv, holder.data(), modeSlot);
         }
     }
 
-    private void renderModeButton(Inventory inv, BackpackData data, int slot) {
-        List<String> lore = new ArrayList<>();
-        lore.add("&7Open backpack settings");
-        lore.add("&7");
-        lore.add("&7Includes:");
-        lore.add("&8• &fHost/Join/Private mode");
-        lore.add("&8• &fBackpack colors");
-        lore.add("&8• &fCustom name");
-        lore.add("&7");
-        lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open");
+    private void renderModeButton(Player player, Inventory inv, BackpackData data, int slot) {
+        List<String> lore = new ArrayList<>(plugin.lang().lines(player, "gui.navigation.settingsLore"));
 
         if (data.isShared()) {
             if (data.isShareHost()) {
-                lore.add("&7Current mode: &bHost");
+                lore.add(plugin.lang().text(player, "gui.navigation.host"));
             } else {
-                lore.add("&7Current mode: &dJoined");
+                lore.add(plugin.lang().text(player, "gui.navigation.joined"));
             }
         } else {
-            lore.add("&7Current mode: &cPrivate");
+            lore.add(plugin.lang().text(player, "gui.navigation.private"));
         }
 
-        inv.setItem(slot, namedItem(Material.REPEATER, "&6Settings", lore));
+        inv.setItem(slot, namedItem(Material.REPEATER, plugin.lang().text(player, "gui.navigation.settings"), lore));
     }
 
     private void renderUpgradeSockets(BackpackMenuHolder holder) {
+        Player player = holder.viewer();
         Inventory inv = holder.getInventory();
         Keys keys = plugin.keys();
 
@@ -298,14 +295,11 @@ public final class BackpackMenuRenderer {
 
             UUID moduleId = holder.data().installedModules().get(socketSlotIndex);
             if (moduleId == null) {
-                List<String> emptyLore = new ArrayList<>();
-                emptyLore.add("&7This is an empty module socket.");
-                emptyLore.add("&7Place a module here to activate");
-                emptyLore.add("&7special backpack abilities.");
+                List<String> emptyLore = plugin.lang().lines(player, "gui.navigation.emptySocketLore");
                 inv.setItem(invSlot,
                         namedItemWithPdc(
                                 plugin.cfg().unlockedUpgradeSlotMaterial(),
-                                "&eEmpty Module Slot",
+                                plugin.lang().text(player, "gui.navigation.emptySocket"),
                                 emptyLore,
                                 plugin.cfg().getGuiItemKey(),
                                 "unlocked-upgrade-slot"));
@@ -323,7 +317,7 @@ public final class BackpackMenuRenderer {
             }
 
             if (display == null) {
-                display = namedItem(Material.BARRIER, "&cMissing Module Item");
+                display = namedItem(Material.BARRIER, plugin.lang().text(player, "gui.navigation.missingModule"));
                 inv.setItem(invSlot, display);
                 continue;
             }
@@ -344,8 +338,9 @@ public final class BackpackMenuRenderer {
                 } else if (moduleType != null) {
                     var def = plugin.cfg().findUpgrade(moduleType);
                     if (def != null) {
-                        meta2.displayName(Text.c(Placeholders.expandText(plugin, def, display, def.displayName())));
-                        meta2.lore(Text.lore(Placeholders.expandLore(plugin, def, display, def.lore())));
+                        meta2.displayName(
+                                Text.c(Placeholders.expandTextFor(plugin, player, def, display, def.displayName())));
+                        meta2.lore(Text.lore(Placeholders.expandLoreFor(plugin, player, def, display, def.lore())));
                         display.setItemMeta(meta2);
                     }
                 }

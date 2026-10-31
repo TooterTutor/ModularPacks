@@ -69,27 +69,34 @@ public final class BackpackSettingsMenu {
     public void openSettingsMenu(Player player, BackpackMenuHolder holder) {
         BackpackData data = holder.data();
         SettingsMenuHolder settingsHolder = new SettingsMenuHolder(holder.backpackId(), holder);
-        Inventory inv = plugin.getServer().createInventory(settingsHolder, 27, Text.c("&8Backpack Settings"));
+        Inventory inv = plugin.getServer().createInventory(settingsHolder, 27,
+                Text.c(plugin.lang().text(player, "gui.settings.title")));
 
         // Get the backpack item from player's inventory
         ItemStack backpackItem = resolveBackpackItemForSettings(player, holder);
         if (backpackItem == null) {
-            player.sendMessage(Text.c("&cCould not find backpack item in inventory."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.missingItem")));
             return;
         }
 
         // Resource packs button (top row, left)
         if (plugin.cfg().resourcePackEnabled()) {
-            inv.setItem(SLOT_RESOURCE_PACKS, createButton("&dResource Packs", Material.PAINTING,
-                    List.of("&7Mix and match optional visual packs.", "&7Changes are staged until you apply them.",
-                            "&7", "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open pack selector")));
+            inv.setItem(SLOT_RESOURCE_PACKS,
+                    createButton(plugin.lang().text(player, "gui.settings.resourcePacks"), Material.PAINTING,
+                            List.of(plugin.lang().text(player, "gui.settings.packsDescription"),
+                                    plugin.lang().text(player, "gui.settings.packsStaged"),
+                                    "&7", plugin.lang().text(player, "gui.settings.packsOpen"))));
         }
 
         if (!holder.isPlacedContext()) {
             boolean equipped = plugin.modelManager().backSlot().isEquipped(player, holder.backpackId());
-            inv.setItem(SLOT_EQUIP, createButton(equipped ? "&eUnequip" : "&aEquip",
-                    Material.DIAMOND_CHESTPLATE,
-                    List.of(equipped ? "&7Unequip this backpack" : "&7Equip this backpack")));
+            inv.setItem(SLOT_EQUIP,
+                    createButton(
+                            equipped ? plugin.lang().text(player, "gui.settings.unequip")
+                                    : plugin.lang().text(player, "gui.settings.equip"),
+                            Material.DIAMOND_CHESTPLATE,
+                            List.of(equipped ? plugin.lang().text(player, "gui.settings.unequipLore")
+                                    : plugin.lang().text(player, "gui.settings.equipLore"))));
         }
 
         // Row 2: Dynamic sharing mode button (left)
@@ -99,47 +106,52 @@ public final class BackpackSettingsMenu {
             if (data.isShareHost()) {
                 // Currently hosting
                 List<String> lore = new ArrayList<>();
-                lore.add("&7Currently hosting this backpack");
-                lore.add("&7Password: &f"
-                        + (data.sharePassword() == null || data.sharePassword().isEmpty() ? "(none)"
+                lore.add(plugin.lang().text(player, "gui.settings.hosting"));
+                lore.add(plugin.lang().text(player, "gui.settings.password", "password",
+                        data.sharePassword() == null || data.sharePassword().isEmpty()
+                                ? plugin.lang().text(player, "gui.settings.noPassword")
                                 : data.sharePassword()));
                 lore.add("&7");
-                lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Stop hosting");
-                lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Set host password");
-                inv.setItem(slotSharing, createButton("&bSharing: Host", Material.ENDER_EYE, lore));
+                lore.add(plugin.lang().text(player, "gui.settings.stopHosting"));
+                lore.add(plugin.lang().text(player, "gui.settings.setPassword"));
+                inv.setItem(slotSharing,
+                        createButton(plugin.lang().text(player, "gui.settings.host"), Material.ENDER_EYE, lore));
 
             } else {
                 // Currently joined
                 List<String> lore = new ArrayList<>();
-                lore.add("&7Currently joined to a backpack");
+                lore.add(plugin.lang().text(player, "gui.settings.joinedLore"));
                 lore.add("&7");
-                lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Leave this backpack");
-                lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Join a different host");
-                inv.setItem(slotSharing, createButton("&dSharing: Joined", Material.ENDER_PEARL, lore));
+                lore.add(plugin.lang().text(player, "gui.settings.leave"));
+                lore.add(plugin.lang().text(player, "gui.settings.changeHost"));
+                inv.setItem(slotSharing,
+                        createButton(plugin.lang().text(player, "gui.settings.joined"), Material.ENDER_PEARL, lore));
             }
         } else {
             // Private mode
             List<String> lore = new ArrayList<>();
-            lore.add("&7Your backpack is private");
+            lore.add(plugin.lang().text(player, "gui.settings.privateLore"));
             lore.add("&7");
-            lore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Start hosting");
-            lore.add("&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Join shared backpack");
-            inv.setItem(slotSharing, createButton("&cSharing: Private", Material.BARRIER, lore));
+            lore.add(plugin.lang().text(player, "gui.settings.startHosting"));
+            lore.add(plugin.lang().text(player, "gui.settings.join"));
+            inv.setItem(slotSharing,
+                    createButton(plugin.lang().text(player, "gui.settings.private"), Material.BARRIER, lore));
         }
 
         // Row 2: Color settings (center)
         slotSharing = SLOT_COLORS;
         int[] colors = BackpackColorTints.getColors(backpackItem);
         List<String> colorLore = new ArrayList<>();
-        colorLore.add("&7Edit backpack model color groups");
+        colorLore.add(plugin.lang().text(player, "gui.settings.colorsDescription"));
         colorLore.add("&7");
-        colorLore.add("&7Current colors:");
+        colorLore.add(plugin.lang().text(player, "gui.settings.currentColors"));
         for (int i = 0; i < 5; i++) {
-            colorLore.add("&8• &f" + groupLabel(i) + ": #" + String.format("%06X", colors[i]));
+            colorLore.add(plugin.lang().text(player, "gui.colors.currentGroup", "group", groupLabel(player, i), "color",
+                    String.format("%06X", colors[i])));
         }
         colorLore.add("&7");
-        colorLore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Open color picker");
-        inv.setItem(slotSharing, createColorPreviewItem(backpackItem, colorLore));
+        colorLore.add(plugin.lang().text(player, "gui.settings.openColors"));
+        inv.setItem(slotSharing, createColorPreviewItem(player, backpackItem, colorLore));
 
         // Row 2: Name button (right)
         slotSharing = SLOT_NAME;
@@ -148,22 +160,25 @@ public final class BackpackSettingsMenu {
         List<String> nameLore = new ArrayList<>();
         String currentName = data.backpackName();
         if (currentName.isEmpty()) {
-            nameLore.add("&7No custom name set");
+            nameLore.add(plugin.lang().text(player, "gui.settings.noName"));
         } else {
-            nameLore.add("&7Current: &f" + currentName);
+            nameLore.add(plugin.lang().text(player, "gui.settings.currentName", "name", currentName));
         }
         nameLore.add("&7");
-        nameLore.add("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Set name");
-        inv.setItem(slotSharing, createButton("&6Backpack Name", Material.NAME_TAG, nameLore));
+        nameLore.add(plugin.lang().text(player, "gui.settings.setName"));
+        inv.setItem(slotSharing,
+                createButton(plugin.lang().text(player, "gui.settings.name"), Material.NAME_TAG, nameLore));
 
         // Row 3: Back button (bottom center)
         slotSharing = SLOT_BACK;
         List<String> backLore = new ArrayList<>();
-        backLore.add("&7Return to the backpack inventory");
-        inv.setItem(slotSharing, createButton("&eBack", Material.ARROW, backLore));
+        backLore.add(plugin.lang().text(player, "gui.settings.backLore"));
+        inv.setItem(slotSharing,
+                createButton(plugin.lang().text(player, "gui.settings.back"), Material.ARROW, backLore));
 
         // Decorative frame for cleaner visual grouping
-        ItemStack frame = createButton("&8", Material.GRAY_STAINED_GLASS_PANE, List.of("&8Backpack Settings"));
+        ItemStack frame = createButton("&8", Material.GRAY_STAINED_GLASS_PANE,
+                List.of(plugin.lang().text(player, "gui.settings.title")));
         for (int slot = 0; slot < inv.getSize(); slot++) {
             if (inv.getItem(slot) == null) {
                 inv.setItem(slot, frame);
@@ -214,7 +229,7 @@ public final class BackpackSettingsMenu {
                         sharingJoiner.openJoinDialog(player, holder);
                     } else {
                         sharingJoiner.leaveJoinedBackpack(player, holder);
-                        player.sendMessage(Text.c("&aLeft shared backpack."));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.left")));
                         openSettingsMenu(player, holder);
                     }
                 }
@@ -254,7 +269,7 @@ public final class BackpackSettingsMenu {
     public void handleColorPickerClick(Player player, BackpackMenuHolder holder, int slot, ClickType click) {
         ItemStack backpackItem = resolveBackpackItemForSettings(player, holder);
         if (backpackItem == null) {
-            player.sendMessage(Text.c("&cCould not find backpack item to edit."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.missingEditItem")));
             return;
         }
 
@@ -264,7 +279,8 @@ public final class BackpackSettingsMenu {
             if (click.isRightClick()) {
                 BackpackColorTints.clearColorTint(backpackItem, slot);
                 persistVisualChanges(holder, backpackItem);
-                player.sendMessage(Text.c("&aRemoved custom color override for " + groupLabel(slot) + "."));
+                player.sendMessage(
+                        Text.c(plugin.lang().text(player, "gui.colors.removed", "group", groupLabel(player, slot))));
                 openColorPickerMenu(player, holder);
             } else {
                 openCustomRgbDialog(player, holder, backpackItem, slot);
@@ -275,35 +291,21 @@ public final class BackpackSettingsMenu {
     private void openColorPickerMenu(Player player, BackpackMenuHolder holder) {
         ColorPickerHolder colorHolder = new ColorPickerHolder(holder.backpackId(), holder);
         Inventory picker = plugin.getServer().createInventory(colorHolder, InventoryType.HOPPER,
-                Text.c("&8Backpack Colors"));
+                Text.c(plugin.lang().text(player, "gui.settings.colorsTitle")));
 
         ItemStack backpackItem = resolveBackpackItemForSettings(player, holder);
         if (backpackItem == null) {
-            player.sendMessage(Text.c("&cCould not find backpack item to edit."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.missingEditItem")));
             return;
         }
 
         int[] colors = BackpackColorTints.getColors(backpackItem);
-        picker.setItem(0, createButton("&f" + groupLabel(0), Material.NAME_TAG,
-                List.of("&7Model tint slot: &f0", "&7Current: &f#" + String.format("%06X", colors[0]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
-                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(1, createButton("&f" + groupLabel(1), Material.NAME_TAG,
-                List.of("&7Model tint slot: &f1", "&7Current: &f#" + String.format("%06X", colors[1]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
-                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(2, createButton("&f" + groupLabel(2), Material.NAME_TAG,
-                List.of("&7Model tint slot: &f2", "&7Current: &f#" + String.format("%06X", colors[2]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
-                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(3, createButton("&f" + groupLabel(3), Material.NAME_TAG,
-                List.of("&7Model tint slot: &f3", "&7Current: &f#" + String.format("%06X", colors[3]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
-                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
-        picker.setItem(4, createButton("&f" + groupLabel(4), Material.NAME_TAG,
-                List.of("&7Model tint slot: &f4", "&7Current: &f#" + String.format("%06X", colors[4]),
-                        "&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Enter RGB/decimal",
-                        "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Remove override")));
+        for (int index = 0; index < 5; index++) {
+            picker.setItem(index, createButton(plugin.lang().text(player, "gui.colors.groupName",
+                    "group", groupLabel(player, index)), Material.NAME_TAG,
+                    plugin.lang().lines(player, "gui.colors.pickerLore", "index", index,
+                            "color", String.format("%06X", colors[index]))));
+        }
 
         player.openInventory(picker);
     }
@@ -318,14 +320,15 @@ public final class BackpackSettingsMenu {
                     String input = stateSnapshot.getText();
                     Integer rgb = parseRgbInput(input);
                     if (rgb == null) {
-                        player.sendMessage(Text.c("&cInvalid color. Use #RRGGBB or a decimal 0-16777215."));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.invalidColor")));
                         return java.util.Collections.emptyList();
                     }
 
                     BackpackColorTints.setColorTint(backpackItem, colorIndex, rgb);
                     persistVisualChanges(holder, backpackItem);
                     player.sendMessage(
-                            Text.c("&aUpdated " + groupLabel(colorIndex) + " to &f#" + String.format("%06X", rgb)));
+                            Text.c(plugin.lang().text(player, "gui.colors.updated", "group",
+                                    groupLabel(player, colorIndex), "color", String.format("%06X", rgb))));
 
                     return java.util.Arrays.asList(
                             AnvilGUI.ResponseAction.close(),
@@ -333,7 +336,7 @@ public final class BackpackSettingsMenu {
                                     () -> openColorPickerMenu(player, holder))));
                 })
                 .text("#FFAA33")
-                .title(groupLabel(colorIndex) + " RGB")
+                .title(plugin.lang().text(player, "gui.colors.dialogTitle", "group", groupLabel(player, colorIndex)))
                 .plugin(plugin)
                 .open(player);
     }
@@ -407,9 +410,9 @@ public final class BackpackSettingsMenu {
                     plugin.sessions().refreshLinkedBackpacksThrottled(holder.backpackId(), holder.data());
 
                     if (name.isEmpty()) {
-                        player.sendMessage(Text.c("&aBackpack name reset to default"));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.nameReset")));
                     } else {
-                        player.sendMessage(Text.c("&aBackpack name set to &f" + name));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.nameSet", "name", name)));
                     }
 
                     return java.util.Arrays.asList(
@@ -420,8 +423,8 @@ public final class BackpackSettingsMenu {
                                 });
                             }));
                 })
-                .text(currentName.isEmpty() ? "Enter backpack name" : currentName)
-                .title("Set Backpack Name")
+                .text(currentName.isEmpty() ? plugin.lang().text(player, "gui.settings.namePrompt") : currentName)
+                .title(plugin.lang().text(player, "gui.settings.nameTitle"))
                 .plugin(plugin)
                 .open(player);
     }
@@ -440,14 +443,14 @@ public final class BackpackSettingsMenu {
         return item;
     }
 
-    private ItemStack createColorPreviewItem(ItemStack backpackItem, List<String> lore) {
+    private ItemStack createColorPreviewItem(Player player, ItemStack backpackItem, List<String> lore) {
         ItemStack preview = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta previewMeta = preview.getItemMeta();
         if (previewMeta == null) {
-            return createButton("&dBackpack Colors", Material.PLAYER_HEAD, lore);
+            return createButton(plugin.lang().text(player, "gui.settings.colors"), Material.PLAYER_HEAD, lore);
         }
 
-        previewMeta.displayName(Text.c("&dBackpack Colors"));
+        previewMeta.displayName(Text.c(plugin.lang().text(player, "gui.settings.colors")));
         previewMeta.lore(Text.lore(lore));
 
         if (backpackItem != null) {
@@ -471,11 +474,11 @@ public final class BackpackSettingsMenu {
         return preview;
     }
 
-    private String groupLabel(int groupIndex) {
+    private String groupLabel(Player player, int groupIndex) {
         if (groupIndex < 0 || groupIndex >= COLOR_GROUP_NAMES.length) {
-            return "Group " + (groupIndex + 1);
+            return plugin.lang().text(player, "gui.colors.group", "index", groupIndex + 1);
         }
-        return COLOR_GROUP_NAMES[groupIndex];
+        return plugin.lang().get(player, "gui.colors.groups." + groupIndex, COLOR_GROUP_NAMES[groupIndex]);
     }
 
     private boolean matchesBackpack(ItemStack item, UUID backpackId) {
@@ -486,7 +489,7 @@ public final class BackpackSettingsMenu {
 
     private void toggleEquipped(Player player, BackpackMenuHolder holder) {
         if (holder.isPlacedContext()) {
-            player.sendMessage(Text.c("&cPick up this backpack before equipping it."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.settings.pickUpFirst")));
             return;
         }
 

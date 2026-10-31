@@ -13,7 +13,7 @@ import org.bukkit.inventory.MenuType;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
-import net.kyori.adventure.text.Component;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Anvil module that provides an anvil interface in backpacks.
@@ -37,7 +37,7 @@ public final class AnvilModule extends AbstractModule {
 
         // Real vanilla anvil UI (no block required when checkReachable=false)
         InventoryView view = MenuType.ANVIL.builder()
-                .title(Component.text("Anvil Module"))
+                .title(Text.c(plugin.lang().text(player, "gui.screens.defaults.anvil")))
                 .location(player.getLocation())
                 .checkReachable(false)
                 .build(player);

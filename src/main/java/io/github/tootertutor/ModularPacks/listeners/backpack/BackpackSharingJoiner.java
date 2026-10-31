@@ -73,7 +73,7 @@ public class BackpackSharingJoiner {
      */
     public void openJoinDialog(Player player, BackpackMenuHolder holder) {
         if (!plugin.cfg().isSharedBackpacksEnabled()) {
-            player.sendMessage(Text.c("&cBackpack sharing is disabled."));
+            player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.disabled")));
             return;
         }
 
@@ -99,25 +99,26 @@ public class BackpackSharingJoiner {
                         if (hostIdStr.length() > 0 && hostIdStr.length() <= 8) {
                             hostId = plugin.repo().findBackpackByUuidPrefix(hostIdStr);
                             if (hostId == null) {
-                                player.sendMessage(Text.c("&cNo backpack found with ID starting with: " + hostIdStr));
+                                player.sendMessage(Text
+                                        .c(plugin.lang().text(player, "gui.sharing.noMatchingId", "id", hostIdStr)));
                                 return Collections.singletonList(ResponseAction.close());
                             }
                         } else {
                             player.sendMessage(
-                                    Text.c("&cInvalid backpack ID format. Use full UUID or first 8 characters."));
+                                    Text.c(plugin.lang().text(player, "gui.sharing.invalidId")));
                             return Collections.singletonList(ResponseAction.close());
                         }
                     }
 
                     String hostType = plugin.repo().findBackpackType(hostId);
                     if (hostType == null) {
-                        player.sendMessage(Text.c("&cHost backpack not found"));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.hostNotFound")));
                         return Collections.singletonList(ResponseAction.close());
                     }
 
                     BackpackData hostData = plugin.repo().loadOrCreate(hostId, hostType);
                     if (!hostData.isShared() || !hostData.isShareHost()) {
-                        player.sendMessage(Text.c("&cThat backpack is not shared or is not a host"));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.notHost")));
                         return Collections.singletonList(ResponseAction.close());
                     }
 
@@ -125,18 +126,18 @@ public class BackpackSharingJoiner {
                     BackpackTypeDef joinerDef = holder.type();
 
                     if (hostDef == null || joinerDef == null) {
-                        player.sendMessage(Text.c("&cUnable to determine backpack tiers; cannot join."));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.unknownTier")));
                         return Collections.singletonList(ResponseAction.close());
                     }
 
                     if (!hasMatchingTier(joinerDef, hostDef)) {
-                        player.sendMessage(Text.c("&cYour backpack tier (" + joinerDef.displayName()
-                                + "&c) must match the host tier (" + hostDef.displayName() + "&c)."));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.tierMismatch", "tier",
+                                joinerDef.displayName(), "hostTier", hostDef.displayName())));
                         return Collections.singletonList(ResponseAction.close());
                     }
 
                     if (!hostData.sharePassword().isEmpty() && !hostData.sharePassword().equals(password)) {
-                        player.sendMessage(Text.c("&cIncorrect password"));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.incorrectPassword")));
                         return Collections.singletonList(ResponseAction.close());
                     }
 
@@ -144,8 +145,8 @@ public class BackpackSharingJoiner {
                     int currentJoinedCount = plugin.repo().listJoinedBackpacks(hostId).size();
                     int maxSharedUsers = plugin.cfg().getMaxSharedUsers();
                     if (currentJoinedCount >= maxSharedUsers) {
-                        player.sendMessage(Text.c("&cCannot join: Host has reached the maximum of &f" + maxSharedUsers
-                                + "&c shared backpack" + (maxSharedUsers == 1 ? "." : "s.")));
+                        player.sendMessage(
+                                Text.c(plugin.lang().text(player, "gui.sharing.full", "count", maxSharedUsers)));
                         return Collections.singletonList(ResponseAction.close());
                     }
 
@@ -154,9 +155,10 @@ public class BackpackSharingJoiner {
                     holder.data().setShared(true);
                     holder.data().shareHostId(hostId);
                     holder.data().sharePassword(password);
-                    player.sendMessage(Text.c("&aSet password to: &f'" + password + "'"));
+                    player.sendMessage(
+                            Text.c(plugin.lang().text(player, "gui.sharing.passwordSet", "password", password)));
                     plugin.repo().saveShareMetadataOnly(holder.data());
-                    player.sendMessage(Text.c("&aSuccessfully joined backpack"));
+                    player.sendMessage(Text.c(plugin.lang().text(player, "gui.sharing.joined")));
 
                     return java.util.Arrays.asList(
                             ResponseAction.close(),
@@ -166,8 +168,8 @@ public class BackpackSharingJoiner {
                                 });
                             }));
                 })
-                .text("Backpack-ID password")
-                .title("Join Shared Backpack")
+                .text(plugin.lang().text(player, "gui.sharing.joinPrompt"))
+                .title(plugin.lang().text(player, "gui.sharing.joinTitle"))
                 .plugin(plugin)
                 .open(player);
     }

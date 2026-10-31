@@ -20,7 +20,7 @@ import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.listeners.module.ModuleClickHandler;
 import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
-import net.kyori.adventure.text.Component;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Stonecutter module that provides a stonecutter interface in backpacks.
@@ -41,7 +41,7 @@ public final class StonecutterModule extends AbstractModule {
             return;
 
         InventoryView view = MenuType.STONECUTTER.builder()
-                .title(Component.text("Stonecutter Module"))
+                .title(Text.c(plugin.lang().text(player, "gui.screens.defaults.stonecutter")))
                 .location(player.getLocation())
                 .checkReachable(false)
                 .build(player);

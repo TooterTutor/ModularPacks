@@ -20,6 +20,16 @@ public final class AdminBackpackListMenuHolder implements InventoryHolder {
     private boolean ascending = true;
     private InteractionMode mode = InteractionMode.VIEW;
     private Inventory inventory;
+    private org.bukkit.entity.Player viewer;
+
+    public org.bukkit.entity.Player viewer() {
+        return viewer;
+    }
+
+    public void viewer(org.bukkit.entity.Player player) {
+        this.viewer = player;
+    }
+
 
     public AdminBackpackListMenuHolder(UUID ownerUuid, String ownerName, List<AdminBackpackListEntry> entries,
             int page) {

@@ -42,7 +42,10 @@ import io.github.tootertutor.ModularPacks.util.Text;
 import io.papermc.paper.event.entity.EntityLoadCrossbowEvent;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 
-/** Event-driven Quiver integration that delegates projectile behavior to vanilla. */
+/**
+ * Event-driven Quiver integration that delegates projectile behavior to
+ * vanilla.
+ */
 public final class QuiverService implements Listener {
 
     private static final int LEASE_TIMEOUT_TICKS = 600;
@@ -473,7 +476,7 @@ public final class QuiverService implements Listener {
             return;
         }
         lastFailureMessageTick.put(player.getUniqueId(), now);
-        player.sendActionBar(Text.c("&cQuiver needs one empty inventory slot to stage ammunition."));
+        player.sendActionBar(Text.c(plugin.lang().text(player, "gui.quiver.needsSpace")));
     }
 
     private static boolean isLoadedCrossbow(ItemStack weapon) {

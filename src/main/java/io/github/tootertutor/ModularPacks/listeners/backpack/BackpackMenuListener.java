@@ -323,7 +323,8 @@ public final class BackpackMenuListener implements Listener {
                 if (shiftRightClick) {
                     boolean locked = holder.toggleSortLocked();
                     holder.data().sortLocked(locked);
-                    player.sendMessage(Text.c(locked ? "&eSort locked." : "&aSort unlocked."));
+                    player.sendMessage(Text.c(locked ? plugin.lang().text(player, "gui.feedback.locked")
+                            : plugin.lang().text(player, "gui.feedback.unlocked")));
                     renderer.render(holder);
                     saveManager.scheduleSave(player, holder);
                     return;
@@ -331,7 +332,7 @@ public final class BackpackMenuListener implements Listener {
 
                 if (e.getClick().isRightClick() && !e.getClick().isShiftClick()) {
                     if (holder.sortLocked()) {
-                        player.sendMessage(Text.c("&cSort is locked. Shift + right-click to unlock."));
+                        player.sendMessage(Text.c(plugin.lang().text(player, "gui.feedback.sortLocked")));
                         return;
                     }
 
@@ -342,7 +343,7 @@ public final class BackpackMenuListener implements Listener {
                 }
 
                 if (holder.sortLocked()) {
-                    player.sendMessage(Text.c("&cSort is locked. Shift + right-click to unlock."));
+                    player.sendMessage(Text.c(plugin.lang().text(player, "gui.feedback.sortLocked")));
                     return;
                 }
 
@@ -518,12 +519,12 @@ public final class BackpackMenuListener implements Listener {
                 renderer.render(openHolder);
                 saveManager.scheduleSave(player, openHolder);
                 if (moved.backpacks > 0) {
-                    player.sendMessage(Text.c("&cBackpacks can't be stored inside backpacks. Moved " + moved.backpacks
-                            + " backpack(s) back to you."));
+                    player.sendMessage(Text
+                            .c(plugin.lang().text(player, "gui.feedback.ejectedBackpacks", "count", moved.backpacks)));
                 }
                 if (moved.blocked > 0) {
-                    player.sendMessage(Text.c("&cSome items are blocked from backpacks by server config. Moved "
-                            + moved.blocked + " item(s) back to you."));
+                    player.sendMessage(
+                            Text.c(plugin.lang().text(player, "gui.feedback.ejectedItems", "count", moved.blocked)));
                 }
                 player.updateInventory();
             }
@@ -644,12 +645,12 @@ public final class BackpackMenuListener implements Listener {
 
             EjectResult moved = ejectProhibitedFromData(player, holder);
             if (moved.backpacks > 0) {
-                player.sendMessage(Text.c("&cBackpacks can't be stored inside backpacks. Moved " + moved.backpacks
-                        + " backpack(s) back to you."));
+                player.sendMessage(
+                        Text.c(plugin.lang().text(player, "gui.feedback.ejectedBackpacks", "count", moved.backpacks)));
             }
             if (moved.blocked > 0) {
-                player.sendMessage(Text.c("&cSome items are blocked from backpacks by server config. Moved "
-                        + moved.blocked + " item(s) back to you."));
+                player.sendMessage(
+                        Text.c(plugin.lang().text(player, "gui.feedback.ejectedItems", "count", moved.blocked)));
             }
 
             plugin.repo().saveBackpack(holder.data());
@@ -962,8 +963,8 @@ public final class BackpackMenuListener implements Listener {
                 .map(this::prettyMaterialName)
                 .collect(Collectors.joining(", "));
 
-        player.sendMessage(Text.c("&cCannot insert " + prettyMaterialName(stack.getType())
-                + ": contains blacklisted item(s): &e" + blockedList));
+        player.sendMessage(Text.c(plugin.lang().text(player, "gui.feedback.nestedBlacklist", "item",
+                prettyMaterialName(stack.getType()), "blocked", blockedList)));
     }
 
     private String prettyMaterialName(Material material) {

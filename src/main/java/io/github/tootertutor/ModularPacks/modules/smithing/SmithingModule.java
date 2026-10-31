@@ -25,7 +25,7 @@ import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.listeners.module.ModuleClickHandler;
 import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
-import net.kyori.adventure.text.Component;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Smithing module that provides a smithing table interface in backpacks.
@@ -49,7 +49,7 @@ public final class SmithingModule extends AbstractModule {
             return;
 
         InventoryView view = MenuType.SMITHING.builder()
-                .title(Component.text("Smithing Module"))
+                .title(Text.c(plugin.lang().text(player, "gui.screens.defaults.smithing")))
                 .location(player.getLocation())
                 .checkReachable(false)
                 .build(player);

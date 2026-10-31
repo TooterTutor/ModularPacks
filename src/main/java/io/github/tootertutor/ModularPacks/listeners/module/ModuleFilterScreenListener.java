@@ -23,6 +23,7 @@ import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.gui.ModuleScreenHolder;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
 
 /**
  * Implements "ghost item" whitelist config for modules backed by DROPPER/HOPPER
@@ -400,7 +401,9 @@ public final class ModuleFilterScreenListener implements Listener {
             plugin.repo().saveModules(msh.backpackId(), data.installedModules(), data.installedSnapshots(),
                     data.moduleStates());
 
-            player.sendMessage(net.kyori.adventure.text.Component.text("Filter mode changed to: " + newMode));
+            player.sendMessage(Text
+                    .c(plugin.lang().text(player, "gui.feedback.filterMode", "mode",
+                            plugin.lang().text(player, "gui.filters." + newMode.toLowerCase(java.util.Locale.ROOT)))));
             player.updateInventory();
         });
     }

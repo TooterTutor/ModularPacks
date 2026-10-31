@@ -49,7 +49,7 @@ public final class PumpSettingsListener implements Listener {
         if (!(top != null && top.getHolder() instanceof PumpSettingsHolder holder))
             return;
 
-        render(top, holder);
+        render(player, top, holder);
         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
     }
 
@@ -91,7 +91,7 @@ public final class PumpSettingsListener implements Listener {
 
         if (changed) {
             persistModuleSnapshot(holder, moduleItem);
-            render(top, holder);
+            render(player, top, holder);
         }
 
         Bukkit.getScheduler().runTask(plugin, player::updateInventory);
@@ -112,7 +112,7 @@ public final class PumpSettingsListener implements Listener {
         }
     }
 
-    private void render(Inventory inv, PumpSettingsHolder holder) {
+    private void render(Player player, Inventory inv, PumpSettingsHolder holder) {
         if (inv == null || holder == null || inv.getSize() < 5)
             return;
 
@@ -129,40 +129,42 @@ public final class PumpSettingsListener implements Listener {
 
         if (expPump) {
             inv.setItem(SLOT_FROM_PLAYER, modeButton(
-                    plugin.lang().get(mendingEnabled ? "expPumpMending.enabled" : "expPumpMending.disabled",
+                    plugin.lang().get(player, mendingEnabled ? "expPumpMending.enabled" : "expPumpMending.disabled",
                             mendingEnabled ? "&eMending: Enabled" : "&eMending: Disabled"),
-                    List.of(plugin.lang().get(
+                    List.of(plugin.lang().get(player,
                             mendingEnabled ? "expPumpMending.enabledLore" : "expPumpMending.disabledLore",
                             mendingEnabled ? "Withdrawn tank XP can repair equipped Mending items."
                                     : "Tank XP will not auto-repair equipped items.")),
                     mendingEnabled,
-                    List.of(Placeholders.expandLangText(plugin, def, moduleItem, "pumpSettingsActionHint.toggleMending",
+                    List.of(Placeholders.expandLangTextFor(plugin, player, def, moduleItem,
+                            "pumpSettingsActionHint.toggleMending",
                             "&7Click to toggle mending."))));
             inv.setItem(SLOT_MODE, modeButton(
-                    expPumpModeTitle(def, moduleItem, pumpMode),
-                    expPumpModeLore(def, moduleItem, pumpMode),
+                    expPumpModeTitle(player, def, moduleItem, pumpMode),
+                    expPumpModeLore(player, def, moduleItem, pumpMode),
                     true,
-                    Placeholders.expandLangList(plugin, def, moduleItem,
+                    Placeholders.expandLangListFor(plugin, player, def, moduleItem,
                             "pumpSettingsActionHint.modeCycle",
                             List.of("&8[&6ʟ-ᴄʟɪᴄᴋ&8]&7 Next Mode",
                                     "&8[&6ʀ-ᴄʟɪᴄᴋ&8]&7 Previous Mode"))));
-            inv.setItem(SLOT_TO_PLAYER, levelButton(def, moduleItem));
+            inv.setItem(SLOT_TO_PLAYER, levelButton(player, def, moduleItem));
         } else {
-            inv.setItem(SLOT_FROM_PLAYER, directionButton(
-                    plugin.lang().get("pumpDirection.fromPlayer.title", "&eFrom Player"),
-                    plugin.lang().get("pumpDirection.fromPlayer.description",
+            inv.setItem(SLOT_FROM_PLAYER, directionButton(player,
+                    plugin.lang().get(player, "pumpDirection.fromPlayer.title", "&eFrom Player"),
+                    plugin.lang().get(player, "pumpDirection.fromPlayer.description",
                             "Move resources from player inventory/XP to the tank."),
                     !toPlayer));
             inv.setItem(SLOT_MODE, modeButton(
-                    plugin.lang().get("pumpMode.standardTitle", "&eMode: Standard"),
-                    List.of(plugin.lang().get("pumpMode.standardLore",
+                    plugin.lang().get(player, "pumpMode.standardTitle", "&eMode: Standard"),
+                    List.of(plugin.lang().get(player, "pumpMode.standardLore",
                             "Fluid pump uses standard bucket transfer behavior.")),
                     false,
-                    List.of(Placeholders.expandLangText(plugin, def, moduleItem, "pumpSettingsActionHint.standard",
+                    List.of(Placeholders.expandLangTextFor(plugin, player, def, moduleItem,
+                            "pumpSettingsActionHint.standard",
                             "&8No alternate mode."))));
-            inv.setItem(SLOT_TO_PLAYER, directionButton(
-                    plugin.lang().get("pumpDirection.toPlayer.title", "&eTo Player"),
-                    plugin.lang().get("pumpDirection.toPlayer.description",
+            inv.setItem(SLOT_TO_PLAYER, directionButton(player,
+                    plugin.lang().get(player, "pumpDirection.toPlayer.title", "&eTo Player"),
+                    plugin.lang().get(player, "pumpDirection.toPlayer.description",
                             "Move resources from the tank to player inventory/XP."),
                     toPlayer));
         }
@@ -404,49 +406,49 @@ public final class PumpSettingsListener implements Listener {
         return Math.max(0, Math.min(MAX_TARGET_LEVEL, level));
     }
 
-    private String expPumpModeTitle(UpgradeDef def, ItemStack moduleItem,
+    private String expPumpModeTitle(Player player, UpgradeDef def, ItemStack moduleItem,
             String pumpMode) {
         return switch (pumpMode) {
-            case "WITHDRAW" -> Placeholders.expandLangText(plugin, def, moduleItem, "pumpMode.withdraw",
+            case "WITHDRAW" -> Placeholders.expandLangTextFor(plugin, player, def, moduleItem, "pumpMode.withdraw",
                     "&7Mode: &fWithdraw");
-            case "KEEP_LEVEL" -> Placeholders.expandLangText(plugin, def, moduleItem, "pumpMode.keepLevel",
+            case "KEEP_LEVEL" -> Placeholders.expandLangTextFor(plugin, player, def, moduleItem, "pumpMode.keepLevel",
                     "&7Mode: &fKeep Player at Level {level}");
-            default -> Placeholders.expandLangText(plugin, def, moduleItem, "pumpMode.deposit",
+            default -> Placeholders.expandLangTextFor(plugin, player, def, moduleItem, "pumpMode.deposit",
                     "&7Mode: &fDeposit");
         };
     }
 
-    private List<String> expPumpModeLore(UpgradeDef def, ItemStack moduleItem, String pumpMode) {
+    private List<String> expPumpModeLore(Player player, UpgradeDef def, ItemStack moduleItem, String pumpMode) {
         return switch (pumpMode) {
-            case "WITHDRAW" -> Placeholders.expandLangList(plugin, def, moduleItem,
+            case "WITHDRAW" -> Placeholders.expandLangListFor(plugin, player, def, moduleItem,
                     "expPumpModeLore.withdraw",
                     List.of("Pull XP from the tank and give it to the player.",
                             "Mending uses withdrawn XP first when enabled."));
-            case "KEEP_LEVEL" -> Placeholders.expandLangList(plugin, def, moduleItem,
+            case "KEEP_LEVEL" -> Placeholders.expandLangListFor(plugin, player, def, moduleItem,
                     "expPumpModeLore.keepLevel",
                     List.of("Keep the player at level {level}.",
                             "Excess XP is stored, missing XP is restored from the tank."));
-            default -> Placeholders.expandLangList(plugin, def, moduleItem,
+            default -> Placeholders.expandLangListFor(plugin, player, def, moduleItem,
                     "expPumpModeLore.deposit",
                     List.of("Move player XP into the tank.",
                             "Good for banking levels before they are lost."));
         };
     }
 
-    private ItemStack levelButton(UpgradeDef def, ItemStack moduleItem) {
+    private ItemStack levelButton(Player player, UpgradeDef def, ItemStack moduleItem) {
         ItemStack it = new ItemStack(Material.EXPERIENCE_BOTTLE);
         ItemMeta meta = it.getItemMeta();
         if (meta != null) {
-            meta.displayName(Text.c(Placeholders.expandLangText(plugin, def, moduleItem,
+            meta.displayName(Text.c(Placeholders.expandLangTextFor(plugin, player, def, moduleItem,
                     "expPumpLevels.targetLevel", "&6Target Level: &f{level}")));
             meta.lore(Text.lore(List.of(
-                    Placeholders.expandLangText(plugin, def, moduleItem, "expPumpLevels.levelUp1",
+                    Placeholders.expandLangTextFor(plugin, player, def, moduleItem, "expPumpLevels.levelUp1",
                             "&8[&6Left-click&8]&7 +1 Level"),
-                    Placeholders.expandLangText(plugin, def, moduleItem, "expPumpLevels.levelDown1",
+                    Placeholders.expandLangTextFor(plugin, player, def, moduleItem, "expPumpLevels.levelDown1",
                             "&8[&6Right-click&8]&7 -1 Level"),
-                    Placeholders.expandLangText(plugin, def, moduleItem, "expPumpLevels.levelUp5",
+                    Placeholders.expandLangTextFor(plugin, player, def, moduleItem, "expPumpLevels.levelUp5",
                             "&8[&6ꜱʜɪꜰᴛ + ʟ-ᴄʟɪᴄᴋ&8]&7 +5 Levels"),
-                    Placeholders.expandLangText(plugin, def, moduleItem, "expPumpLevels.levelDown5",
+                    Placeholders.expandLangTextFor(plugin, player, def, moduleItem, "expPumpLevels.levelDown5",
                             "&8[&6ꜱʜɪꜰᴛ + ʀ-ᴄʟɪᴄᴋ&8]&7 -5 Levels"))));
             it.setItemMeta(meta);
         }
@@ -498,13 +500,13 @@ public final class PumpSettingsListener implements Listener {
         }
     }
 
-    private ItemStack directionButton(String title, String description, boolean selected) {
+    private ItemStack directionButton(Player player, String title, String description, boolean selected) {
         ItemStack it = new ItemStack(selected ? Material.LIME_DYE : Material.GRAY_DYE);
         ItemMeta meta = it.getItemMeta();
         if (meta != null) {
             String suffix = selected
-                    ? plugin.lang().get("pumpMode.selected", "&a(Selected)")
-                    : plugin.lang().get("pumpMode.unselected", "&7(Click to select)");
+                    ? plugin.lang().get(player, "pumpMode.selected", "&a(Selected)")
+                    : plugin.lang().get(player, "pumpMode.unselected", "&7(Click to select)");
             meta.displayName(Text.c(title + " " + suffix));
             meta.lore(Text.lore(List.of("&7" + description)));
             it.setItemMeta(meta);
