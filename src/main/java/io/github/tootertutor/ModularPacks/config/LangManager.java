@@ -1,12 +1,16 @@
 package io.github.tootertutor.ModularPacks.config;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
@@ -31,7 +35,39 @@ public final class LangManager {
         if (!f.exists()) {
             plugin.saveResource("lang/" + DEFAULT_LOCALE + ".yml", false);
         }
-        this.lang = YamlConfiguration.loadConfiguration(f);
+        this.lang = new YamlConfiguration();
+        boolean writable = true;
+        try {
+            lang.load(f);
+        } catch (IOException | InvalidConfigurationException ex) {
+            // Keep an invalid file intact for repair; use packaged defaults in memory.
+            writable = false;
+            lang = new YamlConfiguration();
+            plugin.getLogger().warning("Could not read language file; using English defaults: " + ex.getMessage());
+        }
+        // Add new translation keys to existing installations without replacing edits.
+        try (var resource = plugin.getResource("lang/" + DEFAULT_LOCALE + ".yml")) {
+            if (resource != null) {
+                var defaults = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(resource, StandardCharsets.UTF_8));
+                boolean changed = false;
+                for (String key : defaults.getKeys(true)) {
+                    if (!defaults.isConfigurationSection(key) && !lang.contains(key)) {
+                        Object value = defaults.get(key);
+                        if (key.equals("gui.storage.count")) {
+                            value = plugin.cfg().getString("modularpacks.VirtualStackCountLore", String.valueOf(value));
+                        }
+                        lang.set(key, value);
+                        changed = true;
+                    }
+                }
+                if (changed && writable) {
+                    lang.save(f);
+                }
+            }
+        } catch (IOException ex) {
+            plugin.getLogger().warning("Could not update language defaults: " + ex.getMessage());
+        }
         localeCache.clear();
     }
 
@@ -106,7 +142,7 @@ public final class LangManager {
     public List<String> getList(Player player, String path) {
         YamlConfiguration cfg = localeFor(player);
         List<String> out = cfg.getStringList(path);
-        if (out != null && !out.isEmpty())
+        if (cfg.isList(path))
             return out;
         // Fall back to default locale
         return getList(path);
@@ -124,6 +160,19 @@ public final class LangManager {
         if (player == null || path == null)
             return has(path);
         return localeFor(player).contains(path) || has(path);
+    }
+
+    /**
+     * Resolve a UI template, then substitute named values without interpreting them
+     * as keys.
+     */
+    public String text(Player player, String path, Object... replacements) {
+        return LangTemplates.format(get(player, path, path), replacements);
+    }
+
+    public List<String> lines(Player player, String path, Object... replacements) {
+        return getList(player, path).stream()
+                .map(line -> LangTemplates.format(line, replacements)).toList();
     }
 
     /** Returns the YamlConfiguration for the player's locale, or the default. */

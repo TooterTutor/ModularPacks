@@ -3,11 +3,13 @@ package io.github.tootertutor.ModularPacks.config;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -22,22 +24,65 @@ public final class Placeholders {
     private Placeholders() {
     }
 
+    public static List<String> expandLore(ModularPacksPlugin plugin, List<String> lore) {
+        return expandLoreFor(plugin, null, lore);
+    }
+
+    public static List<String> expandBackpackLore(ModularPacksPlugin plugin, BackpackTypeDef type, UUID backpackId,
+            List<String> lore) {
+        return expandBackpackLoreFor(plugin, null, type, backpackId, lore);
+    }
+
+    public static List<String> expandBackpackLore(ModularPacksPlugin plugin,
+            BackpackTypeDef type,
+            UUID backpackId,
+            BackpackData data,
+            int totalSlots,
+            List<String> lore) {
+        return expandBackpackLoreFor(plugin, null, type, backpackId, data, totalSlots, lore);
+    }
+
+    public static List<String> expandLore(ModularPacksPlugin plugin, UpgradeDef def, List<String> lore) {
+        return expandLoreFor(plugin, null, def, lore);
+    }
+
+    public static List<String> expandLore(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+            List<String> lore) {
+        return expandLoreFor(plugin, null, def, moduleItem, lore);
+    }
+
+    public static String expandText(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem, String text) {
+        return expandTextFor(plugin, null, def, moduleItem, text);
+    }
+
+    public static String expandLangText(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+            String langKey, String fallback) {
+        return expandLangTextFor(plugin, null, def, moduleItem, langKey, fallback);
+    }
+
+    public static List<String> expandLangList(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+            String langKey, List<String> fallback) {
+        return expandLangListFor(plugin, null, def, moduleItem, langKey, fallback);
+    }
+
     private static final int MAX_EXPANSION_DEPTH = 6;
     private static final int MAX_EXPANDED_LINES = 250;
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z0-9._\\-]+)\\}");
 
-    public static List<String> expandLore(ModularPacksPlugin plugin, List<String> lore) {
+    public static List<String> expandLoreFor(ModularPacksPlugin plugin, Player viewer, List<String> lore) {
         if (plugin == null)
             return lore == null ? List.of() : lore;
 
         Map<String, Replacement> overrides = new HashMap<>();
         // Back-compat: treat {moduleActions} as "primary" actions.
-        overrides.put("moduleActions", Replacement.list(langActionsPrimary(plugin)));
+        overrides.put("moduleActions",
+                Replacement.list(resolveActionList(plugin, viewer, "moduleActionsPrimary", "moduleActions")));
 
-        return expandLines(plugin, null, null, lore, overrides);
+        return expandLines(plugin, viewer, null, null, lore, overrides);
     }
 
-    public static List<String> expandBackpackLore(ModularPacksPlugin plugin, BackpackTypeDef type, UUID backpackId,
+    public static List<String> expandBackpackLoreFor(ModularPacksPlugin plugin, Player viewer, BackpackTypeDef type,
+            UUID backpackId,
             List<String> lore) {
         if (plugin == null)
             return lore == null ? List.of() : lore;
@@ -57,11 +102,11 @@ public final class Placeholders {
             data = plugin.repo().loadOrCreate(backpackId, effectiveType);
         }
 
-        return expandBackpackLore(plugin, type, backpackId, data, totalSlots, lore);
+        return expandBackpackLoreFor(plugin, viewer, type, backpackId, data, totalSlots, lore);
     }
 
-    public static List<String> expandBackpackLore(
-            ModularPacksPlugin plugin,
+    public static List<String> expandBackpackLoreFor(
+            ModularPacksPlugin plugin, Player viewer,
             BackpackTypeDef type,
             UUID backpackId,
             BackpackData data,
@@ -164,8 +209,8 @@ public final class Placeholders {
         overrides.put("InstalledModules", Replacement.list(installedModuleLines));
 
         boolean empty = (usedSlots <= 0 && itemCount <= 0);
-        List<String> tpl = empty ? plugin.lang().getList("backpackContentsEmpty")
-                : plugin.lang().getList("backpackContents");
+        List<String> tpl = empty ? plugin.lang().getList(viewer, "backpackContentsEmpty")
+                : plugin.lang().getList(viewer, "backpackContents");
         if (tpl == null || tpl.isEmpty()) {
             tpl = empty
                     ? List.of("&7Contents: &8(Empty)")
@@ -173,104 +218,61 @@ public final class Placeholders {
         }
         overrides.put("backpackContents", Replacement.list(tpl));
 
-        return expandLines(plugin, null, null, lore, overrides);
+        return expandLines(plugin, viewer, null, null, lore, overrides);
     }
 
-    public static List<String> expandLore(ModularPacksPlugin plugin, UpgradeDef def, List<String> lore) {
-        return expandLore(plugin, def, null, lore);
+    public static List<String> expandLoreFor(ModularPacksPlugin plugin, Player viewer, UpgradeDef def,
+            List<String> lore) {
+        return expandLoreFor(plugin, viewer, def, null, lore);
     }
 
-    public static List<String> expandLore(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+    public static List<String> expandLoreFor(ModularPacksPlugin plugin, Player viewer, UpgradeDef def,
+            ItemStack moduleItem,
             List<String> lore) {
         if (plugin == null)
             return lore == null ? List.of() : lore;
         if (def == null)
-            return expandLore(plugin, lore);
+            return expandLoreFor(plugin, viewer, lore);
 
-        Map<String, Replacement> overrides = new HashMap<>();
-        overrides.put("moduleActions", Replacement.list(resolveActions(plugin, def)));
-
-        String toggleState = resolveToggleState(plugin, def, moduleItem);
-        // Always register toggleState so non-toggleable modules can safely omit it.
-        overrides.put("toggleState", Replacement.scalar(toggleState));
-
-        // Optional module-specific placeholders
-        if (def.id() != null && def.id().equalsIgnoreCase("Jukebox")) {
-            overrides.put("jukeboxMode", Replacement.scalar(resolveJukeboxMode(plugin, moduleItem)));
-        } else {
-            overrides.put("jukeboxMode", Replacement.scalar(""));
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Feeding")) {
-            overrides.put("feedingMode", Replacement.scalar(resolveFeedingMode(plugin, moduleItem)));
-        } else {
-            overrides.put("feedingMode", Replacement.scalar(""));
-        }
-        if (def.id() != null && (def.id().equalsIgnoreCase("Pump") || def.id().equalsIgnoreCase("ExpPump"))) {
-            overrides.put("pumpMode", Replacement.scalar(resolvePumpMode(plugin, moduleItem, def.id())));
-        } else {
-            overrides.put("pumpMode", Replacement.scalar(""));
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
-            overrides.put("expPumpMending", Replacement.scalar(resolveExpPumpMending(plugin, moduleItem)));
-            String targetLevel = Integer.toString(resolveExpPumpTargetLevel(plugin, moduleItem));
-            overrides.put("level", Replacement.scalar(targetLevel));
-            overrides.put("Level", Replacement.scalar(targetLevel));
-            overrides.put("targetLevel", Replacement.scalar(targetLevel));
-            overrides.put("TargetLevel", Replacement.scalar(targetLevel));
-        } else {
-            overrides.put("expPumpMending", Replacement.scalar(""));
-            overrides.put("level", Replacement.scalar(""));
-            overrides.put("Level", Replacement.scalar(""));
-            overrides.put("targetLevel", Replacement.scalar(""));
-            overrides.put("TargetLevel", Replacement.scalar(""));
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
-            String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
-            // Value placeholder used inside lang templates (e.g. {restockThreshold} ->
-            // "&7... {threshold}")
-            overrides.put("threshold", Replacement.scalar(threshold));
-            overrides.put("Threshold", Replacement.scalar(threshold));
-            overrides.put("restockThresholdValue", Replacement.scalar(threshold));
-            overrides.put("RestockThresholdValue", Replacement.scalar(threshold));
-        } else {
-            overrides.put("threshold", Replacement.scalar(""));
-            overrides.put("Threshold", Replacement.scalar(""));
-            overrides.put("restockThresholdValue", Replacement.scalar(""));
-            overrides.put("RestockThresholdValue", Replacement.scalar(""));
-        }
-
-        addUpgradeConfigScalars(plugin, def, overrides);
-
-        return expandLines(plugin, def, moduleItem, lore, overrides);
+        return expandLines(plugin, viewer, def, moduleItem, lore,
+                moduleOverrides(plugin, viewer, def, moduleItem));
     }
 
-    public static String expandText(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem, String text) {
+    public static String expandTextFor(ModularPacksPlugin plugin, Player viewer, UpgradeDef def, ItemStack moduleItem,
+            String text) {
         if (plugin == null || text == null)
             return text;
 
+        return expandString(plugin, viewer, def, moduleItem, text,
+                moduleOverrides(plugin, viewer, def, moduleItem));
+    }
+
+    /** Build one consistent set of values for both item names and lore. */
+    private static Map<String, Replacement> moduleOverrides(ModularPacksPlugin plugin, Player viewer,
+            UpgradeDef def, ItemStack moduleItem) {
         Map<String, Replacement> overrides = new HashMap<>();
         if (def != null) {
-            overrides.put("moduleActions", Replacement.list(resolveActions(plugin, def)));
-            String toggleState = resolveToggleState(plugin, def, moduleItem);
+            overrides.put("moduleActions", Replacement.list(resolveActions(plugin, viewer, def)));
+            String toggleState = resolveToggleState(plugin, viewer, def, moduleItem);
             overrides.put("toggleState", Replacement.scalar(toggleState));
             if (def.id() != null && def.id().equalsIgnoreCase("Jukebox")) {
-                overrides.put("jukeboxMode", Replacement.scalar(resolveJukeboxMode(plugin, moduleItem)));
+                overrides.put("jukeboxMode", Replacement.scalar(resolveJukeboxMode(plugin, viewer, moduleItem)));
             } else {
                 overrides.put("jukeboxMode", Replacement.scalar(""));
             }
             if (def.id() != null && def.id().equalsIgnoreCase("Feeding")) {
-                overrides.put("feedingMode", Replacement.scalar(resolveFeedingMode(plugin, moduleItem)));
+                overrides.put("feedingMode", Replacement.scalar(resolveFeedingMode(plugin, viewer, moduleItem)));
             } else {
                 overrides.put("feedingMode", Replacement.scalar(""));
             }
             if (def.id() != null && (def.id().equalsIgnoreCase("Pump") || def.id().equalsIgnoreCase("ExpPump"))) {
-                overrides.put("pumpMode", Replacement.scalar(resolvePumpMode(plugin, moduleItem, def.id())));
+                overrides.put("pumpMode", Replacement.scalar(resolvePumpMode(plugin, viewer, moduleItem, def.id())));
             } else {
                 overrides.put("pumpMode", Replacement.scalar(""));
             }
             if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
-                overrides.put("expPumpMending", Replacement.scalar(resolveExpPumpMending(plugin, moduleItem)));
-                String targetLevel = Integer.toString(resolveExpPumpTargetLevel(plugin, moduleItem));
+                overrides.put("expPumpMending", Replacement.scalar(resolveExpPumpMending(plugin, viewer, moduleItem)));
+                String targetLevel = Integer.toString(resolveExpPumpTargetLevel(plugin, viewer, moduleItem));
                 overrides.put("level", Replacement.scalar(targetLevel));
                 overrides.put("Level", Replacement.scalar(targetLevel));
                 overrides.put("targetLevel", Replacement.scalar(targetLevel));
@@ -283,7 +285,7 @@ public final class Placeholders {
                 overrides.put("TargetLevel", Replacement.scalar(""));
             }
             if (def.id() != null && def.id().equalsIgnoreCase("Restock")) {
-                String threshold = Integer.toString(resolveRestockThreshold(plugin, moduleItem, def));
+                String threshold = Integer.toString(resolveRestockThreshold(plugin, viewer, moduleItem, def));
                 overrides.put("threshold", Replacement.scalar(threshold));
                 overrides.put("Threshold", Replacement.scalar(threshold));
                 overrides.put("restockThresholdValue", Replacement.scalar(threshold));
@@ -294,190 +296,89 @@ public final class Placeholders {
                 overrides.put("restockThresholdValue", Replacement.scalar(""));
                 overrides.put("RestockThresholdValue", Replacement.scalar(""));
             }
-            addUpgradeConfigScalars(plugin, def, overrides);
+            addUpgradeConfigScalars(plugin, viewer, def, overrides);
         } else {
-            overrides.put("moduleActions", Replacement.list(langActionsPrimary(plugin)));
+            overrides.put("moduleActions",
+                    Replacement.list(resolveActionList(plugin, viewer, "moduleActionsPrimary", "moduleActions")));
         }
 
-        return expandString(plugin, def, moduleItem, text, overrides);
+        return overrides;
     }
 
-    public static String expandLangText(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+    public static String expandLangTextFor(ModularPacksPlugin plugin, Player viewer, UpgradeDef def,
+            ItemStack moduleItem,
             String langKey, String fallback) {
         if (plugin == null)
             return fallback;
 
-        String text = plugin.lang().get(langKey, fallback);
-        return expandText(plugin, def, moduleItem, text);
+        String text = plugin.lang().get(viewer, langKey, fallback);
+        return expandTextFor(plugin, viewer, def, moduleItem, text);
     }
 
-    public static List<String> expandLangList(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem,
+    public static List<String> expandLangListFor(ModularPacksPlugin plugin, Player viewer, UpgradeDef def,
+            ItemStack moduleItem,
             String langKey, List<String> fallback) {
         if (plugin == null) {
             return fallback == null ? List.of() : fallback;
         }
 
-        List<String> lines = plugin.lang().getList(langKey);
-        if (lines == null || lines.isEmpty()) {
+        List<String> lines = plugin.lang().getList(viewer, langKey);
+        if (!plugin.lang().has(viewer, langKey)) {
             lines = fallback == null ? List.of() : fallback;
         }
 
         List<String> out = new ArrayList<>(lines.size());
         for (String line : lines) {
-            out.add(expandText(plugin, def, moduleItem, line));
+            out.add(expandTextFor(plugin, viewer, def, moduleItem, line));
         }
         return out;
     }
 
-    private static List<String> resolveActions(ModularPacksPlugin plugin, UpgradeDef def) {
+    // Only historical fallback relationships belong here. New module action lists
+    // are discovered by their moduleActions<ModuleId> language key automatically.
+    private static final Map<String, String> ACTION_FALLBACKS = Map.ofEntries(
+            Map.entry("moduleActionsPrimary", "moduleActions"),
+            Map.entry("moduleActionsSecondary", "moduleActionsPrimary"),
+            Map.entry("moduleActionsPassive", "moduleActionsPrimary"),
+            Map.entry("moduleActionsTank", "moduleActionsSecondary"),
+            Map.entry("moduleActionsFluidTank", "moduleActionsTank"),
+            Map.entry("moduleActionsExperienceTank", "moduleActionsTank"),
+            Map.entry("moduleActionsFeeding", "moduleActionsSecondary"),
+            Map.entry("moduleActionsJukebox", "moduleActionsSecondary"),
+            Map.entry("moduleActionsAutocrafting", "moduleActionsPrimary"),
+            Map.entry("moduleActionsPump", "moduleActionsSecondary"),
+            Map.entry("moduleActionsExpPump", "moduleActionsSecondary"),
+            Map.entry("moduleActionsQuiver", "moduleActionsSecondary"));
+
+    private static List<String> resolveActions(ModularPacksPlugin plugin, Player viewer, UpgradeDef def) {
         if (plugin == null || def == null)
             return List.of();
+        String fallback = def.secondaryAction() ? "moduleActionsSecondary"
+                : def.screenType() == ScreenType.NONE ? "moduleActionsPassive" : "moduleActionsPrimary";
+        String key = def.id() == null || def.id().isBlank() ? fallback : "moduleActions" + def.id();
+        // Built-in IDs have always been case-insensitive. Preserve their canonical
+        // language-key spelling while allowing new IDs to follow the same convention.
+        key = ACTION_FALLBACKS.keySet().stream().filter(key::equalsIgnoreCase).findFirst().orElse(key);
+        return resolveActionList(plugin, viewer, key, fallback);
+    }
 
-        if (def.id() != null && def.id().equalsIgnoreCase("FluidTank")) {
-            return langActionsFluidTank(plugin);
+    private static List<String> resolveActionList(ModularPacksPlugin plugin, Player viewer,
+            String key, String fallback) {
+        if (plugin == null || plugin.lang() == null)
+            return List.of();
+        while (key != null) {
+            // Presence, rather than non-emptiness, lets [] deliberately hide actions.
+            if (plugin.lang().has(viewer, key))
+                return plugin.lang().getList(viewer, key);
+            if ("moduleActions".equals(key))
+                return List.of();
+            key = ACTION_FALLBACKS.getOrDefault(key, fallback);
         }
-        if (def.id() != null && def.id().equalsIgnoreCase("ExperienceTank")) {
-            return langActionsExperienceTank(plugin);
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Tank")) {
-            return langActionsTank(plugin);
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Feeding")) {
-            return langActionsFeeding(plugin);
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Jukebox")) {
-            return langActionsJukebox(plugin);
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Autocrafting")) {
-            return langActionsAutocrafting(plugin);
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Pump")) {
-            return langActionsPump(plugin);
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("ExpPump")) {
-            return langActionsExpPump(plugin);
-        }
-        if (def.id() != null && def.id().equalsIgnoreCase("Quiver")) {
-            return langActionsQuiver(plugin);
-        }
-        if (def.secondaryAction()) {
-            return langActionsSecondary(plugin);
-        }
-        if (def.screenType() == ScreenType.NONE) {
-            return langActionsPassive(plugin);
-        }
-        return langActionsPrimary(plugin);
+        return List.of();
     }
 
-    private static List<String> langActionsFeeding(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> feeding = plugin.lang().getList("moduleActionsFeeding");
-        if (!feeding.isEmpty())
-            return feeding;
-        return langActionsSecondary(plugin);
-    }
-
-    private static List<String> langActionsPrimary(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> primary = plugin.lang().getList("moduleActionsPrimary");
-        if (!primary.isEmpty())
-            return primary;
-        return plugin.lang().getList("moduleActions");
-    }
-
-    private static List<String> langActionsSecondary(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> secondary = plugin.lang().getList("moduleActionsSecondary");
-        if (!secondary.isEmpty())
-            return secondary;
-        return langActionsPrimary(plugin);
-    }
-
-    private static List<String> langActionsTank(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> tank = plugin.lang().getList("moduleActionsTank");
-        if (!tank.isEmpty())
-            return tank;
-        return langActionsSecondary(plugin);
-    }
-
-    private static List<String> langActionsFluidTank(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> out = plugin.lang().getList("moduleActionsFluidTank");
-        if (!out.isEmpty())
-            return out;
-        return langActionsTank(plugin);
-    }
-
-    private static List<String> langActionsExperienceTank(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> out = plugin.lang().getList("moduleActionsExperienceTank");
-        if (!out.isEmpty())
-            return out;
-        return langActionsTank(plugin);
-    }
-
-    private static List<String> langActionsJukebox(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> out = plugin.lang().getList("moduleActionsJukebox");
-        if (!out.isEmpty())
-            return out;
-        return langActionsSecondary(plugin);
-    }
-
-    private static List<String> langActionsAutocrafting(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> out = plugin.lang().getList("moduleActionsAutocrafting");
-        if (!out.isEmpty())
-            return out;
-        return langActionsPrimary(plugin);
-    }
-
-    private static List<String> langActionsPump(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> out = plugin.lang().getList("moduleActionsPump");
-        if (!out.isEmpty())
-            return out;
-        return langActionsSecondary(plugin);
-    }
-
-    private static List<String> langActionsExpPump(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> out = plugin.lang().getList("moduleActionsExpPump");
-        if (!out.isEmpty())
-            return out;
-        return langActionsSecondary(plugin);
-    }
-
-    private static List<String> langActionsQuiver(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> out = plugin.lang().getList("moduleActionsQuiver");
-        if (!out.isEmpty())
-            return out;
-        return langActionsSecondary(plugin);
-    }
-
-    private static List<String> langActionsPassive(ModularPacksPlugin plugin) {
-        if (plugin == null || plugin.lang() == null)
-            return List.of();
-        List<String> passive = plugin.lang().getList("moduleActionsPassive");
-        if (!passive.isEmpty())
-            return passive;
-        return langActionsPrimary(plugin);
-    }
-
-    private static String resolveToggleState(ModularPacksPlugin plugin, UpgradeDef def, ItemStack moduleItem) {
+    private static String resolveToggleState(ModularPacksPlugin plugin, Player viewer, UpgradeDef def,
+            ItemStack moduleItem) {
         if (plugin == null || def == null || !def.toggleable())
             return null;
 
@@ -494,12 +395,12 @@ public final class Placeholders {
         }
 
         if (enabled) {
-            return plugin.lang().get("toggleState.enabled", "&7State: &aᴇɴᴀʙʟᴇᴅ");
+            return plugin.lang().get(viewer, "toggleState.enabled", "&7State: &aᴇɴᴀʙʟᴇᴅ");
         }
-        return plugin.lang().get("toggleState.disabled", "&7State: &cᴅɪѕᴀʙʟᴇᴅ");
+        return plugin.lang().get(viewer, "toggleState.disabled", "&7State: &cᴅɪѕᴀʙʟᴇᴅ");
     }
 
-    private static String resolveJukeboxMode(ModularPacksPlugin plugin, ItemStack moduleItem) {
+    private static String resolveJukeboxMode(ModularPacksPlugin plugin, Player viewer, ItemStack moduleItem) {
         if (plugin == null || moduleItem == null || !moduleItem.hasItemMeta())
             return "";
 
@@ -509,17 +410,17 @@ public final class Placeholders {
 
         Keys keys = plugin.keys();
         String raw = meta.getPersistentDataContainer().get(keys.MODULE_JUKEBOX_MODE, PersistentDataType.STRING);
-        String s = raw == null ? "" : raw.trim().toUpperCase(java.util.Locale.ROOT);
+        String s = raw == null ? "" : raw.trim().toUpperCase(Locale.ROOT);
 
         return switch (s) {
-            case "SHUFFLE" -> plugin.lang().get("jukeboxMode.shuffle", "&7Mode: &fShuffle");
-            case "REPEAT_ONE" -> plugin.lang().get("jukeboxMode.repeatOne", "&7Mode: &fRepeat 1");
-            case "REPEAT_ALL" -> plugin.lang().get("jukeboxMode.repeatAll", "&7Mode: &fRepeat All");
-            default -> plugin.lang().get("jukeboxMode.repeatAll", "&7Mode: &fRepeat All");
+            case "SHUFFLE" -> plugin.lang().get(viewer, "jukeboxMode.shuffle", "&7Mode: &fShuffle");
+            case "REPEAT_ONE" -> plugin.lang().get(viewer, "jukeboxMode.repeatOne", "&7Mode: &fRepeat 1");
+            case "REPEAT_ALL" -> plugin.lang().get(viewer, "jukeboxMode.repeatAll", "&7Mode: &fRepeat All");
+            default -> plugin.lang().get(viewer, "jukeboxMode.repeatAll", "&7Mode: &fRepeat All");
         };
     }
 
-    private static String resolveFeedingMode(ModularPacksPlugin plugin, ItemStack moduleItem) {
+    private static String resolveFeedingMode(ModularPacksPlugin plugin, Player viewer, ItemStack moduleItem) {
         if (plugin == null || moduleItem == null || !moduleItem.hasItemMeta())
             return "";
 
@@ -540,26 +441,30 @@ public final class Placeholders {
             rawPref = plugin.cfg().getString("Upgrades.Feeding.Preference", "Nutrition");
         }
 
-        String mode = rawMode.trim().toUpperCase(java.util.Locale.ROOT);
-        String pref = rawPref.trim().toUpperCase(java.util.Locale.ROOT);
+        String mode = rawMode.trim().toUpperCase(Locale.ROOT);
+        String pref = rawPref.trim().toUpperCase(Locale.ROOT);
 
         boolean whitelist = mode.contains("WHITELIST") || mode.contains("PREFER_FIRST");
         boolean effects = pref.contains("EFFECT");
 
         if (!whitelist && !effects) {
-            return plugin.lang().get("feedingMode.candidateNutrition", "&7Mode: &fBest Candidate: Prefer Nutrition");
+            return plugin.lang().get(viewer, "feedingMode.candidateNutrition",
+                    "&7Mode: &fBest Candidate: Prefer Nutrition");
         }
         if (!whitelist) {
-            return plugin.lang().get("feedingMode.candidateEffects", "&7Mode: &fBest Candidate: Prefer Effects");
+            return plugin.lang().get(viewer, "feedingMode.candidateEffects",
+                    "&7Mode: &fBest Candidate: Prefer Effects");
         }
         if (!effects) {
-            return plugin.lang().get("feedingMode.whitelistNutrition",
+            return plugin.lang().get(viewer, "feedingMode.whitelistNutrition",
                     "&7Mode: &fFirst in Whitelist: Prefer Nutrition");
         }
-        return plugin.lang().get("feedingMode.whitelistEffects", "&7Mode: &fFirst in Whitelist: Prefer Effects");
+        return plugin.lang().get(viewer, "feedingMode.whitelistEffects",
+                "&7Mode: &fFirst in Whitelist: Prefer Effects");
     }
 
-    private static String resolvePumpMode(ModularPacksPlugin plugin, ItemStack moduleItem, String upgradeId) {
+    private static String resolvePumpMode(ModularPacksPlugin plugin, Player viewer, ItemStack moduleItem,
+            String upgradeId) {
         if (plugin == null)
             return "";
 
@@ -577,7 +482,7 @@ public final class Placeholders {
         }
 
         String source = raw == null || raw.isBlank() ? fallback : raw;
-        String normalized = source.trim().toUpperCase(java.util.Locale.ROOT);
+        String normalized = source.trim().toUpperCase(Locale.ROOT);
         if (upgradeId != null && upgradeId.equalsIgnoreCase("ExpPump")
                 && (normalized.contains("KEEP") || normalized.contains("LEVEL"))) {
             int targetLevel = plugin.cfg().getInt("Upgrades.ExpPump.TargetLevel", 30);
@@ -593,16 +498,16 @@ public final class Placeholders {
             }
 
             targetLevel = Math.max(0, Math.min(100, targetLevel));
-            return plugin.lang().get("pumpMode.keepLevel", "&7Mode: &fKeep Player at Level {level}")
+            return plugin.lang().get(viewer, "pumpMode.keepLevel", "&7Mode: &fKeep Player at Level {level}")
                     .replace("{level}", Integer.toString(targetLevel));
         }
         if (normalized.contains("WITHDRAW") || normalized.contains("OUT")) {
-            return plugin.lang().get("pumpMode.withdraw", "&7Mode: &fWithdraw");
+            return plugin.lang().get(viewer, "pumpMode.withdraw", "&7Mode: &fWithdraw");
         }
-        return plugin.lang().get("pumpMode.deposit", "&7Mode: &fDeposit");
+        return plugin.lang().get(viewer, "pumpMode.deposit", "&7Mode: &fDeposit");
     }
 
-    private static String resolveExpPumpMending(ModularPacksPlugin plugin, ItemStack moduleItem) {
+    private static String resolveExpPumpMending(ModularPacksPlugin plugin, Player viewer, ItemStack moduleItem) {
         if (plugin == null)
             return "";
 
@@ -619,12 +524,12 @@ public final class Placeholders {
         }
 
         if (enabled) {
-            return plugin.lang().get("expPumpMending.enabled", "&7Mending: &aEnabled");
+            return plugin.lang().get(viewer, "expPumpMending.enabled", "&7Mending: &aEnabled");
         }
-        return plugin.lang().get("expPumpMending.disabled", "&7Mending: &cDisabled");
+        return plugin.lang().get(viewer, "expPumpMending.disabled", "&7Mending: &cDisabled");
     }
 
-    private static int resolveExpPumpTargetLevel(ModularPacksPlugin plugin, ItemStack moduleItem) {
+    private static int resolveExpPumpTargetLevel(ModularPacksPlugin plugin, Player viewer, ItemStack moduleItem) {
         if (plugin == null)
             return 30;
 
@@ -643,7 +548,8 @@ public final class Placeholders {
         return Math.max(0, Math.min(100, targetLevel));
     }
 
-    private static int resolveRestockThreshold(ModularPacksPlugin plugin, ItemStack moduleItem, UpgradeDef def) {
+    private static int resolveRestockThreshold(ModularPacksPlugin plugin, Player viewer, ItemStack moduleItem,
+            UpgradeDef def) {
         if (plugin == null)
             return 16;
 
@@ -700,7 +606,7 @@ public final class Placeholders {
         return fallback;
     }
 
-    private static void addUpgradeConfigScalars(ModularPacksPlugin plugin, UpgradeDef def,
+    private static void addUpgradeConfigScalars(ModularPacksPlugin plugin, Player viewer, UpgradeDef def,
             Map<String, Replacement> overrides) {
         if (plugin == null || def == null || def.id() == null)
             return;
@@ -722,7 +628,7 @@ public final class Placeholders {
             String lc = lowerCamel(key);
             if (lc != null && !lc.equals(key)) {
                 // Avoid overriding lang template keys (e.g. `restockThreshold` in en_us.yml).
-                if (plugin.lang() != null && plugin.lang().raw(lc) != null) {
+                if (plugin.lang() != null && plugin.lang().raw(viewer, lc) != null) {
                     continue;
                 }
                 overrides.putIfAbsent(lc, Replacement.scalar(formatted));
@@ -786,7 +692,7 @@ public final class Placeholders {
     }
 
     private static List<String> expandLines(
-            ModularPacksPlugin plugin,
+            ModularPacksPlugin plugin, Player viewer,
             UpgradeDef def,
             ItemStack moduleItem,
             List<String> lore,
@@ -808,7 +714,7 @@ public final class Placeholders {
                 if (line == null)
                     continue;
 
-                List<String> expanded = expandLineToLines(plugin, def, moduleItem, line, overrides);
+                List<String> expanded = expandLineToLines(plugin, viewer, def, moduleItem, line, overrides);
                 if (expanded.isEmpty() || expanded.size() != 1 || !expanded.get(0).equals(line)) {
                     changed = true;
                 }
@@ -833,7 +739,7 @@ public final class Placeholders {
     }
 
     private static String expandString(
-            ModularPacksPlugin plugin,
+            ModularPacksPlugin plugin, Player viewer,
             UpgradeDef def,
             ItemStack moduleItem,
             String text,
@@ -849,7 +755,7 @@ public final class Placeholders {
             while (m.find()) {
                 any = true;
                 String key = m.group(1);
-                Replacement r = resolveReplacement(plugin, def, moduleItem, key, overrides);
+                Replacement r = resolveReplacement(plugin, viewer, def, moduleItem, key, overrides);
                 String repl = r == null ? null : r.asScalar();
                 if (r != null && repl == null) {
                     // Known placeholder with no scalar value => remove.
@@ -873,7 +779,7 @@ public final class Placeholders {
     }
 
     private static List<String> expandLineToLines(
-            ModularPacksPlugin plugin,
+            ModularPacksPlugin plugin, Player viewer,
             UpgradeDef def,
             ItemStack moduleItem,
             String line,
@@ -893,7 +799,7 @@ public final class Placeholders {
             }
 
             String key = m.group(1);
-            Replacement r = resolveReplacement(plugin, def, moduleItem, key, overrides);
+            Replacement r = resolveReplacement(plugin, viewer, def, moduleItem, key, overrides);
             if (r == null) {
                 next.add(cur); // unknown placeholder
                 continue;
@@ -937,7 +843,7 @@ public final class Placeholders {
     }
 
     private static Replacement resolveReplacement(
-            ModularPacksPlugin plugin,
+            ModularPacksPlugin plugin, Player viewer,
             UpgradeDef def,
             ItemStack moduleItem,
             String key,
@@ -954,7 +860,7 @@ public final class Placeholders {
         if (plugin == null || plugin.lang() == null)
             return null;
 
-        Object raw = plugin.lang().raw(key);
+        Object raw = plugin.lang().raw(viewer, key);
         if (raw instanceof List<?> list) {
             List<String> out = new ArrayList<>();
             for (Object o : list) {
