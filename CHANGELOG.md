@@ -3,6 +3,34 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.7
+
+**Release Date:** 2026-10-30
+
+## Changes since 2.7.6
+
+### Features & Improvements
+- Add localization support for UI titles, buttons, descriptions, and dialogs (cd2017d)
+- Added localized UI text and simplified placeholder resolution (de74a03)
+
+### Bug Fixes
+- Fixed NavRow rendering and handling for backpacks with 0 upgrade slots (#7) (4cdc4b0)
+
+### Refactoring & Code Quality
+
+
+### All Commits
+- Bump version (538fb70)
+- Updated Readme (37d6555)
+- Updated en_us lang file (e73d2a1)
+- Add localization support for UI titles, buttons, descriptions, and dialogs (cd2017d)
+- Added localized UI text and simplified placeholder resolution (de74a03)
+- Updated Readme (e943bd1)
+- Fixed NavRow rendering and handling for backpacks with 0 upgrade slots (#7) (4cdc4b0)
+- Revert Java version to 21 (9f3c4e5)
+---
+
+
 # ModularPacks 2.7.6
 
 **Release Date:** 2026-10-10
