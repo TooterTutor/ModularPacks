@@ -648,7 +648,21 @@ Language file:
 plugins/ModularPacks/lang/en_us.yml
 ```
 
-The language file controls user-facing module action text, toggle labels, mode labels, placeholder expansions, and placed backpack messages.
+The language file controls GUI titles, buttons and descriptions, Settings and color, dialogs, sharing prompts, module screens, sorting modes, resource-pack selection, admin menus, module action text, and placed backpack messages.
+UI translations live under `gui` in `en_us.yml`.
+
+For another language, copy `en_us.yml` to a file matching the player's Minecraft language code then translate its values.
+Partial files are supported: missing keys fall back to `en_us.yml`.
+Players see menus in their own client language, and existing English customizations remain the server default.
+An empty lore list (`[]`) intentionally hides those description lines.
+
+New English keys are added on startup or language reload without replacing existing values.
+Run `/backpack reload lang` after editing language files, then close and reopen the menu.
+Keep named tokens such as `{name}`, `{type}`, `{count}`, `{group}`, and `{color}` intact; translators can move them within a sentence.
+Custom backpack names and configured type/resource-pack names keep their original values.
+
+An optional translation starter and a smoke-test checklist are in [docs/localization.md](docs/localization.md).
+This adds UI localization; command usage text and diagnostic messages outside these screens retain their existing configuration and behavior.
 
 This lets you change the plugin's tone without editing the source. You can make the messages clean and minimal, more stylized, or match the theme of your server.
 
