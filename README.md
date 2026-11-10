@@ -7,195 +7,174 @@
 ![Status](https://img.shields.io/badge/status-active_development-purple?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
 
-## Table of Contents
+**Configurable, modular backpacks for Paper servers.**
 
-* [Features](#features)
-* [Requirements and installation](#requirements-and-installation)
+Physical backpack items with persistent storage, portable workstations, passive automation, and shared inventories. Supports vanilla clients, optional resource-pack visuals, and custom modules through a public API.
 
-  * [Requirements](#requirements)
-  * [Installation](#installation)
-* [Design goals and backpack behavior](#design-goals-and-backpack-behavior)
+<p align="center">
+  <a href="https://discord.com/invite/QPBFaD4dkQ"><img src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/social/discord-plural_vector.svg" height="56" alt="Join the Discord community"></a>
+  <a href="https://modrinth.com/plugin/modularpacks"><img src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg" height="56" alt="Download ModularPacks on Modrinth"></a>
+  <a href="https://github.com/TooterTutor/ModularPacks/issues"><img src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/github_vector.svg" height="56" alt="GitHub issues"></a>
+</p>
 
-  * [What makes ModularPacks different?](#what-makes-modularpacks-different)
-  * [How backpacks work](#how-backpacks-work)
-  * [Default backpack tiers](#default-backpack-tiers)
-  * [Default modules](#default-modules)
-  * [Basic usage](#basic-usage)
-* [Commands and permissions](#commands-and-permissions)
+<h2 align="center"> Table of Contents </h2>
+<p align="center">
+  <a href="#features">Features</a> · <a href="#backpacks">Backpacks</a> · <a href="#modules">Modules</a> · <a href="#server-setup">Server setup</a> · <a href="#controls">Controls</a> · <a href="#reference">Reference</a>
+</p>
 
-  * [Commands](#commands)
-  * [Permissions](#permissions)
-* [Configuration and data](#configuration-and-data)
+---
 
-  * [Configuration](#configuration)
-  * [Backpack type configuration](#backpack-type-configuration)
-  * [Recipe ingredient tokens](#recipe-ingredient-tokens)
-  * [Upgrade configuration](#upgrade-configuration)
-  * [Language file](#language-file)
-  * [Data storage](#data-storage)
-  * [Resource pack support](#resource-pack-support)
-* [Developer API](#developer-api)
-* [Building, publishing, and project status](#building-publishing-and-project-status)
-
-  * [Building from source](#building-from-source)
-  * [Publishing notes](#publishing-notes)
-  * [Project status](#project-status)
-  * [Credits](#credits)
-
-**ModularPacks** is a Paper plugin that adds physical, upgradeable backpacks to Minecraft servers.
-
-Instead of treating backpacks like another command-based player vault, ModularPacks makes the backpack an actual item. Players carry it, open it, upgrade it, place it, share it, and build around it like a real part of the world. The goal is to bring a modded-style backpack experience to Paper servers while keeping the server playable for vanilla clients.
-
-ModularPacks was heavily inspired by the feel of modded backpack systems, especially the idea of installable upgrades, but it is not meant to be a quick clone with a few settings changed. This plugin was built around Paper's server-side systems, PersistentDataContainer item identity, SQLite-backed storage, configurable recipes, admin recovery tools, and an API for custom module support.
+<a id="features"></a>
 
 ## Features
 
-* Physical backpack items with persistent identity
-* Configurable backpack tiers, sizes, recipes, names, lore, colors, skull textures, and custom model data
-* Installable upgrade modules
-* Placeable backpacks with configurable world rendering
-* Shared backpacks with configurable shared-user limits
-* SQLite-backed storage for backpack contents and installed module state
-* Admin commands for giving, opening, listing, recovering, and changing backpacks
-* Void recovery logging for accidentally voided items
-* Optional update checker with in-game and console notifications
-* Optional resource pack support through `CustomModelData`
-* Public API for registering custom modules from other plugins
+| Capability | Support |
+| --- | --- |
+| **Backpack storage** | Configurable tiers, paginated inventories, sorting, and stack-capacity multipliers. |
+| **Equipment & placement** | Virtual back slot independent of chest equipment, wearable models, and placeable backpacks. |
+| **Modules** | Portable workstations, item collection, restocking, feeding, fluid and XP storage, and automatic crafting. |
+| **Shared inventories** | Backpack hosting and joining with configurable sharing limits. |
+| **Server configuration** | Custom recipes, module installation limits, insertion restrictions, rendering, and localized menus. |
+| **Administration & integration** | SQLite persistence, inspection and recovery commands, void recovery logs, and a custom-module API. |
+
+## Backpacks
+
+Default survival tiers are defined in `backpacks.yml`. Storage capacity, module slots, recipes, and appearance are configurable per type.
+
+| Backpack | Storage rows | Storage slots | Module slots |
+| --- | ---: | ---: | ---: |
+| Leather | 2 | 18 | 1 |
+| Copper | 3 | 27 | 1 |
+| Iron | 4 | 36 | 2 |
+| Gold | 6 | 54 | 3 |
+| Diamond | 8 | 72 | 4 |
+| Netherite | 10 | 90 | 5 |
+
+Storage rows exclude the navigation row, which stays available on every backpack. Larger packs use pages of up to 45 storage slots while retaining their full capacity.
 
 <details>
-<summary><strong id="requirements-and-installation">Requirements and installation</strong></summary>
+<summary><strong>Custom tiers and the Creative backpack</strong></summary>
 
-## Requirements
-
-* Paper `1.21.10+`
-* Java `21`
-* Maven, if building from source
-
-ModularPacks is built against the Paper API and is intended for Paper-based servers. Other server platforms may work if they maintain Paper API compatibility, but Paper is the supported target.
-
-## Installation
-
-1. Download the plugin jar.
-2. Place it in your server's `plugins/` folder.
-3. Start the server once.
-4. ModularPacks will generate its data folder and default files:
-
-   * `plugins/ModularPacks/config.yml`
-   * `plugins/ModularPacks/lang/en_us.yml`
-   * `plugins/ModularPacks/backpacks.db`, created when backpack data is first used
-5. Edit `config.yml` and `lang/en_us.yml` as needed.
-6. Restart the server, or run:
-
-```text
-/backpack reload
-```
+These are the defaults in `backpacks.yml`; server owners can change them or add new types. The command-only `Creative` backpack provides 30 storage rows (270 slots) and no module slots.
 
 </details>
 
+<a id="modules"></a>
+
+## Modules
+
+Module definitions live under `Upgrades:` in `modules.yml`. The IDs below are used in commands, recipe ingredients, and configuration. Most upgrade recipes use `ModuleTemplate`; `/backpack recipe module <id>` displays the configured recipe.
+
+### Utility
+
+| Module ID | Behavior |
+| --- | --- |
+| `Everlasting` | Makes the backpack indestructible. |
+| `Magnet` | Collects nearby dropped items. |
+| `Feeding` | Automatically feeds the player from backpack contents. |
+| `Restock` | Restocks player inventory from backpack storage. |
+| `Void` | Deletes filtered items, with logs for admin recovery. |
+| `Quiver` | Supplies arrows from backpack storage. |
+| `Jukebox` | Plays music discs with playlist controls. |
+
+### Tanks & pumps
+
+| Module ID | Behavior |
+| --- | --- |
+| `FluidTank` | Stores bucket-based fluids. |
+| `Pump` | Moves fluids between inventory buckets and a Fluid Tank. |
+| `ExperienceTank` | Stores and dispenses experience. |
+| `ExpPump` | Transfers XP or maintains a target level, with optional Mending support. |
+
+### Portable workstations
+
+| Module ID | Workstation |
+| --- | --- |
+| `Crafting` | Crafting table. |
+| `Autocrafting` | Automatic crafting at a configurable interval. |
+| `Smelting` · `Blasting` · `Smoking` | Furnace, blast furnace, or smoker. |
+| `Stonecutter` | Stonecutter. |
+| `Anvil` | Anvil. |
+| `Smithing` | Smithing table. |
+
+### Stack upgrades
+
+| Module ID | Stack capacity multiplier |
+| --- | ---: |
+| `IronStack` | ×2 |
+| `GoldStack` | ×4 |
+| `DiamondStack` | ×8 |
+| `NetheriteStack` | ×16 |
+
+Multipliers combine: Iron + Gold gives **×8** normal stack capacity. They also apply to normally unstackable items.
+
 <details>
-<summary><strong id="design-goals-and-backpack-behavior">Design goals and backpack behavior</strong></summary>
+<summary><strong>Installation limits and module configuration</strong></summary>
 
-## What makes ModularPacks different?
+Stack upgrades share a default limit of three combined, subject to available module slots. Defaults also allow two Fluid Tanks, two Experience Tanks, and three each of Smelting, Blasting, Smoking, and Autocrafting.
 
-A lot of backpack plugins solve storage by adding a command, a virtual inventory, or a simple item that opens a menu. ModularPacks takes a different approach.
-
-Each backpack has its own UUID stored on the item. The item itself is only the key. The contents, installed modules, module state, share data, and recovery information are stored safely in SQLite. This means a backpack can be renamed, upgraded, placed, opened by admins, recovered, or inspected without relying on fragile item lore alone.
-
-The plugin is also designed around modules rather than one hardcoded backpack menu. A backpack can have upgrade slots, and modules can provide passive effects, custom screens, filters, pumps, tanks, crafting utilities, or other behavior. That structure is what makes the plugin expandable instead of just being a fixed-size storage menu.
-
-In short: the inspiration is familiar, but the implementation is built specifically for Paper servers, server owners, admins, and developers who want something configurable and expandable.
-
-## How backpacks work
-
-Every ModularPacks backpack stores persistent metadata on the item:
-
-* `backpack_id` - the UUID identity of the backpack
-* `backpack_type` - the configured type or tier, such as `Leather`, `Iron`, or `Netherite`
-
-The actual contents are stored in the plugin database, not directly in the item lore. When a player opens a backpack, ModularPacks loads the contents and installed modules for that `backpack_id`. When the menu closes, the plugin saves the updated contents and module state back to SQLite.
-
-This design helps prevent stale item data and makes admin recovery possible. It also allows linked or shared backpack behavior without trying to store an entire inventory inside item text.
-
-## Default backpack tiers
-
-The default configuration includes these backpack types:
-
-| Type        | Rows | Upgrade Slots |
-| ----------- | ---- | ------------- |
-| `Leather`   | 2    | 1             |
-| `Copper`    | 3    | 1             |
-| `Iron`      | 4    | 2             |
-| `Gold`      | 6    | 3             |
-| `Diamond`   | 8    | 4             |
-| `Netherite` | 10   | 5             |
-
-These are only defaults. You can edit existing types or add new ones through `config.yml`.
-
-## Default modules
-
-Modules are configured under `Upgrades:` in `config.yml`. Each module can have its own recipe, display item, lore, custom model data, toggle behavior, and module-specific settings.
-
-Default modules include:
-
-### Utility modules
-
-* `Everlasting` - makes a backpack indestructible
-* `Magnet` - pulls nearby items into the backpack
-* `FluidTank` - stores bucket-based fluids
-* `ExperienceTank` - stores and dispenses player experience
-* `Feeding` - automatically feeds the player using backpack contents
-* `Void` - voids filtered items while logging recoverable item data
-* `Restock` - restocks the player's inventory from backpack contents
-* `Pump` - moves buckets between the player and a Fluid Tank module
-* `ExpPump` - moves XP between the player and an Experience Tank module
-
-### Workstation modules
-
-* `Crafting` - portable crafting table
-* `Smelting` - portable furnace
-* `Blasting` - portable blast furnace
-* `Smoking` - portable smoker
-* `Stonecutter` - portable stonecutter
-* `Anvil` - portable anvil
-* `Smithing` - portable smithing table
-* `Jukebox` - portable jukebox with playlist behavior
-* `Autocrafting` - configurable automatic crafting behavior
-
-## Basic usage
-
-Players can obtain backpacks through recipes or admin commands.
-
-To open a backpack, right-click the backpack item.
-
-For a backpack equipped in the virtual slot or chestplate slot, sneak and press
-the swap-hands key (default **Shift+F**) while in the world. This works in
-Survival, Adventure, and Creative, with items in either hand. The virtual slot
-takes priority over the chestplate slot. Normal swaps are preserved when not
-sneaking or when no backpack is equipped.
-
-In the ordinary Survival/Adventure inventory, you can also double-left-click
-outside its window with an empty cursor (within 350 ms). Both clicks must have
-an empty cursor. This gesture does not apply to item slots, containers, or plugin
-menus. Equipped backpacks no longer open on sneak-right-click,
-so building and item use cannot accidentally open them. A held backpack can
-still be placed by sneak-right-clicking a block.
-
-Right-click a placed backpack to open it. Sneak-right-click with both hands empty
-to pick it up. When sneaking with an item in either hand, the placed backpack is
-bypassed so vanilla item use or held-backpack placement can proceed.
-
-Inside the backpack menu, players can interact with storage slots and installed modules. Module actions are shown in the module lore, so server owners can customize the instructions in the language file.
-
-Common module interactions include:
-
-* Left-click to open or configure a module
-* Right-click to run a secondary action or cycle a mode
-* Shift + left-click to toggle a toggleable module
-* Shift + right-click to remove a module
-
-The exact behavior depends on the module.
+Module recipes, appearance, limits, and behavior live under `Upgrades:` in `modules.yml`. `MaxInstalled` controls installation limits; `InstallGroup` shares a limit between module types. The legacy mixed `Tank` module is disabled by default.
 
 </details>
+
+---
+
+<a id="server-setup"></a>
+
+## Server setup
+
+**Requirements:** Paper **1.21.10+** and Java **21**; use the Java version required by your chosen Paper release. No client mods are required.
+
+Install the JAR from [Modrinth](https://modrinth.com/plugin/modularpacks) or [GitHub Releases](https://github.com/TooterTutor/ModularPacks/releases/latest) into `plugins/` and start the server to generate configuration.
+
+Files are generated in `plugins/ModularPacks/`:
+
+| File | Customize |
+| --- | --- |
+| `config.yml` | Global behavior, rendering, sharing, update checks, and resource packs. |
+| `backpacks.yml` | Backpack tiers, capacity, recipes, and appearance. |
+| `modules.yml` | Module recipes, limits, and behavior. |
+| `lang/en_us.yml` | Messages, menu text, and module instructions. |
+
+Run `/backpack reload all` after changes, or `/backpack reload lang` for translations. Backpack data is stored in `backpacks.db`.
+
+Resource-pack delivery, default layers, required-pack behavior, and update checks are configured under `modularpacks.ResourcePack` in `config.yml`. Players select and apply layers through **Backpack Settings → Resource Packs**.
+
+Back up the plugin data folder, including `backpacks.db`, before major updates or migrations. Player permissions for commands, recipe previews, opening, placement, and pickup default to enabled; administration and reload permissions default to operators. See [Commands and permissions](#commands-and-permissions) for the full list.
+
+## Controls
+
+| Action | Control |
+| --- | --- |
+| Open a held backpack | Right-click. |
+| Equip or unequip | Use **Equip / Unequip** in Backpack Settings. |
+| Open an equipped backpack | Sneak + swap-hands key (**Shift+F** by default). Works in Survival, Adventure, and Creative. |
+| Place a held backpack | Sneak + right-click a block. |
+| Open a placed backpack | Right-click it. |
+| Pick up a placed backpack | Sneak + right-click with **both hands empty**. |
+| Toggle a toggleable module | Shift + left-click its installed icon. |
+| Remove a module | Shift + right-click its installed icon. |
+
+Hover over an installed module for its specific actions, including screens and secondary controls.
+
+<details>
+<summary><strong>Additional inventory gestures and interaction rules</strong></summary>
+
+In the ordinary Survival/Adventure inventory, double-left-click **outside the inventory window** within 350 ms to open an equipped backpack. Both clicks require an empty cursor. This does not apply to item slots, containers, or plugin menus.
+
+The virtual back slot takes priority over the chestplate slot. Normal hand swaps are preserved when you are not sneaking or have no backpack equipped. Equipped backpacks do not open on sneak-right-click.
+
+Sneaking with an item in either hand bypasses placed-backpack interaction, allowing vanilla item use or held-backpack placement to proceed.
+
+</details>
+
+---
+
+## Reference
+
+Backpack items carry a persistent UUID; contents, module state, and sharing data live in SQLite. Admin tools can inspect stored backpacks, recover backpack items, and restore items logged by the Void module.
+
+Full command syntax, configuration examples, persistence details, and API integration are documented below.
 
 <details>
 <summary><strong id="commands-and-permissions">Commands and permissions</strong></summary>
@@ -357,10 +336,11 @@ Main configuration file:
 plugins/ModularPacks/config.yml
 ```
 
-The config is split into two main sections:
+Configuration is split across three files:
 
-* `modularpacks:` for global plugin behavior
-* `BackpackTypes:` and `Upgrades:` for backpack and module definitions
+* `config.yml` → `modularpacks:` for global plugin behavior
+* `backpacks.yml` → `BackpackTypes:` for backpack definitions
+* `modules.yml` → `Upgrades:` for module definitions
 
 ### Global settings
 
@@ -470,7 +450,7 @@ Shared backpacks allow multiple players to work with the same backpack data. The
 
 ## Backpack type configuration
 
-Backpack types are defined under `BackpackTypes:`.
+Backpack types are defined under `BackpackTypes:` in `backpacks.yml`.
 
 Example:
 
@@ -593,7 +573,7 @@ These tokens are what allow recipes to require actual ModularPacks items instead
 
 ## Upgrade configuration
 
-Modules are defined under `Upgrades:`.
+Modules are defined under `Upgrades:` in `modules.yml`.
 
 Example:
 
@@ -637,6 +617,9 @@ Common upgrade settings include:
 * `DisplayName` - module item name
 * `Lore` - module item lore
 * `CustomModelData` - optional resource pack model data
+* `MaxInstalled` - installation limit for the module type or its shared group
+* `InstallGroup` - shared installation limit across module types
+* `StackMultiplier` - multiplier applied to normal item stack capacity
 
 Some modules also have their own settings, such as Magnet range, Feeding thresholds, Jukebox playback mode, Pump direction, or Exp Pump behavior.
 
