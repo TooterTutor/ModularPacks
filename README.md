@@ -480,7 +480,7 @@ BackpackTypes:
     Lore:
       - "&7Leather Backpack that can carry 2 rows of items."
       - "{backpackContents}"
-      - "{backpackId}"
+      - "{backpackUuidLine}"
       - "{installedModules}"
     CustomModelData: 1001
     DefaultColor: 11100488
@@ -661,8 +661,15 @@ Backpack lore placeholders:
 | Placeholder          | Description                                                          |
 | -------------------- | -------------------------------------------------------------------- |
 | `{backpackContents}` | Replaced with current used slots and item count, or an empty message |
-| `{backpackId}`       | Shows the backpack UUID                                              |
+| `{backpackUuidLine}` | Shows the UUID using the language file template |
+| `{backpackId}`       | Shows the raw backpack UUID                                              |
 | `{installedModules}` | Shows installed module information                                   |
+
+Edit `backpackContentsEmpty`, `backpackContents`, `backpackUuidLine`, `backpackInstalledModulesHeader`, and `backpackInstalledModuleEntry` in `lang/en_us.yml` to translate backpack item lore. The module entry accepts `{moduleName}`, `{moduleId}`, `{rarityColor}`, `{tier}`, and `{tierSuffix}`. Set `RarityColor` in a module definition to color its star. Stack upgrades use their configured `Tier` and the `backpackInstalledStackModuleName` and `backpackInstalledModuleTier` language templates. Other entries use the module's display name with its formatting removed.
+
+If your language file already defines `backpackInstalledModuleEntry`, use `"&7[{rarityColor}*&7] &f{moduleName}{tierSuffix}"` to adopt the star format.
+
+For an existing `backpacks.yml`, replace the UUID lore line with `"{backpackUuidLine}"` to use the translated label. Existing custom lore can still use `{backpackId}` for the raw ID. Reload the plugin and refresh the backpack's item lore to see the changes.
 
 Module lore placeholders:
 
