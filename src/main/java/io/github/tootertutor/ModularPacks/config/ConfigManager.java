@@ -271,7 +271,8 @@ public final class ConfigManager {
 
                 upgrades.put(id.toLowerCase(Locale.ROOT),
                         new UpgradeDef(id, displayName, material, lore, customModelData, glint, enabled, toggleable,
-                                secondaryAction, screenType, maxInstalled, installGroup, stackMultiplier));
+                                secondaryAction, screenType, maxInstalled, installGroup, stackMultiplier,
+                                s.getString("RarityColor"), s.getString("Tier")));
             }
         }
 
@@ -355,7 +356,7 @@ public final class ConfigManager {
 
                     UpgradeDef upgradeDef = new UpgradeDef(id, displayName, material, lore, customModelData, glint,
                             enabled, toggleable, secondaryAction, screenType, maxInstalled, installGroup,
-                            stackMultiplier);
+                            stackMultiplier, s.getString("RarityColor"), s.getString("Tier"));
                     upgrades.put(key, upgradeDef);
                     loadedCount++;
                     externalPlugin.getLogger().info(

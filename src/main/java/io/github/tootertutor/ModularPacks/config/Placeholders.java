@@ -19,6 +19,8 @@ import io.github.tootertutor.ModularPacks.data.BackpackData;
 import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
+import io.github.tootertutor.ModularPacks.util.Text;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 public final class Placeholders {
     private Placeholders() {
@@ -164,6 +166,7 @@ public final class Placeholders {
                             return;
 
                         String display = null;
+                        UpgradeDef definition = null;
                         byte[] snap = data.installedSnapshots().get(moduleId);
                         if (snap != null) {
                             ItemStack[] arr = ItemStackCodec.fromBytes(snap);
@@ -174,8 +177,8 @@ public final class Placeholders {
                                     String moduleType = meta.getPersistentDataContainer().get(keys.MODULE_TYPE,
                                             PersistentDataType.STRING);
                                     if (moduleType != null) {
-                                        UpgradeDef def = plugin.cfg().findUpgrade(moduleType);
-                                        display = def != null ? def.displayName() : moduleType;
+                                        definition = plugin.cfg().findUpgrade(moduleType);
+                                        display = definition != null ? definition.displayName() : moduleType;
                                     }
                                 }
                             }
@@ -186,8 +189,22 @@ public final class Placeholders {
                             display = shortId.length() > 8 ? shortId.substring(0, 8) : shortId;
                         }
 
-                        installedModuleLines.add(plugin.lang().text(viewer, "backpackInstalledModuleEntry",
-                                "moduleName", display, "moduleId", moduleId));
+                        String rarityColor = definition == null ? "&f" : definition.rarityColor();
+                        String tier = definition == null ? "" : definition.tier();
+                        display = PlainTextComponentSerializer.plainText()
+                                .serialize(Text.c(display));
+                        String tierSuffix = "";
+                        if (!tier.isBlank()) {
+                            display = plugin.lang().get(viewer, "backpackInstalledStackModuleName", "Stack Upgrade");
+                            tierSuffix = plugin.lang().text(viewer, "backpackInstalledModuleTier", "tier", tier);
+                        }
+                        String entry = plugin.lang().get(viewer, "backpackInstalledModuleEntry", "{moduleName}");
+                        String line = LangTemplates.format(entry, "moduleName", display, "moduleId", moduleId,
+                                "rarityColor", rarityColor, "tier", tier, "tierSuffix", tierSuffix);
+                        if (!entry.contains("{tier}") && !entry.contains("{tierSuffix}")) {
+                            line += tierSuffix;
+                        }
+                        installedModuleLines.add(line);
                     });
         }
 
