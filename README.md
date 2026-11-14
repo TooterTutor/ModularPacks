@@ -147,6 +147,7 @@ Back up the plugin data folder, including `backpacks.db`, before major updates o
 | Action | Control |
 | --- | --- |
 | Open a held backpack | Right-click. |
+| Pack items into a backpack | Pick up an item stack with your cursor, then right-click the backpack in your inventory. |
 | Equip or unequip | Use **Equip / Unequip** in Backpack Settings. |
 | Open an equipped backpack | Sneak + swap-hands key (**Shift+F** by default). Works in Survival, Adventure, and Creative. |
 | Place a held backpack | Sneak + right-click a block. |
@@ -154,6 +155,10 @@ Back up the plugin data folder, including `backpacks.db`, before major updates o
 | Pick up a placed backpack | Sneak + right-click with **both hands empty**. |
 | Toggle a toggleable module | Shift + left-click its installed icon. |
 | Remove a module | Shift + right-click its installed icon. |
+
+The backpack takes as many items as will fit and leaves any remainder on your cursor. A successful insert plays the vanilla bundle sound. Backpacks cannot be packed into other backpacks.
+
+In Survival or Adventure, use your regular inventory. In Creative, open a crafting table and use the player inventory below the crafting grid. Spectator inventories are read-only.
 
 Hover over an installed module for its specific actions, including screens and secondary controls.
 
