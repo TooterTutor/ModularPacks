@@ -489,6 +489,21 @@ public final class SQLiteBackpackRepository {
         }
     }
 
+    /** Persists a storage-only change to the backpack that owns the contents. */
+    public void saveContents(BackpackData data) {
+        try (PreparedStatement ps = getConnection().prepareStatement(
+                "UPDATE backpacks SET contents = ?, updated_at = ? WHERE backpack_id = ?")) {
+            ps.setBytes(1, data.contentsBytes());
+            ps.setLong(2, System.currentTimeMillis());
+            ps.setString(3, data.backpackId().toString());
+            if (ps.executeUpdate() != 1) {
+                throw new IllegalStateException("Missing backpack " + data.backpackId());
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to save contents for " + data.backpackId(), e);
+        }
+    }
+
     /**
      * Save a joiner's backup contents when they first join a host.
      * This preserves their original contents so they can be restored when leaving.
