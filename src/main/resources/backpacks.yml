@@ -29,7 +29,7 @@ BackpackTypes:
     Lore:
       - "&7Leather Backpack that can carry 2 rows of items."
       - "{backpackContents}"
-      - "{backpackId}"
+      - "{backpackUuidLine}"
       - "{installedModules}"
     CustomModelData: 1001
     DefaultColor: 11100488
@@ -51,7 +51,7 @@ BackpackTypes:
     Lore:
       - "&7Copper Backpack that can carry 3 rows of items."
       - "{backpackContents}"
-      - "{backpackId}"
+      - "{backpackUuidLine}"
       - "{installedModules}"
     CustomModelData: 1002
     DefaultColor: 16747872
@@ -74,7 +74,7 @@ BackpackTypes:
         Lore:
           - "&7Iron Backpack that can carry 4 rows of items."
           - "{backpackContents}"
-          - "{backpackId}"
+          - "{backpackUuidLine}"
           - "{installedModules}"
         CustomModelData: 1003
         DefaultColor: 14540253
@@ -93,7 +93,7 @@ BackpackTypes:
         Lore:
           - "&7Iron Backpack that can carry 4 rows of items."
           - "{backpackContents}"
-          - "{backpackId}"
+          - "{backpackUuidLine}"
           - "{installedModules}"
         CustomModelData: 1003
         DefaultColor: 14540253
@@ -115,7 +115,7 @@ BackpackTypes:
     Lore:
       - "&7Gold backpack that can carry 6 rows of items."
       - "{backpackContents}"
-      - "{backpackId}"
+      - "{backpackUuidLine}"
       - "{installedModules}"
     CustomModelData: 1004
     DefaultColor: 16761654
@@ -137,7 +137,7 @@ BackpackTypes:
     Lore:
       - "&7Diamond backpack that can carry 8 rows of items."
       - "{backpackContents}"
-      - "{backpackId}"
+      - "{backpackUuidLine}"
       - "{installedModules}"
     CustomModelData: 1005
     DefaultColor: 6936575
@@ -155,7 +155,7 @@ BackpackTypes:
     Lore:
       - "&7Netherite backpack that can carry 10 rows of items."
       - "{backpackContents}"
-      - "{backpackId}"
+      - "{backpackUuidLine}"
       - "{installedModules}"
     CustomModelData: 1006
     DefaultColor: 4473924
@@ -169,7 +169,7 @@ BackpackTypes:
     Lore:
       - "&7Creative backpack with 30 rows of items."
       - "{backpackContents}"
-      - "{backpackId}"
+      - "{backpackUuidLine}"
       - "{installedModules}"
     CustomModelData: 1007
     DefaultColor: 5239822

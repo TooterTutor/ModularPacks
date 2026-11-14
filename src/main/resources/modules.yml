@@ -44,6 +44,7 @@ Upgrades:
       OutputMaterial: NETHER_STAR
       Glint: true
     DisplayName: "&bEverlasting Upgrade"
+    RarityColor: "&b"
     Lore:
       - "&7Makes the backpack fully indestructible."
       - "{moduleActionsEverlasting}"
@@ -565,6 +566,8 @@ Upgrades:
       OutputMaterial: IRON_INGOT
       Glint: true
     DisplayName: "&fIron Stack Upgrade"
+    RarityColor: "&f"
+    Tier: "Iron"
     Lore:
       - "&7Multiplies max stack size by 2 for all items."
     CustomModelData: 2020
@@ -588,6 +591,8 @@ Upgrades:
       OutputMaterial: GOLD_INGOT
       Glint: true
     DisplayName: "&6Gold Stack Upgrade"
+    RarityColor: "&6"
+    Tier: "Gold"
     Lore:
       - "&7Multiplies max stack size by 4 for all items."
     CustomModelData: 2021
@@ -611,6 +616,8 @@ Upgrades:
       OutputMaterial: DIAMOND
       Glint: true
     DisplayName: "&bDiamond Stack Upgrade"
+    RarityColor: "&b"
+    Tier: "Diamond"
     Lore:
       - "&7Multiplies max stack size by 8 for all items."
     CustomModelData: 2022
@@ -634,6 +641,8 @@ Upgrades:
       OutputMaterial: NETHERITE_INGOT
       Glint: true
     DisplayName: "&8Netherite Stack Upgrade"
+    RarityColor: "&8"
+    Tier: "Netherite"
     Lore:
       - "&7Multiplies max stack size by 16 for all items."
     CustomModelData: 2023

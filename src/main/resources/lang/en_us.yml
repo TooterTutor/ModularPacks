@@ -141,6 +141,17 @@ backpackContents:
   - "&7Contents: &f{usedSlots}&7/&f{totalSlots} &7slots"
   - "&7Items: &f{itemCount}"
 
+# Backpack UUID line and installed module display in backpack item lore.
+backpackUuidLine:
+  - "&7UUID: &f{backpackId}"
+
+backpackInstalledModulesHeader:
+  - "&7Installed modules: &f{installedModuleCount}"
+
+backpackInstalledModuleEntry: "&7[{rarityColor}*&7] &f{moduleName}{tierSuffix}"
+backpackInstalledStackModuleName: "Stack Upgrade"
+backpackInstalledModuleTier: " &7[Tier: &f{tier}&7]"
+
 # Replaces {containedFluid} in the Tank upgrade lore
 tankContainedFluid:
   - "&7Stored: &f{amount}/{max} &7buckets"
