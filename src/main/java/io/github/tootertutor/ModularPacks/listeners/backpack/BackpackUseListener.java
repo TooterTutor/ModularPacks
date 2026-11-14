@@ -4,12 +4,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.GameMode;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -154,6 +157,84 @@ public final class BackpackUseListener implements Listener {
             openBackpackFromItem(player, () -> {
             }, expected, BackpackOpenCause.INVENTORY_GESTURE);
         });
+    }
+
+    /**
+     * Inserts the cursor stack by right-clicking a backpack in the player
+     * inventory.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInsertClick(InventoryClickEvent event) {
+        InventoryType viewType = event.getView().getType();
+        if (!(event.getWhoClicked() instanceof Player player)
+                || player.getGameMode() == GameMode.SPECTATOR
+                || (viewType != InventoryType.CRAFTING && viewType != InventoryType.WORKBENCH)
+                || event.getClickedInventory() != event.getView().getBottomInventory()
+                || event.getClick() != ClickType.RIGHT) {
+            return;
+        }
+
+        ItemStack target = event.getCurrentItem();
+        ItemStack cursor = event.getCursor();
+        if (!backpackItems.isBackpack(target) || ItemStacks.isAir(cursor)) {
+            return;
+        }
+
+        event.setCancelled(true);
+        if (backpackItems.isBackpack(cursor)) {
+            return;
+        }
+
+        var pdc = target.getItemMeta().getPersistentDataContainer();
+        String typeId = pdc.get(plugin.keys().BACKPACK_TYPE, PersistentDataType.STRING);
+        UUID backpackId;
+        try {
+            backpackId = UUID.fromString(pdc.get(plugin.keys().BACKPACK_ID, PersistentDataType.STRING));
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+
+        if (plugin.cfg().findType(typeId) == null || plugin.sessions().lockedViewerInGroup(backpackId) != null) {
+            return;
+        }
+
+        var repo = plugin.repo();
+        repo.ensureBackpackExists(backpackId, typeId, player.getUniqueId(), player.getName());
+        var data = repo.loadOrCreate(backpackId, typeId);
+        if (data.shareHostId() != null) {
+            UUID hostId = data.shareHostId();
+            String hostType = repo.findBackpackType(hostId);
+            if (hostType == null) {
+                return;
+            }
+            data = repo.loadOrCreate(hostId, hostType);
+            if (!data.isShared() || !data.isShareHost()) {
+                return;
+            }
+        }
+
+        var type = plugin.cfg().findType(data.backpackType());
+        if (type == null) {
+            return;
+        }
+        var storageService = plugin.backpackStorage();
+        var storage = storageService.load(data);
+        int capacity = type.rows() * 9;
+        storage = storage.resized(Math.max(storage.size(), capacity));
+        int inserted = Math.toIntExact(storageService.insert(data, storage, 0, capacity, cursor, cursor.getAmount()));
+        if (inserted == 0) {
+            return;
+        }
+
+        storageService.save(data, storage);
+        repo.saveContents(data);
+        int remaining = cursor.getAmount() - inserted;
+        ItemStack remainder = remaining == 0 ? null : cursor.clone();
+        if (remainder != null) {
+            remainder.setAmount(remaining);
+        }
+        event.getView().setCursor(remainder);
+        player.playSound(player.getLocation(), Sound.ITEM_BUNDLE_INSERT, 1.0f, 1.0f);
     }
 
     @EventHandler
