@@ -120,6 +120,8 @@ public final class Placeholders {
         String backpackIdStr = backpackId == null ? "" : backpackId.toString();
         overrides.put("backpackId", Replacement.scalar(backpackIdStr));
         overrides.put("BackpackId", Replacement.scalar(backpackIdStr));
+        overrides.put("backpackUuidLine", Replacement.list(backpackId == null ? List.of()
+                : plugin.lang().getList(viewer, "backpackUuidLine")));
 
         if (type != null) {
             overrides.put("typeId", Replacement.scalar(type.id()));
@@ -184,7 +186,8 @@ public final class Placeholders {
                             display = shortId.length() > 8 ? shortId.substring(0, 8) : shortId;
                         }
 
-                        installedModuleLines.add("&7- &f" + display);
+                        installedModuleLines.add(plugin.lang().text(viewer, "backpackInstalledModuleEntry",
+                                "moduleName", display, "moduleId", moduleId));
                     });
         }
 
@@ -205,17 +208,15 @@ public final class Placeholders {
         overrides.put("installedModuleCount", Replacement.scalar(Integer.toString(installedModules)));
         overrides.put("InstalledModuleCount", Replacement.scalar(Integer.toString(installedModules)));
 
+        if (!installedModuleLines.isEmpty()) {
+            installedModuleLines.addAll(0, plugin.lang().getList(viewer, "backpackInstalledModulesHeader"));
+        }
         overrides.put("installedModules", Replacement.list(installedModuleLines));
         overrides.put("InstalledModules", Replacement.list(installedModuleLines));
 
         boolean empty = (usedSlots <= 0 && itemCount <= 0);
         List<String> tpl = empty ? plugin.lang().getList(viewer, "backpackContentsEmpty")
                 : plugin.lang().getList(viewer, "backpackContents");
-        if (tpl == null || tpl.isEmpty()) {
-            tpl = empty
-                    ? List.of("&7Contents: &8(Empty)")
-                    : List.of("&7Contents: &f{usedSlots}&7/&f{totalSlots} &7slots", "&7Items: &f{itemCount}");
-        }
         overrides.put("backpackContents", Replacement.list(tpl));
 
         return expandLines(plugin, viewer, null, null, lore, overrides);
