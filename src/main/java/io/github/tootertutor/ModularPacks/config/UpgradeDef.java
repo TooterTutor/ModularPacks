@@ -2,6 +2,7 @@ package io.github.tootertutor.ModularPacks.config;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import org.bukkit.Material;
 
@@ -21,6 +22,9 @@ public record UpgradeDef(
                 int stackMultiplier,
                 String rarityColor,
                 String tier) {
+
+        private static final Pattern LEADING_COLOR = Pattern.compile("^(?:&[k-or])*(&(?:#[0-9a-f]{6}|[0-9a-f]))",
+                        Pattern.CASE_INSENSITIVE);
 
         /**
          * Backward-compatible constructor for module providers compiled against the
@@ -86,7 +90,7 @@ public record UpgradeDef(
                                 case "goldstack" -> "&6";
                                 case "diamondstack", "everlasting" -> "&b";
                                 case "netheritestack" -> "&8";
-                                default -> "&f";
+                                default -> displayNameColor(displayName);
                         };
                 }
                 if (tier == null) {
@@ -98,5 +102,10 @@ public record UpgradeDef(
                                 default -> "";
                         };
                 }
+        }
+
+        private static String displayNameColor(String displayName) {
+                var color = LEADING_COLOR.matcher(displayName == null ? "" : displayName);
+                return color.find() ? color.group(1) : "&f";
         }
 }

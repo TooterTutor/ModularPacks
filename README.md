@@ -665,7 +665,7 @@ Backpack lore placeholders:
 | `{backpackId}`       | Shows the raw backpack UUID                                              |
 | `{installedModules}` | Shows installed module information                                   |
 
-Edit `backpackContentsEmpty`, `backpackContents`, `backpackUuidLine`, `backpackInstalledModulesHeader`, and `backpackInstalledModuleEntry` in `lang/en_us.yml` to translate backpack item lore. The module entry accepts `{moduleName}`, `{moduleId}`, `{rarityColor}`, `{tier}`, and `{tierSuffix}`. Set `RarityColor` in a module definition to color its star. Stack upgrades use their configured `Tier` and the `backpackInstalledStackModuleName` and `backpackInstalledModuleTier` language templates. Other entries use the module's display name with its formatting removed.
+Edit `backpackContentsEmpty`, `backpackContents`, `backpackUuidLine`, `backpackInstalledModulesHeader`, and `backpackInstalledModuleEntry` in `lang/en_us.yml` to translate backpack item lore. The module entry accepts `{moduleName}`, `{moduleId}`, `{rarityColor}`, `{tier}`, and `{tierSuffix}`. Set `RarityColor` in a module definition to color its star. Modules without an explicit rarity color use their built-in default where defined, then the leading color from `DisplayName`, with white as the fallback. Stack upgrades use their configured `Tier` and the `backpackInstalledStackModuleName` and `backpackInstalledModuleTier` language templates. Other entries use the module's display name with its formatting removed.
 
 If your language file already defines `backpackInstalledModuleEntry`, use `"&7[{rarityColor}*&7] &f{moduleName}{tierSuffix}"` to adopt the star format.
 
