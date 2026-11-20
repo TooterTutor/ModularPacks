@@ -3,6 +3,47 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.8
+
+**Release Date:** 2026-11-20
+
+## Changes since 2.7.6
+
+### Features & Improvements
+- Adding new rarity system to installed modules in backpack lore (842ee75)
+- Added ability to right-click items into backpack from the inventory like bundles. #9 (0d36538)
+- Added new saveContents method to database for cursor transactions #9 (ea4d69f)
+- Add localization support for UI titles, buttons, descriptions, and dialogs (cd2017d)
+- Added localized UI text and simplified placeholder resolution (de74a03)
+
+### Bug Fixes
+- Fixed Backpack tier rendering (1de8cf5)
+- Fixed NavRow rendering and handling for backpacks with 0 upgrade slots (#7) (4cdc4b0)
+
+### All Commits
+- Updated modules config with Rarity colors (03bef6d)
+- Fixed Backpack tier rendering (1de8cf5)
+- Updated readme (again) for new backpack item lore system (e4fe6d2)
+- Updated backpacks, modules, and lang config files (f72d7a2)
+- Adding new rarity system to installed modules in backpack lore (842ee75)
+- Forgot to add placeholders for backpack items themselves (ffc0e43)
+- Update readme to reflect latest feature (2c70bca)
+- Bump version (9e5e9bd)
+- Added ability to right-click items into backpack from the inventory like bundles. #9 (0d36538)
+- Added new saveContents method to database for cursor transactions #9 (ea4d69f)
+- Update Readme (677075d)
+- Release 2.7.7 (bd84faa)
+- Bump version (538fb70)
+- Updated Readme (37d6555)
+- Updated en_us lang file (e73d2a1)
+- Add localization support for UI titles, buttons, descriptions, and dialogs (cd2017d)
+- Added localized UI text and simplified placeholder resolution (de74a03)
+- Updated Readme (e943bd1)
+- Fixed NavRow rendering and handling for backpacks with 0 upgrade slots (#7) (4cdc4b0)
+- Revert Java version to 21 (9f3c4e5)
+---
+
+
 # ModularPacks 2.7.7
 
 **Release Date:** 2026-10-30
