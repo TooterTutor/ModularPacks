@@ -78,7 +78,13 @@ public final class BackpackStorageCodec {
         }
     }
 
-    public BackpackStorage decode(byte[] bytes) {
+    private record SerializedStorage(int size, List<?> slots) {
+        int slotLimit() {
+            return slots == null ? 0 : Math.min(size, slots.size());
+        }
+    }
+
+    private SerializedStorage readStorage(byte[] bytes) {
         if (!isEncodedStorage(bytes)) {
             throw new IllegalArgumentException("Payload is not versioned backpack storage");
         }
@@ -119,20 +125,32 @@ public final class BackpackStorageCodec {
             throw new IllegalArgumentException("Backpack storage size is missing or negative");
         }
 
-        BackpackStorage storage = new BackpackStorage(size);
-        List<?> serializedSlots = yaml.getList("slots");
-        if (serializedSlots == null) {
-            return storage;
-        }
+        return new SerializedStorage(size, yaml.getList("slots"));
+    }
 
-        int limit = Math.min(size, serializedSlots.size());
-        for (int i = 0; i < limit; i++) {
-            Object rawSlot = serializedSlots.get(i);
-            if (rawSlot == null) {
-                continue;
+    /**
+     * Counts stored quantities without resolving item prototypes against Bukkit
+     * registries.
+     */
+    public long totalCount(byte[] bytes) {
+        SerializedStorage serialized = readStorage(bytes);
+        long total = 0;
+        for (int i = 0; i < serialized.slotLimit(); i++) {
+            Map<?, ?> slot = readSlot(serialized.slots().get(i), i);
+            if (slot != null) {
+                total = Math.addExact(total, deserializeCount(slot.get("count"), i));
             }
-            if (!(rawSlot instanceof Map<?, ?> rawMap)) {
-                throw new IllegalArgumentException("Invalid backpack storage entry at slot " + i);
+        }
+        return total;
+    }
+
+    public BackpackStorage decode(byte[] bytes) {
+        SerializedStorage serialized = readStorage(bytes);
+        BackpackStorage storage = new BackpackStorage(serialized.size());
+        for (int i = 0; i < serialized.slotLimit(); i++) {
+            Map<?, ?> rawMap = readSlot(serialized.slots().get(i), i);
+            if (rawMap == null) {
+                continue;
             }
 
             Object rawPrototype = rawMap.get("prototype");
@@ -141,6 +159,16 @@ public final class BackpackStorageCodec {
             storage.set(i, new StoredStack(prototype, count));
         }
         return storage;
+    }
+
+    private static Map<?, ?> readSlot(Object slot, int index) {
+        if (slot == null) {
+            return null;
+        }
+        if (slot instanceof Map<?, ?> map) {
+            return map;
+        }
+        throw new IllegalArgumentException("Invalid backpack storage entry at slot " + index);
     }
 
     private static ItemStack deserializePrototype(Object rawPrototype, int slot) {

@@ -57,6 +57,11 @@ public final class BackpackStorageService {
         return BackpackStorage.fromVanillaContents(legacy);
     }
 
+    public long totalCount(BackpackData data) {
+        byte[] bytes = data.contentsBytes();
+        return codec.isEncodedStorage(bytes) ? codec.totalCount(bytes) : load(data).totalCount();
+    }
+
     public void save(BackpackData data, BackpackStorage storage) {
         if (data == null) {
             throw new IllegalArgumentException("data cannot be null");
