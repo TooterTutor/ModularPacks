@@ -3,6 +3,30 @@
 **Release Date:** 2026-01-26
 
 
+# ModularPacks 2.7.9
+
+**Release Date:** 2026-11-22
+
+## Changes since 2.7.8
+
+### Features & Improvements
+- Added author and description to plugin config (58d7688)
+- Fixed a bunch of performance issues with ticking placed backpacks and their modules
+
+### Bug Fixes
+- Fixed BackpackStorageCodex and Service to quantize without resolving items against Bukkit registries (eec32dc)
+- Fixed list command with menu option from failing to open GUI (6b91969)
+
+### All Commits
+- Bump version (347f3c4)
+- Added author and description to plugin config (58d7688)
+- Fixed BackpackStorageCodex and Service to quantize without resolving items against Bukkit registries (eec32dc)
+- Modules now cache recipes instead of looking them up every tick (bb692a4)
+- Fixed list command with menu option from failing to open GUI (6b91969)
+- Optimized ModuleEngineService (f9ebf53)
+---
+
+
 # ModularPacks 2.7.8
 
 **Release Date:** 2026-11-20
