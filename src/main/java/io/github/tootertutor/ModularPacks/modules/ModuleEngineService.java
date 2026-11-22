@@ -1,12 +1,15 @@
 package io.github.tootertutor.ModularPacks.modules;
 
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -54,6 +57,12 @@ public final class ModuleEngineService {
     private static final int ENGINE_DT_TICKS = 10;
     private static final int MAX_EXP_PUMP_TARGET_LEVEL = 100;
 
+    private static final int MAX_CACHED_MODULE_SNAPSHOTS = 512;
+
+    private record DecodedSnapshot(byte[] payload, ItemStack item) {
+    }
+
+    private final LinkedHashMap<UUID, DecodedSnapshot> decodedSnapshots = new LinkedHashMap<>(16, 0.75f, true);
     private final ModularPacksPlugin plugin;
     private final BackpackItems backpackItems;
     private final FeedingEngine feedingEngine;
@@ -89,6 +98,7 @@ public final class ModuleEngineService {
         if (task != null)
             task.cancel();
         task = null;
+        decodedSnapshots.clear();
     }
 
     private void tickOpenScreens() {
@@ -99,6 +109,9 @@ public final class ModuleEngineService {
             Inventory top = player.getOpenInventory().getTopInventory();
             if (top.getHolder() instanceof BackpackMenuHolder bmh) {
                 openBackpackIds.add(bmh.backpackId());
+                if (bmh.data().shareHostId() != null) {
+                    openBackpackIds.add(bmh.data().shareHostId());
+                }
             }
             // Check FurnaceModule instance from ScreenRouter
             FurnaceModule furnaceModule = screenRouter.getFurnaceModule();
@@ -197,90 +210,111 @@ public final class ModuleEngineService {
         if (typeDef == null)
             return;
 
-        BackpackData data = plugin.repo().loadOrCreate(backpackId, backpackType);
+        BackpackData data = plugin.repo().loadModuleTickData(backpackId, backpackType);
 
-        boolean allowContentsMutations = openBackpackIds == null || !openBackpackIds.contains(backpackId);
+        Function<UUID, ItemStack> snapshots = moduleId -> resolveModuleSnapshotItem(data, moduleId);
 
-        boolean changedAny = false;
+        UUID storageId = data.shareHostId() == null ? backpackId : data.shareHostId();
+        boolean allowContentsMutations = openBackpackIds == null
+                || (!openBackpackIds.contains(backpackId) && !openBackpackIds.contains(storageId));
+
+        Set<UUID> changedModuleIds = new HashSet<>();
+        boolean contentsLoaded = false;
+        boolean pumpChanged = false;
+        boolean contentsChanged = false;
 
         // Passive modules that mutate backpack contents (skip while that backpack GUI
         // is open)
         if (allowContentsMutations) {
-            BackpackStorage logical = ensureLogicalContentsSize(data, typeDef.rows() * 9);
+            UUID feedingId = player == null ? null : findInstalledModuleId(data, snapshots, "Feeding");
+            UUID magnetId = findInstalledModuleId(data, snapshots, "Magnet");
+            UUID restockId = player == null ? null : findInstalledModuleId(data, snapshots, "Restock");
+            UUID autocraftingId = findInstalledModuleId(data, snapshots, "Autocrafting");
+            boolean tickAutocrafting = autocraftingId != null
+                    && (openModuleIds == null || !openModuleIds.contains(autocraftingId));
 
-            UUID voidId = findInstalledModuleId(data, "Void");
-            Set<Material> voidWhitelist = (voidId == null) ? Set.of() : readWhitelistFromState(data, voidId);
+            BackpackStorage logical = null;
+            if (feedingId != null || magnetId != null || restockId != null || tickAutocrafting) {
+                plugin.repo().loadModuleTickContents(data);
+                contentsLoaded = true;
+                logical = plugin.backpackStorage().load(data, typeDef.rows() * 9);
+            }
 
-            // Feeding module only works when player is present (carried backpacks)
-            if (player != null) {
-                UUID feedingId = findInstalledModuleId(data, "Feeding");
-                if (feedingId != null) {
-                    ItemStack feedingSnapshot = resolveModuleSnapshotItem(data, feedingId);
-                    List<Material> orderedWhitelist = readWhitelistOrderedFromState(data, feedingId);
-                    changedAny |= feedingEngine.applyFeeding(player, data, logical, feedingSnapshot, orderedWhitelist);
-                }
+            if (feedingId != null) {
+                ItemStack feedingSnapshot = snapshots.apply(feedingId);
+                List<Material> orderedWhitelist = readWhitelistOrderedFromState(data, feedingId);
+                contentsChanged |= feedingEngine.applyFeeding(player, data, logical, feedingSnapshot, orderedWhitelist);
             }
 
             // Magnet module works differently for placed vs carried backpacks
-            UUID magnetId = findInstalledModuleId(data, "Magnet");
             if (magnetId != null) {
-                ItemStack magnetSnapshot = resolveModuleSnapshotItem(data, magnetId);
-                ItemStack voidSnapshot = (voidId == null) ? null : resolveModuleSnapshotItem(data, voidId);
+                UUID voidId = findInstalledModuleId(data, snapshots, "Void");
+                Set<Material> voidWhitelist = readWhitelistFromState(data, voidId);
+                ItemStack magnetSnapshot = snapshots.apply(magnetId);
+                ItemStack voidSnapshot = (voidId == null) ? null : snapshots.apply(voidId);
 
                 if (player != null) {
                     // Carried backpack: use player location
-                    changedAny |= magnetVoidEngine.applyMagnet(player, data, logical,
+                    contentsChanged |= magnetVoidEngine.applyMagnet(player, data, logical,
                             readWhitelistFromState(data, magnetId),
                             magnetSnapshot, backpackId, backpackType, voidId, voidWhitelist, voidSnapshot);
                 } else {
                     // Placed backpack: use block location
-                    changedAny |= applyPlacedBackpackMagnet(backpackId, logical, magnetSnapshot, voidId, voidWhitelist,
+                    contentsChanged |= applyPlacedBackpackMagnet(backpackId, logical, magnetId, magnetSnapshot, voidId,
+                            voidWhitelist,
                             voidSnapshot, data);
                 }
             }
 
-            // Restock module only works when player is present (carried backpacks)
+            if (restockId != null) {
+                int threshold = readRestockThresholdFromState(data, restockId);
+                List<ItemStack> whitelist = readRestockWhitelistFromState(data, restockId);
+                contentsChanged |= restockEngine.applyRestock(player, logical, threshold, whitelist);
+            }
+
             if (player != null) {
-                UUID restockId = findInstalledModuleId(data, "Restock");
-                if (restockId != null) {
-                    int threshold = readRestockThresholdFromState(data, restockId);
-                    java.util.List<ItemStack> whitelist = readRestockWhitelistFromState(data, restockId);
-                    changedAny |= restockEngine.applyRestock(player, logical, threshold, whitelist);
-                }
-
-                UUID pumpId = findInstalledModuleId(data, "Pump");
+                UUID pumpId = findInstalledModuleId(data, snapshots, "Pump");
                 if (pumpId != null) {
-                    changedAny |= applyFluidPump(player, data, pumpId);
+                    pumpChanged |= applyFluidPump(player, data, snapshots, pumpId, changedModuleIds);
                 }
 
-                UUID expPumpId = findInstalledModuleId(data, "ExpPump");
+                UUID expPumpId = findInstalledModuleId(data, snapshots, "ExpPump");
                 if (expPumpId != null) {
-                    changedAny |= applyExpPump(player, data, expPumpId);
+                    pumpChanged |= applyExpPump(player, data, snapshots, expPumpId, changedModuleIds);
                 }
             }
 
-            UUID autocraftingId = findInstalledModuleId(data, "Autocrafting");
-            if (autocraftingId != null && (openModuleIds == null || !openModuleIds.contains(autocraftingId))) {
-                changedAny |= applyAutocrafting(player, data, autocraftingId, logical);
+            if (tickAutocrafting) {
+                contentsChanged |= applyAutocrafting(player, data, autocraftingId, logical);
             }
 
-            if (changedAny) {
+            if (contentsChanged) {
                 plugin.backpackStorage().save(data, logical);
             }
         }
 
         // Ticking module states (furnace-like) is safe even if backpack GUI is open.
-        changedAny |= furnaceEngine.tickInstalledFurnaces(data, openModuleIds, ENGINE_DT_TICKS);
+        furnaceEngine.tickInstalledFurnaces(data, openModuleIds, ENGINE_DT_TICKS, snapshots, changedModuleIds);
 
         // Jukebox only works when player is present (carried backpacks)
         if (player != null) {
-            UUID jukeboxId = findInstalledModuleId(data, "Jukebox");
-            ItemStack jukeboxSnapshot = jukeboxId == null ? null : resolveModuleSnapshotItem(data, jukeboxId);
+            UUID jukeboxId = findInstalledModuleId(data, snapshots, "Jukebox");
+            ItemStack jukeboxSnapshot = jukeboxId == null ? null : snapshots.apply(jukeboxId);
             jukeboxEngine.tickJukebox(player, backpackId, data, jukeboxId, jukeboxSnapshot);
         }
 
-        if (changedAny) {
+        if (contentsChanged) {
             plugin.repo().saveBackpack(data);
+        } else {
+            plugin.repo().saveChangedModules(data, changedModuleIds);
+        }
+
+        // Furnace progress lives in module state and does not affect backpack item lore
+        // or models.
+        if (contentsChanged || pumpChanged) {
+            if (!contentsLoaded) {
+                plugin.repo().loadModuleTickContents(data);
+            }
             if (player != null) {
                 refreshBackpackItemsFor(player, backpackId, typeDef, data);
             }
@@ -297,7 +331,8 @@ public final class ModuleEngineService {
         tickBackpack(player, backpackId, backpackType, openModuleIds, openBackpackIds);
     }
 
-    private boolean applyPlacedBackpackMagnet(UUID backpackId, BackpackStorage logical, ItemStack magnetSnapshot,
+    private boolean applyPlacedBackpackMagnet(UUID backpackId, BackpackStorage logical, UUID magnetId,
+            ItemStack magnetSnapshot,
             UUID voidId, Set<Material> voidWhitelist, ItemStack voidSnapshot, BackpackData data) {
         // Get the placed backpack location
         var placedBackpack = plugin.placedBackpacks().getAllPlaced().values().stream()
@@ -311,7 +346,7 @@ public final class ModuleEngineService {
 
         // Use a special magnet implementation for placed backpacks
         return magnetVoidEngine.applyMagnetAtLocation(placedBackpack.location(), data, logical,
-                readWhitelistFromState(data, findInstalledModuleId(data, "Magnet")),
+                readWhitelistFromState(data, magnetId),
                 magnetSnapshot, backpackId, data.backpackType(), voidId, voidWhitelist, voidSnapshot);
     }
 
@@ -357,7 +392,8 @@ public final class ModuleEngineService {
         return changed;
     }
 
-    private boolean applyFluidPump(Player player, BackpackData data, UUID pumpModuleId) {
+    private boolean applyFluidPump(Player player, BackpackData data,
+            Function<UUID, ItemStack> snapshots, UUID pumpModuleId, Set<UUID> changedModuleIds) {
         if (player == null || data == null || pumpModuleId == null)
             return false;
 
@@ -369,7 +405,7 @@ public final class ModuleEngineService {
             return false;
         }
 
-        UUID tankModuleId = findFluidTankModuleId(data);
+        UUID tankModuleId = findFluidTankModuleId(data, snapshots);
         if (tankModuleId == null)
             return false;
 
@@ -381,7 +417,7 @@ public final class ModuleEngineService {
         if (state.expMode || state.expTotalPoints > 0)
             return false;
 
-        String mode = resolvePumpMode(data, pumpModuleId, "Pump");
+        String mode = resolvePumpMode(snapshots.apply(pumpModuleId), "Pump", false);
         boolean changed = false;
         if ("WITHDRAW".equals(mode)) {
             changed = withdrawFluidToInventory(player, state);
@@ -402,12 +438,14 @@ public final class ModuleEngineService {
 
         data.moduleStates().put(tankModuleId, TankStateCodec.encode(state));
         updateTankSnapshot(data, tankModuleId, state);
+        changedModuleIds.add(tankModuleId);
 
         pumpCooldownTicks.put(pumpModuleId, interval);
         return true;
     }
 
-    private boolean applyExpPump(Player player, BackpackData data, UUID expPumpModuleId) {
+    private boolean applyExpPump(Player player, BackpackData data,
+            Function<UUID, ItemStack> snapshots, UUID expPumpModuleId, Set<UUID> changedModuleIds) {
         if (player == null || data == null || expPumpModuleId == null)
             return false;
 
@@ -419,7 +457,7 @@ public final class ModuleEngineService {
             return false;
         }
 
-        UUID tankModuleId = findExperienceTankModuleId(data);
+        UUID tankModuleId = findExperienceTankModuleId(data, snapshots);
         if (tankModuleId == null)
             return false;
 
@@ -427,7 +465,8 @@ public final class ModuleEngineService {
         if (state == null)
             return false;
 
-        String mode = resolvePumpMode(data, expPumpModuleId, "ExpPump", true);
+        ItemStack pumpSnapshot = snapshots.apply(expPumpModuleId);
+        String mode = resolvePumpMode(pumpSnapshot, "ExpPump", true);
         boolean changed = false;
         if ("WITHDRAW".equals(mode)) {
             int pointsForOneLevel = pointsForOneDisplayedLevelGain(player);
@@ -436,7 +475,7 @@ public final class ModuleEngineService {
                 if (granted > 0) {
                     state.expTotalPoints -= granted;
                     int remaining = granted;
-                    if (isExpPumpMendingEnabled(data, expPumpModuleId)) {
+                    if (isExpPumpMendingEnabled(pumpSnapshot)) {
                         int mendingBudget = Math.min(granted, resolveExpPumpMendingBudgetPerCycle());
                         int mendingLeftover = applyMendingToEquippedItems(player, mendingBudget);
                         remaining = (granted - mendingBudget) + mendingLeftover;
@@ -448,7 +487,7 @@ public final class ModuleEngineService {
                 }
             }
         } else if ("KEEP_LEVEL".equals(mode)) {
-            changed = maintainPlayerLevel(player, data, expPumpModuleId, state);
+            changed = maintainPlayerLevel(player, pumpSnapshot, state);
         } else {
             int pointsForOneLevel = pointsForOneDisplayedLevelLoss(player);
             if (pointsForOneLevel > 0 && state.expTotalPoints < TankModuleLogic.MAX_EXP_POINTS) {
@@ -472,17 +511,14 @@ public final class ModuleEngineService {
 
         data.moduleStates().put(tankModuleId, TankStateCodec.encode(state));
         updateTankSnapshot(data, tankModuleId, state);
+        changedModuleIds.add(tankModuleId);
 
         expPumpCooldownTicks.put(expPumpModuleId, interval);
         return true;
     }
 
-    private boolean isExpPumpMendingEnabled(BackpackData data, UUID expPumpModuleId) {
-        if (data == null || expPumpModuleId == null)
-            return plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
-
+    private boolean isExpPumpMendingEnabled(ItemStack moduleItem) {
         boolean fallback = plugin.cfg().getBoolean("Upgrades.ExpPump.MendEquippedItems", false);
-        ItemStack moduleItem = resolveModuleSnapshotItem(data, expPumpModuleId);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return fallback;
 
@@ -557,13 +593,8 @@ public final class ModuleEngineService {
         return Math.max(0, xpPoints - xpUsed);
     }
 
-    private String resolvePumpMode(BackpackData data, UUID moduleId, String upgradeId) {
-        return resolvePumpMode(data, moduleId, upgradeId, false);
-    }
-
-    private String resolvePumpMode(BackpackData data, UUID moduleId, String upgradeId, boolean allowKeepLevel) {
+    private String resolvePumpMode(ItemStack moduleItem, String upgradeId, boolean allowKeepLevel) {
         String fallback = plugin.cfg().getString("Upgrades." + upgradeId + ".Mode", "Deposit");
-        ItemStack moduleItem = resolveModuleSnapshotItem(data, moduleId);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return normalizePumpMode(fallback, allowKeepLevel);
 
@@ -586,12 +617,8 @@ public final class ModuleEngineService {
         return "DEPOSIT";
     }
 
-    private boolean maintainPlayerLevel(Player player, BackpackData data, UUID expPumpModuleId,
-            TankStateCodec.State state) {
-        if (player == null || data == null || expPumpModuleId == null || state == null)
-            return false;
-
-        int targetLevel = resolveExpPumpTargetLevel(data, expPumpModuleId);
+    private boolean maintainPlayerLevel(Player player, ItemStack pumpSnapshot, TankStateCodec.State state) {
+        int targetLevel = resolveExpPumpTargetLevel(pumpSnapshot);
         int keepLevelStepBudget = resolveExpPumpKeepLevelStepBudgetPerCycle();
         if (keepLevelStepBudget <= 0)
             return false;
@@ -639,7 +666,7 @@ public final class ModuleEngineService {
 
         // When exactly at target level, optionally consume a small budget for passive
         // mending.
-        if (!isExpPumpMendingEnabled(data, expPumpModuleId))
+        if (!isExpPumpMendingEnabled(pumpSnapshot))
             return false;
 
         int repairDemand = estimateMendingXpDemand(player);
@@ -660,9 +687,8 @@ public final class ModuleEngineService {
         return true;
     }
 
-    private int resolveExpPumpTargetLevel(BackpackData data, UUID expPumpModuleId) {
+    private int resolveExpPumpTargetLevel(ItemStack moduleItem) {
         int fallback = plugin.cfg().getInt("Upgrades.ExpPump.TargetLevel", 30);
-        ItemStack moduleItem = resolveModuleSnapshotItem(data, expPumpModuleId);
         if (moduleItem == null || !moduleItem.hasItemMeta())
             return clampExpPumpTargetLevel(fallback);
 
@@ -727,18 +753,18 @@ public final class ModuleEngineService {
         return damage > 2;
     }
 
-    private UUID findFluidTankModuleId(BackpackData data) {
-        UUID fluid = findInstalledModuleId(data, "FluidTank");
+    private UUID findFluidTankModuleId(BackpackData data, Function<UUID, ItemStack> snapshots) {
+        UUID fluid = findInstalledModuleId(data, snapshots, "FluidTank");
         if (fluid != null)
             return fluid;
-        return findInstalledModuleId(data, "Tank");
+        return findInstalledModuleId(data, snapshots, "Tank");
     }
 
-    private UUID findExperienceTankModuleId(BackpackData data) {
-        UUID exp = findInstalledModuleId(data, "ExperienceTank");
+    private UUID findExperienceTankModuleId(BackpackData data, Function<UUID, ItemStack> snapshots) {
+        UUID exp = findInstalledModuleId(data, snapshots, "ExperienceTank");
         if (exp != null)
             return exp;
-        return findInstalledModuleId(data, "Tank");
+        return findInstalledModuleId(data, snapshots, "Tank");
     }
 
     private boolean depositFluidFromInventory(Player player, TankStateCodec.State state) {
@@ -830,6 +856,7 @@ public final class ModuleEngineService {
         if (snapshot == null)
             return;
 
+        snapshot = snapshot.clone();
         byte[] encoded = TankStateCodec.encode(state);
         ItemMeta meta = snapshot.getItemMeta();
         if (meta != null) {
@@ -1068,20 +1095,15 @@ public final class ModuleEngineService {
         // often)
     }
 
-    private BackpackStorage ensureLogicalContentsSize(BackpackData data, int size) {
-        if (size < 0)
-            size = 0;
-        return plugin.backpackStorage().load(data, size);
-    }
-
-    private UUID findInstalledModuleId(BackpackData data, String targetModuleType) {
+    private UUID findInstalledModuleId(BackpackData data, Function<UUID, ItemStack> snapshots,
+            String targetModuleType) {
         if (data == null || targetModuleType == null)
             return null;
 
         for (UUID moduleId : data.installedModules().values()) {
             if (moduleId == null)
                 continue;
-            ItemStack moduleItem = resolveModuleSnapshotItem(data, moduleId);
+            ItemStack moduleItem = snapshots.apply(moduleId);
             if (moduleItem == null || !moduleItem.hasItemMeta())
                 continue;
 
@@ -1111,7 +1133,24 @@ public final class ModuleEngineService {
     }
 
     private ItemStack resolveModuleSnapshotItem(BackpackData data, UUID moduleId) {
-        byte[] snap = data.installedSnapshots().get(moduleId);
+        byte[] payload = data.installedSnapshots().get(moduleId);
+        if (payload == null)
+            return null;
+
+        DecodedSnapshot cached = decodedSnapshots.get(moduleId);
+        if (cached != null && Arrays.equals(cached.payload(), payload))
+            return cached.item();
+
+        ItemStack decoded = decodeModuleSnapshot(payload);
+        // SQLite returns new arrays on each load. Keep a copy to detect edits by value.
+        decodedSnapshots.put(moduleId, new DecodedSnapshot(payload.clone(), decoded));
+        if (decodedSnapshots.size() > MAX_CACHED_MODULE_SNAPSHOTS) {
+            decodedSnapshots.pollFirstEntry();
+        }
+        return decoded;
+    }
+
+    private static ItemStack decodeModuleSnapshot(byte[] snap) {
         if (snap == null)
             return null;
         ItemStack[] arr;

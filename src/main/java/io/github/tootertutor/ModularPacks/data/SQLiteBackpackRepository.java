@@ -10,6 +10,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
@@ -235,16 +236,7 @@ public final class SQLiteBackpackRepository {
                 ps.setString(1, effectiveId.toString());
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
-                        int slotIndex = rs.getInt("slot_index");
-                        UUID moduleId = UUID.fromString(rs.getString("module_id"));
-                        byte[] snapshot = rs.getBytes("module_snapshot");
-                        byte[] state = rs.getBytes("module_state");
-                        if (state != null)
-                            data.moduleStates().put(moduleId, state);
-
-                        data.installedModules().put(slotIndex, moduleId);
-                        if (snapshot != null)
-                            data.installedSnapshots().put(moduleId, snapshot);
+                        readModuleRow(rs, data);
                     }
                 }
             }
@@ -252,6 +244,94 @@ public final class SQLiteBackpackRepository {
             return data;
         } catch (SQLException e) {
             throw new RuntimeException("Failed to load backpack " + backpackId, e);
+        }
+    }
+
+    /**
+     * Loads effective module data and backpack metadata without reading the
+     * inventory blob.
+     * Callers that need inventory contents must load them separately before editing
+     * or saving them.
+     */
+    public BackpackData loadModuleTickData(UUID backpackId, String backpackType) {
+        BackpackData data = new BackpackData(backpackId, backpackType);
+        try (PreparedStatement ps = getConnection().prepareStatement("""
+                SELECT own.share_host_id, own.share_password, own.is_shared,
+                       host.backpack_type, host.sort_locked,
+                       host.backpack_name, modules.slot_index, modules.module_id,
+                       modules.module_snapshot, modules.module_state
+                FROM backpacks own
+                JOIN backpacks host ON host.backpack_id = COALESCE(own.share_host_id, own.backpack_id)
+                LEFT JOIN backpack_modules modules ON modules.backpack_id = host.backpack_id
+                WHERE own.backpack_id = ?
+                ORDER BY modules.slot_index
+                """)) {
+            ps.setString(1, backpackId.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String hostId = rs.getString("share_host_id");
+                    boolean shared = rs.getBoolean("is_shared");
+                    if (hostId != null || shared) {
+                        data.setShared(shared);
+                        data.sharePassword(rs.getString("share_password"));
+                        if (hostId != null) {
+                            data.shareHostId(UUID.fromString(hostId));
+                        }
+                    }
+                    data.backpackType(rs.getString("backpack_type"));
+                    data.sortLocked(rs.getBoolean("sort_locked"));
+                    String name = rs.getString("backpack_name");
+                    if (name != null) {
+                        data.backpackName(name);
+                    }
+                    if (rs.getString("module_id") != null) {
+                        do {
+                            readModuleRow(rs, data);
+                        } while (rs.next());
+                    }
+                    return data;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to load modules for backpack " + backpackId, e);
+        }
+
+        // Keep the existing initialization behavior for missing backpack or host rows.
+        return loadOrCreate(backpackId, backpackType);
+    }
+
+    /**
+     * Loads the contents belonging to the effective owner resolved by the module
+     * read.
+     */
+    public void loadModuleTickContents(BackpackData data) {
+        UUID storageId = data.shareHostId() == null ? data.backpackId() : data.shareHostId();
+        try (PreparedStatement ps = getConnection().prepareStatement(
+                "SELECT contents FROM backpacks WHERE backpack_id = ?")) {
+            ps.setString(1, storageId.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new IllegalStateException("Missing backpack " + storageId);
+                }
+                data.contentsBytes(rs.getBytes("contents"));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to load contents for backpack " + storageId, e);
+        }
+    }
+
+    private static void readModuleRow(ResultSet rs, BackpackData data) throws SQLException {
+        int slotIndex = rs.getInt("slot_index");
+        UUID moduleId = UUID.fromString(rs.getString("module_id"));
+        byte[] snapshot = rs.getBytes("module_snapshot");
+        byte[] state = rs.getBytes("module_state");
+
+        data.installedModules().put(slotIndex, moduleId);
+        if (snapshot != null) {
+            data.installedSnapshots().put(moduleId, snapshot);
+        }
+        if (state != null) {
+            data.moduleStates().put(moduleId, state);
         }
     }
 
@@ -473,6 +553,12 @@ public final class SQLiteBackpackRepository {
         }
     }
 
+    /** Saves module snapshots and state for the backpack that owns them. */
+    public void saveModules(BackpackData data) {
+        UUID storageId = data.shareHostId() == null ? data.backpackId() : data.shareHostId();
+        saveModules(storageId, data.installedModules(), data.installedSnapshots(), data.moduleStates());
+    }
+
     public void saveShareMetadataOnly(BackpackData data) {
         // Save ONLY the share metadata without touching contents
         // Used when joining/leaving to avoid overwriting backpack contents
@@ -668,6 +754,48 @@ public final class SQLiteBackpackRepository {
             } catch (SQLException ignored) {
             }
             throw new RuntimeException("Failed to save resource-pack preference for " + preference.playerId(), e);
+        }
+    }
+
+    /**
+     * Persists changes to existing module rows without rewriting the installed
+     * slots.
+     */
+    public void saveChangedModules(BackpackData data, Set<UUID> changedModuleIds) {
+        if (changedModuleIds.isEmpty()) {
+            return;
+        }
+
+        UUID storageId = data.shareHostId() == null ? data.backpackId() : data.shareHostId();
+        try {
+            Connection conn = getConnection();
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement("""
+                    UPDATE backpack_modules
+                    SET module_state = ?, module_snapshot = ?
+                    WHERE backpack_id = ? AND module_id = ?
+                    """)) {
+                ps.setString(3, storageId.toString());
+                for (UUID moduleId : changedModuleIds) {
+                    ps.setBytes(1, data.moduleStates().get(moduleId));
+                    ps.setBytes(2, data.installedSnapshots().get(moduleId));
+                    ps.setString(4, moduleId.toString());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+                conn.commit();
+            } catch (SQLException | RuntimeException ex) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackFailure) {
+                    ex.addSuppressed(rollbackFailure);
+                }
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException ex) {
+            throw new RuntimeException("Failed to update module state for backpack " + storageId, ex);
         }
     }
 
