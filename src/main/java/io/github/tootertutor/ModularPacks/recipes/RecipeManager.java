@@ -43,6 +43,7 @@ import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.item.UpgradeItems;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
+import io.papermc.paper.event.server.ServerResourcesReloadedEvent;
 
 /**
  * Registers recipes from config and handles "dynamic output" (unique IDs).
@@ -75,6 +76,7 @@ public final class RecipeManager implements Listener {
         unregisterBackpackRecipes();
         registerBackpackRecipesFromConfig();
         registerUpgradeRecipesFromConfig();
+        RecipeIndex.invalidate();
         try {
             Bukkit.updateRecipes();
         } catch (Throwable t) {
@@ -183,8 +185,14 @@ public final class RecipeManager implements Listener {
         return result;
     }
 
+    @EventHandler
+    public void onServerResourcesReloaded(ServerResourcesReloadedEvent event) {
+        RecipeIndex.invalidate();
+    }
+
     public void close() {
         unregisterAll();
+        RecipeIndex.invalidate();
     }
 
     private void unregisterAll() {

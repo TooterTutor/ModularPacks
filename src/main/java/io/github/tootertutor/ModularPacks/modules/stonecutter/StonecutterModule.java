@@ -1,16 +1,13 @@
 package io.github.tootertutor.ModularPacks.modules.stonecutter;
 
-import java.util.Iterator;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MenuType;
-import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.StonecuttingRecipe;
 import org.bukkit.plugin.Plugin;
 
@@ -19,6 +16,7 @@ import io.github.tootertutor.ModularPacks.api.modules.AbstractModule;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.listeners.module.ModuleClickHandler;
 import io.github.tootertutor.ModularPacks.modules.ModuleLogicHelper;
+import io.github.tootertutor.ModularPacks.recipes.RecipeIndex;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
 
@@ -188,12 +186,9 @@ public final class StonecutterModule extends AbstractModule {
     }
 
     private StonecuttingRecipe findFirstMatch(ItemStack input) {
-        Iterator<Recipe> it = Bukkit.recipeIterator();
-        while (it.hasNext()) {
-            Recipe r = it.next();
-            if (!(r instanceof StonecuttingRecipe sc))
-                continue;
-            if (sc.getInputChoice() != null && sc.getInputChoice().test(input))
+        for (StonecuttingRecipe sc : RecipeIndex.stonecutting()) {
+            var choice = sc.getInputChoice();
+            if (choice != null && choice.test(input))
                 return sc;
         }
         return null;

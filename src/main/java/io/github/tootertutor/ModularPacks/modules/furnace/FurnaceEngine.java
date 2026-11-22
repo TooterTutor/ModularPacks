@@ -3,9 +3,9 @@ package io.github.tootertutor.ModularPacks.modules.furnace;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -15,7 +15,6 @@ import org.bukkit.inventory.CookingRecipe;
 import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.SmokingRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.view.FurnaceView;
@@ -24,8 +23,8 @@ import org.bukkit.persistence.PersistentDataType;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
-import io.github.tootertutor.ModularPacks.data.ItemStackCodec;
 import io.github.tootertutor.ModularPacks.modules.BackpackInventoryUtil;
+import io.github.tootertutor.ModularPacks.recipes.RecipeIndex;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class FurnaceEngine {
@@ -44,7 +43,7 @@ public final class FurnaceEngine {
             ScreenType screenType,
             Inventory inv,
             int dtTicks) {
-        BackpackData data = plugin.repo().loadOrCreate(backpackId, backpackType);
+        BackpackData data = plugin.repo().loadModuleTickData(backpackId, backpackType);
 
         byte[] bytes = data.moduleStates().get(moduleId);
         FurnaceStateCodec.State stored = FurnaceStateCodec.decode(bytes);
@@ -83,18 +82,18 @@ public final class FurnaceEngine {
 
         // Persist
         data.moduleStates().put(moduleId, FurnaceStateCodec.encode(s));
-        plugin.repo().saveBackpack(data);
+        plugin.repo().saveChangedModules(data, Set.of(moduleId));
     }
 
-    public boolean tickInstalledFurnaces(BackpackData data, Set<UUID> openModuleIds, int dtTicks) {
-        boolean changedAny = false;
+    public void tickInstalledFurnaces(BackpackData data, Set<UUID> openModuleIds, int dtTicks,
+            Function<UUID, ItemStack> snapshots, Set<UUID> changedModuleIds) {
         for (UUID moduleId : data.installedModules().values()) {
             if (moduleId == null)
                 continue;
             if (openModuleIds != null && openModuleIds.contains(moduleId))
                 continue;
 
-            ScreenType st = resolveInstalledModuleScreenType(data, moduleId);
+            ScreenType st = resolveInstalledModuleScreenType(snapshots.apply(moduleId));
             if (st != ScreenType.SMELTING && st != ScreenType.BLASTING && st != ScreenType.SMOKING)
                 continue;
 
@@ -105,26 +104,15 @@ public final class FurnaceEngine {
                 continue;
 
             data.moduleStates().put(moduleId, FurnaceStateCodec.encode(s));
-            changedAny = true;
+            changedModuleIds.add(moduleId);
         }
-        return changedAny;
     }
 
-    private ScreenType resolveInstalledModuleScreenType(BackpackData data, UUID moduleId) {
-        byte[] snap = data.installedSnapshots().get(moduleId);
-        if (snap == null)
+    private ScreenType resolveInstalledModuleScreenType(ItemStack snapshot) {
+        if (snapshot == null)
             return ScreenType.NONE;
 
-        ItemStack[] arr;
-        try {
-            arr = ItemStackCodec.fromBytes(snap);
-        } catch (Exception ex) {
-            return ScreenType.NONE;
-        }
-        if (arr.length == 0 || arr[0] == null)
-            return ScreenType.NONE;
-
-        ItemMeta meta = arr[0].getItemMeta();
+        ItemMeta meta = snapshot.getItemMeta();
         if (meta == null)
             return ScreenType.NONE;
 
@@ -373,22 +361,19 @@ public final class FurnaceEngine {
     }
 
     private CookingRecipe<?> findCookingRecipe(ScreenType type, ItemStack input) {
-        Iterator<Recipe> it = Bukkit.recipeIterator();
-        while (it.hasNext()) {
-            Recipe r = it.next();
-            if (!(r instanceof CookingRecipe<?> cr))
-                continue;
+        for (CookingRecipe<?> cr : RecipeIndex.cooking()) {
 
             boolean matchesType = switch (type) {
-                case SMELTING -> r instanceof FurnaceRecipe;
-                case BLASTING -> r instanceof BlastingRecipe;
-                case SMOKING -> r instanceof SmokingRecipe;
+                case SMELTING -> cr instanceof FurnaceRecipe;
+                case BLASTING -> cr instanceof BlastingRecipe;
+                case SMOKING -> cr instanceof SmokingRecipe;
                 default -> false;
             };
             if (!matchesType)
                 continue;
 
-            if (cr.getInputChoice() != null && cr.getInputChoice().test(input)) {
+            var choice = cr.getInputChoice();
+            if (choice != null && choice.test(input)) {
                 return cr;
             }
         }

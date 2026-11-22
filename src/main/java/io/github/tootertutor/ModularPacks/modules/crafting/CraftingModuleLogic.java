@@ -1,7 +1,6 @@
 package io.github.tootertutor.ModularPacks.modules.crafting;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -20,6 +19,7 @@ import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
 
+import io.github.tootertutor.ModularPacks.recipes.RecipeIndex;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
 import io.github.tootertutor.ModularPacks.util.ItemStacks;
 import io.github.tootertutor.ModularPacks.util.Text;
@@ -279,9 +279,7 @@ public final class CraftingModuleLogic {
             return new CraftMatch(direct, out.clone(), consume);
         }
 
-        Iterator<Recipe> it = Bukkit.recipeIterator();
-        while (it.hasNext()) {
-            Recipe r = it.next();
+        for (Recipe r : RecipeIndex.crafting()) {
             if (r instanceof ShapedRecipe shaped) {
                 CraftMatch match = matchShaped(r, shaped, matrix);
                 if (match != null) {
