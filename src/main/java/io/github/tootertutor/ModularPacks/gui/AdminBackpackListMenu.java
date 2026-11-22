@@ -217,7 +217,8 @@ public final class AdminBackpackListMenu {
         List<String> lore = plugin.lang().lines(player, "gui.admin.entryLore",
                 "type", safeType(row.backpackType()),
                 "name", customName.isEmpty() ? plugin.lang().text(player, "gui.admin.defaultName") : customName,
-                "items", row.itemCount(), "modules", row.moduleCount(),
+                "items", row.itemCount() < 0 ? plugin.lang().text(player, "gui.admin.unknown") : row.itemCount(),
+                "modules", row.moduleCount(),
                 "location", row.placed() ? row.locationText() : plugin.lang().text(player, "gui.admin.notPlaced"),
                 "accessed", formatTimestamp(player, row.lastAccessedMillis()), "id", row.backpackId());
 
@@ -349,7 +350,12 @@ public final class AdminBackpackListMenu {
         if (data == null) {
             return 0;
         }
-        return plugin.backpackStorage().load(data).totalCount();
+        try {
+            return plugin.backpackStorage().totalCount(data);
+        } catch (RuntimeException ex) {
+            plugin.getLogger().warning("Cannot count items in backpack " + data.backpackId() + ": " + ex.getMessage());
+            return -1;
+        }
     }
 
     private static String formatLocation(Location location) {
