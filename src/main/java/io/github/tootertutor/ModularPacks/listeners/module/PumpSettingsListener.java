@@ -17,6 +17,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import io.github.tootertutor.ModularCore.gui.InventorySlots;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
 import io.github.tootertutor.ModularPacks.config.UpgradeDef;
@@ -103,12 +104,8 @@ public final class PumpSettingsListener implements Listener {
         if (!(top != null && top.getHolder() instanceof PumpSettingsHolder))
             return;
 
-        int topSize = top.getSize();
-        for (int raw : e.getRawSlots()) {
-            if (raw >= 0 && raw < topSize) {
-                e.setCancelled(true);
-                return;
-            }
+        if (InventorySlots.touchesTop(e, top.getSize())) {
+            e.setCancelled(true);
         }
     }
 

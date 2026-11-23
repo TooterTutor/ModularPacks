@@ -14,6 +14,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import io.github.tootertutor.ModularCore.gui.NavigationRow;
+
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.BackpackTypeDef;
 import io.github.tootertutor.ModularPacks.config.Placeholders;
@@ -207,40 +209,17 @@ public final class BackpackMenuRenderer {
         Player player = holder.viewer();
         Inventory inv = holder.getInventory();
         int invSize = inv.getSize();
-        int bottomStart = SlotLayout.bottomRowStart(invSize);
-
-        // Fill bottom row with border fillers marked with PDC
         ItemStack filler = namedItemWithPdc(
-                plugin.cfg().navBorderFiller(),
-                "&7",
-                plugin.cfg().getGuiItemKey(),
-                "nav-border-filler");
-        for (int slot = bottomStart; slot < invSize; slot++) {
-            inv.setItem(slot, filler);
-        }
-
-        // Only show prev/next if paginated and valid for current page
-        if (holder.paginated()) {
-            int pageCount = pageCount(holder);
-
-            int prevSlot = SlotLayout.prevButtonSlot(invSize);
-            int nextSlot = SlotLayout.nextButtonSlot(invSize);
-
-            if (holder.page() > 0) {
-                inv.setItem(prevSlot, namedItemWithPdc(
-                        plugin.cfg().navPageButtons(),
-                        plugin.lang().text(player, "gui.navigation.previous"),
-                        plugin.cfg().getGuiItemKey(),
-                        "nav-page-button"));
-            }
-            if (holder.page() < pageCount - 1) {
-                inv.setItem(nextSlot, namedItemWithPdc(
-                        plugin.cfg().navPageButtons(),
-                        plugin.lang().text(player, "gui.navigation.next"),
-                        plugin.cfg().getGuiItemKey(),
-                        "nav-page-button"));
-            }
-        }
+                plugin.cfg().navBorderFiller(), "&7", plugin.cfg().getGuiItemKey(), "nav-border-filler");
+        ItemStack previous = holder.paginated() && holder.page() > 0
+                ? namedItemWithPdc(plugin.cfg().navPageButtons(), plugin.lang().text(player, "gui.navigation.previous"),
+                        plugin.cfg().getGuiItemKey(), "nav-page-button")
+                : null;
+        ItemStack next = holder.paginated() && holder.page() < pageCount(holder) - 1
+                ? namedItemWithPdc(plugin.cfg().navPageButtons(), plugin.lang().text(player, "gui.navigation.next"),
+                        plugin.cfg().getGuiItemKey(), "nav-page-button")
+                : null;
+        NavigationRow.render(inv, filler, previous, next);
 
         int sortSlot = SlotLayout.sortButtonSlot(invSize, holder.upgradeSlots(), holder.paginated());
         if (sortSlot >= 0) {

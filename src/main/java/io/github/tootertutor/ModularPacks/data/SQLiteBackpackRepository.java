@@ -1,8 +1,6 @@
 package io.github.tootertutor.ModularPacks.data;
 
-import java.io.File;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,131 +11,121 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import io.github.tootertutor.ModularCore.database.SQLiteDatabase;
+import io.github.tootertutor.ModularCore.database.SQLiteSchema;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.resource.PlayerResourcePackPreference;
 
 public final class SQLiteBackpackRepository {
 
     private final ModularPacksPlugin plugin;
+    private final SQLiteDatabase database;
     private Connection connection;
+    private boolean closed;
 
     public SQLiteBackpackRepository(ModularPacksPlugin plugin) {
         this.plugin = plugin;
-    }
-
-    public void init() {
-        try {
-            File dbFile = new File(plugin.getDataFolder(), "backpacks.db");
-            String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
-
-            // Enable connection pooling optimizations for SQLite
-            url += "?journal_mode=WAL&synchronous=NORMAL&cache_size=10000&temp_store=MEMORY";
-
-            connection = DriverManager.getConnection(url);
-
-            // Enable Write-Ahead Logging for better concurrency
-            try (Statement st = connection.createStatement()) {
-                st.execute("PRAGMA journal_mode=WAL;");
-                st.execute("PRAGMA synchronous=NORMAL;");
-                st.execute("PRAGMA cache_size=10000;");
-                st.execute("PRAGMA temp_store=MEMORY;");
-                st.execute("PRAGMA busy_timeout=5000;"); // 5 second timeout for locked databases
-            }
-
-            try (Statement st = connection.createStatement()) {
-                st.executeUpdate("""
-                            CREATE TABLE IF NOT EXISTS backpacks (
-                              backpack_id TEXT PRIMARY KEY,
-                              backpack_type TEXT NOT NULL,
-                              contents BLOB,
-                              owner_uuid TEXT,
-                              owner_name TEXT,
-                              created_at INTEGER,
-                              updated_at INTEGER
-                            );
-                        """);
-                // Schema migrations with logging
-                migrateColumn(st, "backpacks", "owner_uuid", "TEXT");
-                migrateColumn(st, "backpacks", "owner_name", "TEXT");
-                migrateColumn(st, "backpacks", "created_at", "INTEGER");
-                migrateColumn(st, "backpacks", "updated_at", "INTEGER");
-                migrateColumn(st, "backpacks", "is_shared", "BOOLEAN DEFAULT 0");
-                migrateColumn(st, "backpacks", "share_password", "TEXT");
-                migrateColumn(st, "backpacks", "share_host_id", "TEXT");
-                migrateColumn(st, "backpacks", "sort_locked", "BOOLEAN DEFAULT 0");
-                migrateColumn(st, "backpacks", "backpack_name", "TEXT DEFAULT ''");
-
-                st.executeUpdate("""
-                            CREATE TABLE IF NOT EXISTS backpack_modules (
-                              backpack_id TEXT NOT NULL,
-                              slot_index INTEGER NOT NULL,
-                              module_id TEXT NOT NULL,
-                              module_snapshot BLOB,
-                              module_state BLOB,
-                              PRIMARY KEY (backpack_id, slot_index)
-                            );
-                        """);
-                migrateColumn(st, "backpack_modules", "module_state", "BLOB");
-
-                // Void module audit + recovery log (full item bytes preserved)
-                st.executeUpdate("""
-                            CREATE TABLE IF NOT EXISTS voided_items (
-                              id INTEGER PRIMARY KEY AUTOINCREMENT,
-                              created_at INTEGER NOT NULL,
-                              player_uuid TEXT,
-                              player_name TEXT,
-                              backpack_id TEXT NOT NULL,
-                              backpack_type TEXT,
-                              void_module_id TEXT,
-                              item_type TEXT,
-                              amount INTEGER,
-                              item_bytes BLOB NOT NULL,
-                              world TEXT,
-                              x REAL,
-                              y REAL,
-                              z REAL,
-                              recovered_at INTEGER,
-                              recovered_by TEXT,
-                              recovered_by_name TEXT
-                            );
-                        """);
-                st.executeUpdate("""
-                            CREATE INDEX IF NOT EXISTS idx_voided_items_player_time
-                            ON voided_items(player_uuid, created_at DESC);
-                        """);
-                st.executeUpdate("""
-                            CREATE INDEX IF NOT EXISTS idx_voided_items_backpack_time
-                            ON voided_items(backpack_id, created_at DESC);
-                        """);
-                st.executeUpdate("""
-                            CREATE INDEX IF NOT EXISTS idx_voided_items_recovered
-                            ON voided_items(recovered_at);
-                        """);
-
-                st.executeUpdate("""
-                            CREATE TABLE IF NOT EXISTS player_resource_pack_preferences (
-                              player_uuid TEXT NOT NULL,
-                              pack_id TEXT NOT NULL,
-                              sort_order INTEGER NOT NULL,
-                              PRIMARY KEY (player_uuid, pack_id)
-                            );
-                        """);
-
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to init SQLite", e);
+        this.database = plugin.getServer().getServicesManager().load(SQLiteDatabase.class);
+        if (database == null) {
+            throw new IllegalStateException("ModularCore did not register the shared SQLite database");
         }
     }
 
-    public void close() {
+    public synchronized void init() {
         try {
-            if (connection != null && !connection.isClosed()) {
-                // Checkpoint WAL file before closing
-                try (Statement st = connection.createStatement()) {
-                    st.execute("PRAGMA wal_checkpoint(TRUNCATE);");
-                } catch (SQLException e) {
-                    plugin.getLogger().warning("Failed to checkpoint WAL: " + e.getMessage());
-                }
+            SQLiteDatabase.inTransaction(getConnection(), this::initializeSchema);
+        } catch (SQLException e) {
+            close();
+            throw new IllegalStateException("Failed to initialize backpack tables", e);
+        }
+    }
+
+    private void initializeSchema(Connection conn) throws SQLException {
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS backpacks (
+                          backpack_id TEXT PRIMARY KEY,
+                          backpack_type TEXT NOT NULL,
+                          contents BLOB,
+                          owner_uuid TEXT,
+                          owner_name TEXT,
+                          created_at INTEGER,
+                          updated_at INTEGER
+                        );
+                    """);
+            // Schema migrations with logging
+            migrateColumn(conn, "backpacks", "owner_uuid", "TEXT");
+            migrateColumn(conn, "backpacks", "owner_name", "TEXT");
+            migrateColumn(conn, "backpacks", "created_at", "INTEGER");
+            migrateColumn(conn, "backpacks", "updated_at", "INTEGER");
+            migrateColumn(conn, "backpacks", "is_shared", "BOOLEAN DEFAULT 0");
+            migrateColumn(conn, "backpacks", "share_password", "TEXT");
+            migrateColumn(conn, "backpacks", "share_host_id", "TEXT");
+            migrateColumn(conn, "backpacks", "sort_locked", "BOOLEAN DEFAULT 0");
+            migrateColumn(conn, "backpacks", "backpack_name", "TEXT DEFAULT ''");
+
+            st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS backpack_modules (
+                          backpack_id TEXT NOT NULL,
+                          slot_index INTEGER NOT NULL,
+                          module_id TEXT NOT NULL,
+                          module_snapshot BLOB,
+                          module_state BLOB,
+                          PRIMARY KEY (backpack_id, slot_index)
+                        );
+                    """);
+            migrateColumn(conn, "backpack_modules", "module_state", "BLOB");
+
+            // Void module audit + recovery log (full item bytes preserved)
+            st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS voided_items (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT,
+                          created_at INTEGER NOT NULL,
+                          player_uuid TEXT,
+                          player_name TEXT,
+                          backpack_id TEXT NOT NULL,
+                          backpack_type TEXT,
+                          void_module_id TEXT,
+                          item_type TEXT,
+                          amount INTEGER,
+                          item_bytes BLOB NOT NULL,
+                          world TEXT,
+                          x REAL,
+                          y REAL,
+                          z REAL,
+                          recovered_at INTEGER,
+                          recovered_by TEXT,
+                          recovered_by_name TEXT
+                        );
+                    """);
+            st.executeUpdate("""
+                        CREATE INDEX IF NOT EXISTS idx_voided_items_player_time
+                        ON voided_items(player_uuid, created_at DESC);
+                    """);
+            st.executeUpdate("""
+                        CREATE INDEX IF NOT EXISTS idx_voided_items_backpack_time
+                        ON voided_items(backpack_id, created_at DESC);
+                    """);
+            st.executeUpdate("""
+                        CREATE INDEX IF NOT EXISTS idx_voided_items_recovered
+                        ON voided_items(recovered_at);
+                    """);
+
+            st.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS player_resource_pack_preferences (
+                          player_uuid TEXT NOT NULL,
+                          pack_id TEXT NOT NULL,
+                          sort_order INTEGER NOT NULL,
+                          PRIMARY KEY (player_uuid, pack_id)
+                        );
+                    """);
+        }
+    }
+
+    public synchronized void close() {
+        closed = true;
+        try {
+            if (connection != null) {
                 connection.close();
             }
         } catch (SQLException e) {
@@ -145,19 +133,17 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    /**
-     * Get the current connection, reconnecting if necessary.
-     * This helps recover from connection failures.
-     */
     private Connection getConnection() throws SQLException {
+        if (closed) {
+            throw new SQLException("The backpack repository is closed");
+        }
         if (connection == null || connection.isClosed()) {
-            plugin.getLogger().warning("Database connection lost, reconnecting...");
-            init();
+            connection = database.openConnection();
         }
         return connection;
     }
 
-    public BackpackData loadOrCreate(UUID backpackId, String backpackType) {
+    public synchronized BackpackData loadOrCreate(UUID backpackId, String backpackType) {
         BackpackData data = new BackpackData(backpackId, backpackType);
 
         try {
@@ -253,7 +239,7 @@ public final class SQLiteBackpackRepository {
      * Callers that need inventory contents must load them separately before editing
      * or saving them.
      */
-    public BackpackData loadModuleTickData(UUID backpackId, String backpackType) {
+    public synchronized BackpackData loadModuleTickData(UUID backpackId, String backpackType) {
         BackpackData data = new BackpackData(backpackId, backpackType);
         try (PreparedStatement ps = getConnection().prepareStatement("""
                 SELECT own.share_host_id, own.share_password, own.is_shared,
@@ -304,7 +290,7 @@ public final class SQLiteBackpackRepository {
      * Loads the contents belonging to the effective owner resolved by the module
      * read.
      */
-    public void loadModuleTickContents(BackpackData data) {
+    public synchronized void loadModuleTickContents(BackpackData data) {
         UUID storageId = data.shareHostId() == null ? data.backpackId() : data.shareHostId();
         try (PreparedStatement ps = getConnection().prepareStatement(
                 "SELECT contents FROM backpacks WHERE backpack_id = ?")) {
@@ -335,7 +321,7 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    public String findBackpackType(UUID backpackId) {
+    public synchronized String findBackpackType(UUID backpackId) {
         if (backpackId == null)
             return null;
         try (PreparedStatement ps = getConnection().prepareStatement(
@@ -352,7 +338,7 @@ public final class SQLiteBackpackRepository {
         return null;
     }
 
-    public boolean isPlayerValidShareMember(UUID playerId, UUID backpackId) {
+    public synchronized boolean isPlayerValidShareMember(UUID playerId, UUID backpackId) {
         // Check if a player is authorized to access a shared backpack
         // This includes: being a participant in a shared host, or having joined as a
         // player
@@ -377,7 +363,7 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    public BackpackData loadJoinerContents(UUID joinerId) {
+    public synchronized BackpackData loadJoinerContents(UUID joinerId) {
         // Load ONLY the joiner's original contents from their own row
         // Used when leaving a shared host to restore the joiner's items
         BackpackData data = new BackpackData(joinerId, null);
@@ -400,7 +386,7 @@ public final class SQLiteBackpackRepository {
         return null;
     }
 
-    public UUID findBackpackByUuidPrefix(String uuidPrefix) {
+    public synchronized UUID findBackpackByUuidPrefix(String uuidPrefix) {
         if (uuidPrefix == null || uuidPrefix.isEmpty())
             return null;
         try (PreparedStatement ps = getConnection().prepareStatement(
@@ -422,7 +408,7 @@ public final class SQLiteBackpackRepository {
         return null;
     }
 
-    public void ensureBackpackExists(UUID backpackId, String backpackType, UUID ownerUuid, String ownerName) {
+    public synchronized void ensureBackpackExists(UUID backpackId, String backpackType, UUID ownerUuid, String ownerName) {
         if (backpackId == null || backpackType == null)
             return;
 
@@ -464,7 +450,7 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    public List<BackpackSummary> listBackpacksByOwner(UUID ownerUuid) {
+    public synchronized List<BackpackSummary> listBackpacksByOwner(UUID ownerUuid) {
         if (ownerUuid == null)
             return List.of();
         try (PreparedStatement ps = getConnection().prepareStatement("""
@@ -492,7 +478,7 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    public void saveBackpack(BackpackData data) {
+    public synchronized void saveBackpack(BackpackData data) {
         // If this is a joined backpack, we need to:
         // 1. Save contents to the HOST's backpack (so all joiners see changes)
         // 2. Save share metadata to the JOINER's backpack (keep metadata separate)
@@ -554,12 +540,12 @@ public final class SQLiteBackpackRepository {
     }
 
     /** Saves module snapshots and state for the backpack that owns them. */
-    public void saveModules(BackpackData data) {
+    public synchronized void saveModules(BackpackData data) {
         UUID storageId = data.shareHostId() == null ? data.backpackId() : data.shareHostId();
         saveModules(storageId, data.installedModules(), data.installedSnapshots(), data.moduleStates());
     }
 
-    public void saveShareMetadataOnly(BackpackData data) {
+    public synchronized void saveShareMetadataOnly(BackpackData data) {
         // Save ONLY the share metadata without touching contents
         // Used when joining/leaving to avoid overwriting backpack contents
         try (PreparedStatement ps = getConnection().prepareStatement(
@@ -576,7 +562,7 @@ public final class SQLiteBackpackRepository {
     }
 
     /** Persists a storage-only change to the backpack that owns the contents. */
-    public void saveContents(BackpackData data) {
+    public synchronized void saveContents(BackpackData data) {
         try (PreparedStatement ps = getConnection().prepareStatement(
                 "UPDATE backpacks SET contents = ?, updated_at = ? WHERE backpack_id = ?")) {
             ps.setBytes(1, data.contentsBytes());
@@ -594,7 +580,7 @@ public final class SQLiteBackpackRepository {
      * Save a joiner's backup contents when they first join a host.
      * This preserves their original contents so they can be restored when leaving.
      */
-    public void saveJoinerBackup(UUID joinerId, BackpackData data) {
+    public synchronized void saveJoinerBackup(UUID joinerId, BackpackData data) {
         // Save ONLY the contents to the joiner's row (metadata will be updated
         // separately)
         try (PreparedStatement ps = getConnection().prepareStatement(
@@ -613,14 +599,14 @@ public final class SQLiteBackpackRepository {
      * Sets their is_shared=false, share_host_id=null, share_password=''.
      * Called when a host backpack goes back to private mode.
      */
-    public java.util.List<UUID> disconnectAllJoinedBackpacks(UUID hostId) {
+    public synchronized java.util.List<UUID> disconnectAllJoinedBackpacks(UUID hostId) {
         if (hostId == null)
             return java.util.List.of();
 
         java.util.List<UUID> joinedIds = new java.util.ArrayList<>();
 
         // Collect joined backpack IDs first (so we can close their sessions)
-        try (PreparedStatement find = connection
+        try (PreparedStatement find = getConnection()
                 .prepareStatement("SELECT backpack_id FROM backpacks WHERE share_host_id = ?")) {
             find.setString(1, hostId.toString());
             try (ResultSet rs = find.executeQuery()) {
@@ -656,12 +642,12 @@ public final class SQLiteBackpackRepository {
     /**
      * List backpack IDs that are currently joined to the given host.
      */
-    public java.util.List<UUID> listJoinedBackpacks(UUID hostId) {
+    public synchronized java.util.List<UUID> listJoinedBackpacks(UUID hostId) {
         if (hostId == null)
             return java.util.List.of();
 
         java.util.List<UUID> out = new java.util.ArrayList<>();
-        try (PreparedStatement ps = connection
+        try (PreparedStatement ps = getConnection()
                 .prepareStatement("SELECT backpack_id FROM backpacks WHERE share_host_id = ?")) {
             ps.setString(1, hostId.toString());
             try (ResultSet rs = ps.executeQuery()) {
@@ -679,19 +665,13 @@ public final class SQLiteBackpackRepository {
         return out;
     }
 
-    /**
-     * Helper method for schema migrations with logging.
-     */
-    private void migrateColumn(Statement st, String table, String column, String definition) {
-        try {
-            st.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+    private void migrateColumn(Connection conn, String table, String column, String definition) throws SQLException {
+        if (SQLiteSchema.addColumnIfMissing(conn, table, column, definition)) {
             plugin.getLogger().info("Added column " + column + " to table " + table);
-        } catch (SQLException e) {
-            // Column already exists, ignore
         }
     }
 
-    public PlayerResourcePackPreference loadResourcePackPreference(UUID playerId) {
+    public synchronized PlayerResourcePackPreference loadResourcePackPreference(UUID playerId) {
         List<String> packIds = new ArrayList<>();
         boolean found = false;
         try (PreparedStatement ps = getConnection().prepareStatement("""
@@ -716,43 +696,35 @@ public final class SQLiteBackpackRepository {
         return found ? new PlayerResourcePackPreference(playerId, packIds) : null;
     }
 
-    public void saveResourcePackPreference(PlayerResourcePackPreference preference) {
+    public synchronized void saveResourcePackPreference(PlayerResourcePackPreference preference) {
         try {
-            Connection conn = getConnection();
-            boolean previousAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit(false);
-            try (PreparedStatement delete = conn.prepareStatement(
-                    "DELETE FROM player_resource_pack_preferences WHERE player_uuid = ?")) {
-                delete.setString(1, preference.playerId().toString());
-                delete.executeUpdate();
-            }
-            try (PreparedStatement insert = conn.prepareStatement("""
-                    INSERT INTO player_resource_pack_preferences(player_uuid, pack_id, sort_order)
-                    VALUES(?, ?, ?)
-                    """)) {
-                if (preference.enabledPackIds().isEmpty()) {
-                    insert.setString(1, preference.playerId().toString());
-                    insert.setString(2, "");
-                    insert.setInt(3, 0);
-                    insert.addBatch();
-                } else {
-                    for (int i = 0; i < preference.enabledPackIds().size(); i++) {
-                        insert.setString(1, preference.playerId().toString());
-                        insert.setString(2, preference.enabledPackIds().get(i));
-                        insert.setInt(3, i);
-                        insert.addBatch();
-                    }
+            SQLiteDatabase.inTransaction(getConnection(), conn -> {
+                try (PreparedStatement delete = conn.prepareStatement(
+                        "DELETE FROM player_resource_pack_preferences WHERE player_uuid = ?")) {
+                    delete.setString(1, preference.playerId().toString());
+                    delete.executeUpdate();
                 }
-                insert.executeBatch();
-            }
-            conn.commit();
-            conn.setAutoCommit(previousAutoCommit);
+                try (PreparedStatement insert = conn.prepareStatement("""
+                        INSERT INTO player_resource_pack_preferences(player_uuid, pack_id, sort_order)
+                        VALUES(?, ?, ?)
+                        """)) {
+                    if (preference.enabledPackIds().isEmpty()) {
+                        insert.setString(1, preference.playerId().toString());
+                        insert.setString(2, "");
+                        insert.setInt(3, 0);
+                        insert.addBatch();
+                    } else {
+                        for (int i = 0; i < preference.enabledPackIds().size(); i++) {
+                            insert.setString(1, preference.playerId().toString());
+                            insert.setString(2, preference.enabledPackIds().get(i));
+                            insert.setInt(3, i);
+                            insert.addBatch();
+                        }
+                    }
+                    insert.executeBatch();
+                }
+            });
         } catch (SQLException e) {
-            try {
-                getConnection().rollback();
-                getConnection().setAutoCommit(true);
-            } catch (SQLException ignored) {
-            }
             throw new RuntimeException("Failed to save resource-pack preference for " + preference.playerId(), e);
         }
     }
@@ -761,86 +733,65 @@ public final class SQLiteBackpackRepository {
      * Persists changes to existing module rows without rewriting the installed
      * slots.
      */
-    public void saveChangedModules(BackpackData data, Set<UUID> changedModuleIds) {
+    public synchronized void saveChangedModules(BackpackData data, Set<UUID> changedModuleIds) {
         if (changedModuleIds.isEmpty()) {
             return;
         }
 
         UUID storageId = data.shareHostId() == null ? data.backpackId() : data.shareHostId();
         try {
-            Connection conn = getConnection();
-            conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement("""
-                    UPDATE backpack_modules
-                    SET module_state = ?, module_snapshot = ?
-                    WHERE backpack_id = ? AND module_id = ?
-                    """)) {
-                ps.setString(3, storageId.toString());
-                for (UUID moduleId : changedModuleIds) {
-                    ps.setBytes(1, data.moduleStates().get(moduleId));
-                    ps.setBytes(2, data.installedSnapshots().get(moduleId));
-                    ps.setString(4, moduleId.toString());
-                    ps.addBatch();
+            SQLiteDatabase.inTransaction(getConnection(), conn -> {
+                try (PreparedStatement ps = conn.prepareStatement("""
+                        UPDATE backpack_modules
+                        SET module_state = ?, module_snapshot = ?
+                        WHERE backpack_id = ? AND module_id = ?
+                        """)) {
+                    ps.setString(3, storageId.toString());
+                    for (UUID moduleId : changedModuleIds) {
+                        ps.setBytes(1, data.moduleStates().get(moduleId));
+                        ps.setBytes(2, data.installedSnapshots().get(moduleId));
+                        ps.setString(4, moduleId.toString());
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
                 }
-                ps.executeBatch();
-                conn.commit();
-            } catch (SQLException | RuntimeException ex) {
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackFailure) {
-                    ex.addSuppressed(rollbackFailure);
-                }
-                throw ex;
-            } finally {
-                conn.setAutoCommit(true);
-            }
+            });
         } catch (SQLException ex) {
             throw new RuntimeException("Failed to update module state for backpack " + storageId, ex);
         }
     }
 
-    public void saveModules(UUID backpackId, Map<Integer, UUID> slotToModule, Map<UUID, byte[]> snapshots,
+    public synchronized void saveModules(UUID backpackId, Map<Integer, UUID> slotToModule, Map<UUID, byte[]> snapshots,
             Map<UUID, byte[]> states) {
         try {
-            connection.setAutoCommit(false);
-
-            try (PreparedStatement del = getConnection().prepareStatement(
-                    "DELETE FROM backpack_modules WHERE backpack_id = ?")) {
-                del.setString(1, backpackId.toString());
-                del.executeUpdate();
-            }
-
-            try (PreparedStatement ins = getConnection().prepareStatement(
-                    "INSERT INTO backpack_modules(backpack_id, slot_index, module_id, module_snapshot, module_state) VALUES(?,?,?,?,?)")) {
-                for (Map.Entry<Integer, UUID> e : slotToModule.entrySet()) {
-                    UUID moduleId = e.getValue();
-
-                    ins.setString(1, backpackId.toString());
-                    ins.setInt(2, e.getKey());
-                    ins.setString(3, moduleId.toString());
-                    ins.setBytes(4, snapshots.get(moduleId));
-                    ins.setBytes(5, states.get(moduleId));
-                    ins.addBatch();
+            SQLiteDatabase.inTransaction(getConnection(), conn -> {
+                try (PreparedStatement del = conn.prepareStatement(
+                        "DELETE FROM backpack_modules WHERE backpack_id = ?")) {
+                    del.setString(1, backpackId.toString());
+                    del.executeUpdate();
                 }
-                ins.executeBatch();
-            }
 
-            connection.commit();
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO backpack_modules(backpack_id, slot_index, module_id, module_snapshot, module_state) VALUES(?,?,?,?,?)")) {
+                    for (Map.Entry<Integer, UUID> e : slotToModule.entrySet()) {
+                        UUID moduleId = e.getValue();
+
+                        ins.setString(1, backpackId.toString());
+                        ins.setInt(2, e.getKey());
+                        ins.setString(3, moduleId.toString());
+                        ins.setBytes(4, snapshots.get(moduleId));
+                        ins.setBytes(5, states.get(moduleId));
+                        ins.addBatch();
+                    }
+                    ins.executeBatch();
+                }
+            });
         } catch (SQLException e) {
-            try {
-                connection.rollback();
-            } catch (SQLException ignored) {
-            }
             throw new RuntimeException("Failed to save modules for " + backpackId, e);
-        } finally {
-            try {
-                connection.setAutoCommit(true);
-            } catch (SQLException ignored) {
-            }
         }
     }
 
-    public List<BackpackSummary> listUnownedBackpacks(int limit) {
+    public synchronized List<BackpackSummary> listUnownedBackpacks(int limit) {
         limit = Math.max(1, Math.min(500, limit));
         try (PreparedStatement ps = getConnection().prepareStatement("""
                 SELECT backpack_id, backpack_type, owner_uuid, owner_name, created_at, updated_at
@@ -877,7 +828,7 @@ public final class SQLiteBackpackRepository {
             long updatedAt) {
     }
 
-    public long logVoidedItem(VoidedItemRecord rec) {
+    public synchronized long logVoidedItem(VoidedItemRecord rec) {
         if (rec == null || rec.itemBytes == null)
             return -1;
 
@@ -930,7 +881,7 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    public List<VoidedItemSummary> listVoidedItemsByPlayer(UUID playerUuid, int limit, boolean includeRecovered) {
+    public synchronized List<VoidedItemSummary> listVoidedItemsByPlayer(UUID playerUuid, int limit, boolean includeRecovered) {
         if (playerUuid == null)
             return List.of();
         limit = Math.max(1, Math.min(200, limit));
@@ -968,7 +919,7 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    public VoidedItemRecord getVoidedItem(long id) {
+    public synchronized VoidedItemRecord getVoidedItem(long id) {
         if (id <= 0)
             return null;
         try (PreparedStatement ps = getConnection().prepareStatement("""
@@ -988,7 +939,7 @@ public final class SQLiteBackpackRepository {
         }
     }
 
-    public boolean markVoidedItemRecovered(long id, UUID recoveredBy, String recoveredByName) {
+    public synchronized boolean markVoidedItemRecovered(long id, UUID recoveredBy, String recoveredByName) {
         if (id <= 0)
             return false;
         long now = System.currentTimeMillis();

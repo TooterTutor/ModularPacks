@@ -11,7 +11,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -61,18 +60,8 @@ public final class QuiverSelectionMenu implements Listener {
         });
     }
 
-    @EventHandler
-    public void onClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)
-                || !(event.getView().getTopInventory().getHolder() instanceof QuiverSelectionMenuHolder holder)) {
-            return;
-        }
-        event.setCancelled(true);
+    public void onClick(Player player, QuiverSelectionMenuHolder holder, InventoryClickEvent event) {
         int rawSlot = event.getRawSlot();
-        if (rawSlot < 0 || rawSlot >= InventoryType.HOPPER.getDefaultSize()) {
-            return;
-        }
-
         QuiverSelection selection;
         if (rawSlot == SELECTED_PROJECTILE_SLOT && event.isRightClick()) {
             BackpackData data = plugin.repo().loadOrCreate(holder.backpackId(), holder.backpackType());
@@ -98,13 +87,6 @@ public final class QuiverSelectionMenu implements Listener {
 
         if (resolver.saveSelection(holder.backpackId(), holder.backpackType(), holder.moduleId(), selection)) {
             render(player, holder);
-        }
-    }
-
-    @EventHandler
-    public void onDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof QuiverSelectionMenuHolder) {
-            event.setCancelled(true);
         }
     }
 

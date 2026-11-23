@@ -4,6 +4,7 @@ main: io.github.tootertutor.ModularPacks.ModularPacksPlugin
 api-version: "1.21"
 author: TooterTutor
 description: A fully survival friendly backpack system complete with tiers and modules
+depend: [ModularCore]
 
 commands:
   backpack:

@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import io.github.tootertutor.ModularCore.gui.InventorySlots;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
@@ -138,12 +139,8 @@ public final class RestockModuleListener implements Listener {
             return;
 
         // No dragging into this UI.
-        int topSize = top.getSize();
-        for (int raw : e.getRawSlots()) {
-            if (raw >= 0 && raw < topSize) {
-                e.setCancelled(true);
-                return;
-            }
+        if (InventorySlots.touchesTop(e, top.getSize())) {
+            e.setCancelled(true);
         }
     }
 

@@ -2,8 +2,14 @@ package io.github.tootertutor.ModularPacks;
 
 import org.bukkit.Bukkit;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import io.github.tootertutor.ModularCore.gui.ClickDebugListener;
+import io.github.tootertutor.ModularCore.gui.InventoryPreviewListener;
+import io.github.tootertutor.ModularCore.gui.MenuListener;
+import io.github.tootertutor.ModularCore.gui.MenuListener.DragProtection;
+import io.github.tootertutor.ModularCore.gui.WorkstationListener;
 import io.github.tootertutor.ModularPacks.api.ModularPacksAPI;
 import io.github.tootertutor.ModularPacks.api.modules.ModuleFactory;
 import io.github.tootertutor.ModularPacks.commands.CommandRouter;
@@ -18,21 +24,22 @@ import io.github.tootertutor.ModularPacks.commands.sub.SetTypeSubcommand;
 import io.github.tootertutor.ModularPacks.config.ConfigManager;
 import io.github.tootertutor.ModularPacks.config.LangManager;
 import io.github.tootertutor.ModularPacks.data.SQLiteBackpackRepository;
+import io.github.tootertutor.ModularPacks.gui.AdminBackpackListMenuHolder;
 import io.github.tootertutor.ModularPacks.gui.BackpackMenuRenderer;
+import io.github.tootertutor.ModularPacks.gui.RecipePreviewHolder;
 import io.github.tootertutor.ModularPacks.gui.ScreenRouter;
 import io.github.tootertutor.ModularPacks.item.Keys;
-import io.github.tootertutor.ModularPacks.listeners.backpack.AdminBackpackListMenuListener;
+import io.github.tootertutor.ModularPacks.listeners.backpack.AdminBackpackListMenuActions;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackEverlastingListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackMenuListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackPlacementListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackUseListener;
-import io.github.tootertutor.ModularPacks.listeners.backpack.ClickDebugListener;
+import io.github.tootertutor.ModularPacks.listeners.backpack.BackpackMenuDebug;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackBreakListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackChunkLoadListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackInteractListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PlacedBackpackPhysicsListener;
 import io.github.tootertutor.ModularPacks.listeners.backpack.PreventNestingListener;
-import io.github.tootertutor.ModularPacks.listeners.backpack.RecipePreviewListener;
 import io.github.tootertutor.ModularPacks.listeners.module.AnvilModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.module.CraftingModuleListener;
 import io.github.tootertutor.ModularPacks.listeners.module.FurnaceModuleListener;
@@ -42,11 +49,10 @@ import io.github.tootertutor.ModularPacks.listeners.module.PreventModulePlacemen
 import io.github.tootertutor.ModularPacks.listeners.module.PreventModuleUseListener;
 import io.github.tootertutor.ModularPacks.listeners.module.PumpSettingsListener;
 import io.github.tootertutor.ModularPacks.listeners.module.RestockModuleListener;
-import io.github.tootertutor.ModularPacks.listeners.module.SmithingModuleListener;
-import io.github.tootertutor.ModularPacks.listeners.module.StonecutterModuleListener;
 import io.github.tootertutor.ModularPacks.model.ModelManager;
 import io.github.tootertutor.ModularPacks.modules.ModuleEngineService;
 import io.github.tootertutor.ModularPacks.modules.policy.ModulePolicyService;
+import io.github.tootertutor.ModularPacks.modules.quiver.QuiverSelectionMenuHolder;
 import io.github.tootertutor.ModularPacks.modules.quiver.QuiverService;
 import io.github.tootertutor.ModularPacks.recipes.RecipeManager;
 import io.github.tootertutor.ModularPacks.resource.ResourcePackService;
@@ -128,12 +134,18 @@ public final class ModularPacksPlugin extends JavaPlugin {
         this.quiverService = new QuiverService(this);
         this.quiverService.start();
         Bukkit.getPluginManager().registerEvents(this.quiverService, this);
-        Bukkit.getPluginManager().registerEvents(this.quiverService.selectionMenu(), this);
+        var quiverMenu = this.quiverService.selectionMenu();
+        Bukkit.getPluginManager().registerEvents(quiverMenu, this);
+        Bukkit.getPluginManager().registerEvents(
+                new MenuListener<>(QuiverSelectionMenuHolder.class, DragProtection.ALL, quiverMenu::onClick), this);
 
         Bukkit.getPluginManager().registerEvents(new BackpackUseListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new BackpackMenuListener(this, backpackMenuRenderer, screenRouter),
-                this);
-        Bukkit.getPluginManager().registerEvents(new AdminBackpackListMenuListener(this), this);
+        var backpackMenus = new BackpackMenuListener(this, backpackMenuRenderer, screenRouter);
+        Bukkit.getPluginManager().registerEvents(backpackMenus, this);
+        backpackMenus.registerSubmenuListeners();
+        var adminMenu = new AdminBackpackListMenuActions(this);
+        Bukkit.getPluginManager().registerEvents(
+                new MenuListener<>(AdminBackpackListMenuHolder.class, DragProtection.TOP, adminMenu::onClick), this);
         Bukkit.getPluginManager().registerEvents(new ModuleRecipeListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ModuleFilterScreenListener(this), this);
         Bukkit.getPluginManager().registerEvents(new RestockModuleListener(this), this);
@@ -152,15 +164,19 @@ public final class ModularPacksPlugin extends JavaPlugin {
                 this);
         Bukkit.getPluginManager().registerEvents(new CraftingModuleListener(this, screenRouter.getCraftingModule()),
                 this);
-        Bukkit.getPluginManager().registerEvents(new SmithingModuleListener(this, screenRouter.getSmithingModule()),
-                this);
-        Bukkit.getPluginManager()
-                .registerEvents(new StonecutterModuleListener(this, screenRouter.getStonecutterModule()), this);
-        Bukkit.getPluginManager().registerEvents(new RecipePreviewListener(), this);
+        var smithing = screenRouter.getSmithingModule();
+        Bukkit.getPluginManager().registerEvents(new WorkstationListener(this, InventoryType.SMITHING,
+                smithing::hasSession, item -> cfg().isAllowedInBackpack(item),
+                (player, inventory) -> smithing.handleClose(this, player, inventory)), this);
+        var stonecutter = screenRouter.getStonecutterModule();
+        Bukkit.getPluginManager().registerEvents(new WorkstationListener(this, InventoryType.STONECUTTER,
+                stonecutter::hasSession, item -> cfg().isAllowedInBackpack(item),
+                (player, inventory) -> stonecutter.handleClose(this, player, inventory)), this);
+        Bukkit.getPluginManager().registerEvents(new InventoryPreviewListener(RecipePreviewHolder.class), this);
         Bukkit.getPluginManager().registerEvents(modelManager, this);
 
         if (cfg().debugClickLog()) {
-            this.clickDebug = new ClickDebugListener(this);
+            this.clickDebug = new ClickDebugListener(this, BackpackMenuDebug::describeHolder);
             this.clickDebug.start();
             Bukkit.getPluginManager().registerEvents(this.clickDebug, this);
             getLogger().warning("Click debug logging is enabled; writing to click-events.log");
@@ -287,7 +303,7 @@ public final class ModularPacksPlugin extends JavaPlugin {
 
         boolean wantClickLog = cfg().debugClickLog();
         if (wantClickLog && clickDebug == null) {
-            this.clickDebug = new ClickDebugListener(this);
+            this.clickDebug = new ClickDebugListener(this, BackpackMenuDebug::describeHolder);
             this.clickDebug.start();
             Bukkit.getPluginManager().registerEvents(this.clickDebug, this);
             getLogger().warning("Click debug logging is enabled; writing to click-events.log");

@@ -18,11 +18,13 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+
+import io.github.tootertutor.ModularCore.config.NavigationSettings;
+import io.github.tootertutor.ModularCore.config.StorageTierSettings;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.resource.ResourcePackDefinition;
@@ -173,14 +175,10 @@ public final class ConfigManager {
         backpackCloseSound = parseSound(cfg.getString("modularpacks.BackpackCloseSound", "CHEST_CLOSE"),
                 Sound.BLOCK_CHEST_CLOSE);
 
-        navPageButtons = mat(cfg.getString("modularpacks.NavPageButtons", "ARROW"), Material.ARROW);
-
-        navBorderFiller = mat(cfg.getString("modularpacks.NavBorderFiller", "GRAY_STAINED_GLASS_PANE"),
-                Material.GRAY_STAINED_GLASS_PANE);
-
-        unlockedUpgradeSlotMaterial = mat(
-                cfg.getString("modularpacks.ModuleSlotMaterial", "WHITE_STAINED_GLASS_PANE"),
-                Material.WHITE_STAINED_GLASS_PANE);
+        var navigation = NavigationSettings.load(cfg, "modularpacks");
+        navPageButtons = navigation.pageButtons();
+        navBorderFiller = navigation.borderFiller();
+        unlockedUpgradeSlotMaterial = navigation.moduleSlot();
 
         // Global insert blacklist (Magnet respects this; other insertion paths may as
         // well)
@@ -220,13 +218,9 @@ public final class ConfigManager {
                 if (s == null)
                     continue;
 
-                int rows = Math.max(1, Math.min(100, s.getInt("Rows", 2))); // Clamp 1-100
-                int upgradeSlots = Math.max(0, s.getInt("UpgradeSlots", 0)); // Clamp >= 0
-                String displayName = firstString(s, "DisplayName", key);
-                List<String> lore = firstStringList(s, "Lore");
-                int customModelData = firstInt(s, "CustomModelData", 0);
+                var tier = StorageTierSettings.load(key, s);
                 int defaultColor = parseDefaultColor(s, 0xFFFFFF);
-                String skullData = firstString(s, "SkullData", null);
+                String skullData = StorageTierSettings.firstString(s, "SkullData", null);
                 if (skullData != null) {
                     skullData = skullData.trim();
                     if (skullData.isEmpty())
@@ -234,11 +228,12 @@ public final class ConfigManager {
                 }
 
                 Material output = mat(
-                        firstString(s, "OutputMaterial", s.getString("CraftingRecipe.OutputMaterial", "PLAYER_HEAD")),
+                        StorageTierSettings.firstString(s, "OutputMaterial", s.getString("CraftingRecipe.OutputMaterial", "PLAYER_HEAD")),
                         Material.PLAYER_HEAD);
 
                 types.put(key.toLowerCase(Locale.ROOT),
-                        new BackpackTypeDef(key, displayName, rows, upgradeSlots, output, lore, customModelData,
+                        new BackpackTypeDef(key, tier.displayName(), tier.rows(), tier.upgradeSlots(), output,
+                                tier.lore(), tier.customModelData(),
                                 skullData, defaultColor));
             }
         }
@@ -701,106 +696,6 @@ public final class ConfigManager {
         }
 
         return fallback;
-    }
-
-    private static ConfigurationSection firstRecipeSection(ConfigurationSection typeSec) {
-        if (typeSec == null)
-            return null;
-
-        ConfigurationSection sec = typeSec.getConfigurationSection("CraftingRecipe");
-        if (sec != null) {
-            if (sec.contains("Type") || sec.contains("Pattern") || sec.contains("Ingredients")
-                    || sec.contains("OutputMaterial")
-                    || sec.contains("DisplayName") || sec.contains("Lore") || sec.contains("CustomModelData")) {
-                return sec;
-            }
-            for (String k : sec.getKeys(false)) {
-                ConfigurationSection child = sec.getConfigurationSection(k);
-                if (child != null)
-                    return child;
-            }
-        }
-
-        List<?> rawList = typeSec.getList("CraftingRecipe");
-        if (rawList != null) {
-            for (Object elem : rawList) {
-                ConfigurationSection direct = asSection(elem);
-                if (direct != null)
-                    return direct;
-                if (elem instanceof Map<?, ?> wrapper) {
-                    if (wrapper.containsKey("Type") || wrapper.containsKey("Pattern")
-                            || wrapper.containsKey("Ingredients")
-                            || wrapper.containsKey("OutputMaterial") || wrapper.containsKey("DisplayName")
-                            || wrapper.containsKey("Lore") || wrapper.containsKey("CustomModelData")) {
-                        ConfigurationSection cs = asSection(wrapper);
-                        if (cs != null)
-                            return cs;
-                    }
-                    for (Object v : wrapper.values()) {
-                        ConfigurationSection cs = asSection(v);
-                        if (cs != null)
-                            return cs;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static ConfigurationSection asSection(Object value) {
-        if (value == null)
-            return null;
-        if (value instanceof ConfigurationSection cs)
-            return cs;
-        if (value instanceof Map<?, ?> m) {
-            MemoryConfiguration mem = new MemoryConfiguration();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> typed = (Map<String, Object>) m;
-            return mem.createSection("r", typed);
-        }
-        return null;
-    }
-
-    private static String firstString(ConfigurationSection typeSec, String path, String fallback) {
-        if (typeSec == null)
-            return fallback;
-        String v = typeSec.getString(path, null);
-        if (v != null)
-            return v;
-        ConfigurationSection first = firstRecipeSection(typeSec);
-        if (first != null) {
-            String v2 = first.getString(path, null);
-            if (v2 != null)
-                return v2;
-        }
-        return fallback;
-    }
-
-    private static int firstInt(ConfigurationSection typeSec, String path, int fallback) {
-        if (typeSec == null)
-            return fallback;
-        if (typeSec.contains(path))
-            return typeSec.getInt(path, fallback);
-        ConfigurationSection first = firstRecipeSection(typeSec);
-        if (first != null && first.contains(path))
-            return first.getInt(path, fallback);
-        return fallback;
-    }
-
-    private static List<String> firstStringList(ConfigurationSection typeSec, String path) {
-        if (typeSec == null)
-            return List.of();
-        List<String> v = typeSec.getStringList(path);
-        if (v != null && !v.isEmpty())
-            return v;
-        ConfigurationSection first = firstRecipeSection(typeSec);
-        if (first != null) {
-            List<String> v2 = first.getStringList(path);
-            if (v2 != null && !v2.isEmpty())
-                return v2;
-        }
-        return List.of();
     }
 
     public BackpackTypeDef getType(String input) {

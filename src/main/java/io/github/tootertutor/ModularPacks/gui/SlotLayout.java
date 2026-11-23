@@ -1,7 +1,5 @@
 package io.github.tootertutor.ModularPacks.gui;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public final class SlotLayout {
@@ -9,151 +7,42 @@ public final class SlotLayout {
     }
 
     public static int bottomRowStart(int invSize) {
-        return invSize - 9;
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.bottomRowStart(invSize);
     }
 
     public static boolean isBottomRow(int invSize, int slot) {
-        int start = bottomRowStart(invSize);
-        return slot >= start && slot < invSize;
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.isBottomRow(invSize, slot);
     }
 
     public static int prevButtonSlot(int invSize) {
-        return invSize - 9;
-    } // first slot of nav row
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.prevButtonSlot(invSize);
+    }
 
     public static int nextButtonSlot(int invSize) {
-        return invSize - 1;
-    } // last slot of nav row
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.nextButtonSlot(invSize);
+    }
 
     public static int navRowSlot(int invSize, int rowOffset) {
-        if (rowOffset < 0 || rowOffset >= 9) {
-            throw new IllegalArgumentException("Navigation-row offset must be between 0 and 8");
-        }
-        return bottomRowStart(invSize) + rowOffset;
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.navRowSlot(invSize, rowOffset);
     }
 
-    /** Center items in a nine-slot row with a fixed number of empty slots between them. */
     public static List<Integer> centeredRowSlots(int rowStart, int itemCount, int gap) {
-        if (itemCount <= 0) {
-            return List.of();
-        }
-        if (gap < 0) {
-            throw new IllegalArgumentException("Row gap cannot be negative");
-        }
-
-        int span = itemCount + gap * (itemCount - 1);
-        if (span > 9) {
-            throw new IllegalArgumentException("Items and gaps do not fit in one inventory row");
-        }
-
-        int firstSlot = rowStart + (9 - span) / 2;
-        List<Integer> slots = new ArrayList<>(itemCount);
-        for (int i = 0; i < itemCount; i++) {
-            slots.add(firstSlot + i * (gap + 1));
-        }
-        return Collections.unmodifiableList(slots);
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.centeredRowSlots(rowStart, itemCount, gap);
     }
 
-    /**
-     * Center the upgrade sockets on the bottom row. Max 5 sockets (leaves room for
-     * buttons).
-     */
     public static List<Integer> upgradeSocketSlots(int invSize, int upgradeSlots, boolean paginated) {
-        upgradeSlots = Math.max(0, Math.min(5, upgradeSlots));
-        List<Integer> out = new ArrayList<>();
-        if (upgradeSlots == 0)
-            return out;
-
-        int rowStart = bottomRowStart(invSize);
-
-        // Reserve fixed spots: sort (offset 1) and mode (offset 7). If paginated,
-        // also reserve prev/next (offsets 0 and 8).
-        int[] preferredOffsets = paginated
-                ? new int[] { 4, 5, 3, 6, 2 } // keep center bias; 0/8 reserved for prev/next
-                : new int[] { 4, 5, 3, 6, 2, 0, 8 };
-
-        for (int offset : preferredOffsets) {
-            if (out.size() >= upgradeSlots)
-                break;
-            if (offset == 1 || offset == 7)
-                continue;
-            if (paginated && (offset == 0 || offset == 8))
-                continue;
-            out.add(rowStart + offset);
-        }
-
-        // Keep the selected sockets center-biased, but expose them in stable
-        // left-to-right order so socket index 0..4 matches visual medallion slots.
-        Collections.sort(out);
-
-        return out;
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.upgradeSocketSlots(invSize, upgradeSlots, paginated);
     }
 
-    /** Storage area = everything except bottom row (if nav row exists). */
     public static int storageAreaSize(int invSize, boolean hasNavRow) {
-        return hasNavRow ? invSize - 9 : invSize;
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.storageAreaSize(invSize, hasNavRow);
     }
 
-    /**
-     * Pick a bottom-row slot for a mode button that mirrors the sort button
-     * position.
-     * If sort is on the left, mode is on the right, and vice versa.
-     */
     public static int modeButtonSlot(int invSize, List<Integer> upgradeSlots, boolean paginated, int sortSlot) {
-        int bottomStart = bottomRowStart(invSize);
-        int prev = prevButtonSlot(invSize);
-        int next = nextButtonSlot(invSize);
-
-        int preferred = bottomStart + 1; // second-from-left
-        if (!isBlocked(preferred, bottomStart, invSize, upgradeSlots, paginated, prev, next, sortSlot))
-            return preferred;
-
-        // Fallback: scan from left to right for the first free slot (excluding sort)
-        for (int i = 0; i < 9; i++) {
-            int candidate = bottomStart + i;
-            if (candidate == sortSlot)
-                continue;
-            if (!isBlocked(candidate, bottomStart, invSize, upgradeSlots, paginated, prev, next, sortSlot))
-                return candidate;
-        }
-
-        return -1;
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.modeButtonSlot(invSize, upgradeSlots, paginated, sortSlot);
     }
 
-    private static boolean isBlocked(int slot, int bottomStart, int invSize, List<Integer> upgradeSlots,
-            boolean paginated, int prev, int next, int sortSlot) {
-        if (slot < bottomStart || slot >= invSize)
-            return true;
-        if (paginated && (slot == prev || slot == next))
-            return true;
-        if (upgradeSlots != null && upgradeSlots.contains(slot))
-            return true;
-        if (sortSlot >= 0 && slot == sortSlot)
-            return true;
-        return false;
-    }
-
-    /**
-     * Pick a bottom-row slot for a sort button that does not collide with upgrade
-     * sockets (and does not collide with page buttons if paginated).
-     *
-     * @return inventory slot index, or -1 if no slot is available.
-     */
     public static int sortButtonSlot(int invSize, List<Integer> upgradeSlots, boolean paginated) {
-        int bottomStart = bottomRowStart(invSize);
-        int prev = prevButtonSlot(invSize);
-        int next = nextButtonSlot(invSize);
-
-        int preferred = bottomStart + 7; // second-from-right
-        if (!isBlocked(preferred, bottomStart, invSize, upgradeSlots, paginated, prev, next, -1))
-            return preferred;
-
-        // Fallback: scan from right to left for the first free slot
-        for (int i = 8; i >= 0; i--) {
-            int candidate = bottomStart + i;
-            if (!isBlocked(candidate, bottomStart, invSize, upgradeSlots, paginated, prev, next, -1))
-                return candidate;
-        }
-        return -1;
+        return io.github.tootertutor.ModularCore.gui.SlotLayout.sortButtonSlot(invSize, upgradeSlots, paginated);
     }
 }

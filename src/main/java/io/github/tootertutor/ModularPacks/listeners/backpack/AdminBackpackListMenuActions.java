@@ -4,11 +4,8 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
@@ -19,36 +16,19 @@ import io.github.tootertutor.ModularPacks.gui.AdminBackpackListMenuHolder.Intera
 import io.github.tootertutor.ModularPacks.item.BackpackItems;
 import io.github.tootertutor.ModularPacks.util.Text;
 
-public final class AdminBackpackListMenuListener implements Listener {
+public final class AdminBackpackListMenuActions {
 
     private final ModularPacksPlugin plugin;
     private final AdminBackpackListMenu menu;
     private final BackpackItems backpackItems;
 
-    public AdminBackpackListMenuListener(ModularPacksPlugin plugin) {
+    public AdminBackpackListMenuActions(ModularPacksPlugin plugin) {
         this.plugin = plugin;
         this.menu = new AdminBackpackListMenu(plugin);
         this.backpackItems = new BackpackItems(plugin);
     }
 
-    @EventHandler
-    public void onClick(InventoryClickEvent e) {
-        if (!(e.getWhoClicked() instanceof Player player)) {
-            return;
-        }
-
-        if (!(e.getView().getTopInventory().getHolder() instanceof AdminBackpackListMenuHolder holder)) {
-            return;
-        }
-
-        e.setCancelled(true);
-
-        int raw = e.getRawSlot();
-        int topSize = e.getView().getTopInventory().getSize();
-        if (raw < 0 || raw >= topSize) {
-            return;
-        }
-
+    public void onClick(Player player, AdminBackpackListMenuHolder holder, InventoryClickEvent e) {
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null) {
             return;
@@ -150,20 +130,5 @@ public final class AdminBackpackListMenuListener implements Listener {
         viewer.sendMessage(
                 Text.c(plugin.lang().text(viewer, "gui.admin.recoveredOwner", "owner", owner.getName(), "id",
                         entry.backpackId())));
-    }
-
-    @EventHandler
-    public void onDrag(InventoryDragEvent e) {
-        if (!(e.getView().getTopInventory().getHolder() instanceof AdminBackpackListMenuHolder)) {
-            return;
-        }
-
-        int topSize = e.getView().getTopInventory().getSize();
-        for (int raw : e.getRawSlots()) {
-            if (raw >= 0 && raw < topSize) {
-                e.setCancelled(true);
-                return;
-            }
-        }
     }
 }

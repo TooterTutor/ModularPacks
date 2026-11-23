@@ -30,6 +30,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import io.github.tootertutor.ModularCore.gui.MenuListener;
+import io.github.tootertutor.ModularCore.gui.MenuListener.DragProtection;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.config.ScreenType;
 import io.github.tootertutor.ModularPacks.data.BackpackData;
@@ -97,38 +99,27 @@ public final class BackpackMenuListener implements Listener {
         this.settingsMenu = new BackpackSettingsMenu(plugin, sharingHost, sharingJoiner);
     }
 
+    public void registerSubmenuListeners() {
+        var pluginManager = plugin.getServer().getPluginManager();
+        pluginManager.registerEvents(new MenuListener<>(ResourcePackMenuHolder.class, DragProtection.NONE,
+                (player, holder, event) -> plugin.resourcePacks().handleMenuClick(player, holder, event.getRawSlot())),
+                plugin);
+        pluginManager.registerEvents(new MenuListener<>(SettingsMenuHolder.class, DragProtection.NONE,
+                (player, holder, event) -> settingsMenu.handleClick(
+                        player, holder.backpackMenuHolder(), event.getRawSlot(), event.getClick())),
+                plugin);
+        pluginManager.registerEvents(new MenuListener<>(ColorPickerHolder.class, DragProtection.NONE,
+                (player, holder, event) -> settingsMenu.handleColorPickerClick(
+                        player, holder.backpackMenuHolder(), event.getRawSlot(), event.getClick())),
+                plugin);
+    }
+
     @EventHandler
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player))
             return;
 
         var topHolder = e.getView().getTopInventory().getHolder();
-
-        if (topHolder instanceof ResourcePackMenuHolder resourcePackHolder) {
-            e.setCancelled(true);
-            if (e.getRawSlot() >= 0 && e.getRawSlot() < e.getView().getTopInventory().getSize()) {
-                plugin.resourcePacks().handleMenuClick(player, resourcePackHolder, e.getRawSlot());
-            }
-            return;
-        }
-
-        // Handle settings menu clicks
-        if (topHolder instanceof SettingsMenuHolder settingsHolder) {
-            e.setCancelled(true);
-            if (e.getRawSlot() >= 0 && e.getRawSlot() < e.getView().getTopInventory().getSize()) {
-                settingsMenu.handleClick(player, settingsHolder.backpackMenuHolder(), e.getRawSlot(), e.getClick());
-            }
-            return;
-        }
-
-        if (topHolder instanceof ColorPickerHolder colorHolder) {
-            e.setCancelled(true);
-            if (e.getRawSlot() >= 0 && e.getRawSlot() < e.getView().getTopInventory().getSize()) {
-                settingsMenu.handleColorPickerClick(player, colorHolder.backpackMenuHolder(), e.getRawSlot(),
-                        e.getClick());
-            }
-            return;
-        }
 
         if (!(topHolder instanceof BackpackMenuHolder holder))
             return;

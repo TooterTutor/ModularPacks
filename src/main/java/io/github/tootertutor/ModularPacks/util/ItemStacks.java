@@ -8,10 +8,10 @@ public final class ItemStacks {
     }
 
     public static boolean isAir(ItemStack item) {
-        return item == null || item.getType() == null || item.getType().isAir();
+        return io.github.tootertutor.ModularCore.util.ItemStacks.isAir(item);
     }
 
     public static boolean isNotAir(ItemStack item) {
-        return !isAir(item);
+        return io.github.tootertutor.ModularCore.util.ItemStacks.isNotAir(item);
     }
 }

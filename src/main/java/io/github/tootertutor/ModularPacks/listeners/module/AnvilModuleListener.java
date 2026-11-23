@@ -3,7 +3,6 @@ package io.github.tootertutor.ModularPacks.listeners.module;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -11,10 +10,10 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
+import io.github.tootertutor.ModularCore.gui.WorkstationListener;
 import io.github.tootertutor.ModularPacks.ModularPacksPlugin;
 import io.github.tootertutor.ModularPacks.item.Keys;
 import io.github.tootertutor.ModularPacks.modules.anvil.AnvilModule;
-import io.github.tootertutor.ModularPacks.util.ItemStacks;
 
 public final class AnvilModuleListener implements Listener {
 
@@ -44,39 +43,9 @@ public final class AnvilModuleListener implements Listener {
             }
         }
 
-        // Respect container rules for the anvil module too (it persists items in
-        // moduleStates).
-        int topSize = e.getView().getTopInventory().getSize();
-        int raw = e.getRawSlot();
-        boolean clickedTop = e.getClickedInventory() != null
-                && e.getClickedInventory().equals(e.getView().getTopInventory());
-
-        if (clickedTop && raw >= 0 && raw < topSize) {
-            InventoryAction action = e.getAction();
-            if (action == InventoryAction.PLACE_ALL
-                    || action == InventoryAction.PLACE_ONE
-                    || action == InventoryAction.PLACE_SOME
-                    || action == InventoryAction.SWAP_WITH_CURSOR) {
-                if (ItemStacks.isNotAir(cursor) && !plugin.cfg().isAllowedInBackpack(cursor)) {
-                    e.setCancelled(true);
-                }
-            }
-            if (action == InventoryAction.HOTBAR_SWAP) {
-                int btn = e.getHotbarButton();
-                if (btn >= 0 && btn <= 8) {
-                    ItemStack hotbar = player.getInventory().getItem(btn);
-                    if (ItemStacks.isNotAir(hotbar) && !plugin.cfg().isAllowedInBackpack(hotbar)) {
-                        e.setCancelled(true);
-                    }
-                }
-            }
-        }
-
-        if (!clickedTop && e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
-            ItemStack moving = e.getCurrentItem();
-            if (ItemStacks.isNotAir(moving) && !plugin.cfg().isAllowedInBackpack(moving)) {
-                e.setCancelled(true);
-            }
+        if (WorkstationListener.isRejectedClick(e, player, e.getView().getTopInventory(),
+                plugin.cfg()::isAllowedInBackpack)) {
+            e.setCancelled(true);
         }
     }
 
@@ -89,18 +58,9 @@ public final class AnvilModuleListener implements Listener {
         if (e.getView().getTopInventory().getType() != InventoryType.ANVIL)
             return;
 
-        ItemStack cursor = e.getOldCursor();
-        if (ItemStacks.isAir(cursor))
-            return;
-        if (plugin.cfg().isAllowedInBackpack(cursor))
-            return;
-
-        int topSize = e.getView().getTopInventory().getSize();
-        for (int raw : e.getRawSlots()) {
-            if (raw >= 0 && raw < topSize) {
-                e.setCancelled(true);
-                return;
-            }
+        if (WorkstationListener.isRejectedDrag(e, e.getView().getTopInventory(),
+                plugin.cfg()::isAllowedInBackpack)) {
+            e.setCancelled(true);
         }
     }
 
